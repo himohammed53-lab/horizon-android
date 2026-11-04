@@ -9,6 +9,12 @@ Helper files are renamed and expose `run` for static calls. Original
 `horizon-mixin.toml` files are retained for reference, not used for building:
 this directory is not a directly installable `.hnmod` bundle.
 
+`treefeller` is the exception: original code of this fork, not an upstream mod.
+It adds Falling Trees (break the bottom log and the trunk above it comes down)
+and Vein Miner (mine one ore and the connected vein breaks), each a row in
+Options > Mods with its own settings. Both run from the `native_destroy_block`
+hook and break the extra blocks through the game's own player break.
+
 Android changes reset profile-scoped state on launcher transitions, retain the
 Android debug text scale and preserve the code-of-conduct screen. Update the
 portable runtime tests and Android checks when changing these adapters.

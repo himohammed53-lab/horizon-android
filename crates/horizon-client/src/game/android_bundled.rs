@@ -104,6 +104,26 @@ mod smartf3_settings;
 #[path = "android_bundled/smartf3/smartf3_click.rs"]
 mod smartf3_click;
 
+#[cfg(target_os = "android")]
+#[path = "android_bundled/treefeller/runtime.rs"]
+pub(super) mod treefeller;
+
+#[cfg(target_os = "android")]
+#[path = "android_bundled/treefeller/treefeller_list.rs"]
+mod treefeller_list;
+
+#[cfg(target_os = "android")]
+#[path = "android_bundled/treefeller/treefeller_settings.rs"]
+mod treefeller_settings;
+
+#[cfg(target_os = "android")]
+#[path = "android_bundled/treefeller/treefeller_click.rs"]
+mod treefeller_click;
+
+#[cfg(target_os = "android")]
+#[path = "android_bundled/treefeller/treefeller_destroy.rs"]
+mod treefeller_destroy;
+
 pub(super) fn native_key(game: &mut Game<'_>, key: &str, pressed: bool) {
     let _ = (&game, &key, &pressed);
     #[cfg(target_os = "android")]
@@ -136,6 +156,7 @@ pub(super) fn native_mods(game: &mut Game<'_>, mods: &mut Vec<NativeMod>) {
         minimap_list::run(&mut *mods);
         recipes_list::run(&mut *mods);
         smartf3_list::run(&mut *mods);
+        treefeller_list::run(&mut *mods);
     }
 }
 
@@ -147,6 +168,7 @@ pub(super) fn native_settings(game: &mut Game<'_>, mod_id: &str, buttons: &mut V
         minimap_settings::run(&mut *game, mod_id, &mut *buttons);
         recipes_settings::run(&mut *game, mod_id, &mut *buttons);
         smartf3_settings::run(&mut *game, mod_id, &mut *buttons);
+        treefeller_settings::run(&mut *game, mod_id, &mut *buttons);
     }
 }
 
@@ -158,6 +180,20 @@ pub(super) fn native_settings_click(game: &mut Game<'_>, mod_id: &str, button: u
         minimap_click::run(&mut *game, mod_id, button);
         recipes_click::run(&mut *game, mod_id, button);
         smartf3_click::run(&mut *game, mod_id, button);
+        treefeller_click::run(&mut *game, mod_id, button);
+    }
+}
+
+pub(super) fn native_destroy_block(
+    game: &mut Game<'_>,
+    pos: [i32; 3],
+    state: BlockStateId,
+    canceled: &mut bool,
+) {
+    let _ = (&game, &pos, &state, &canceled);
+    #[cfg(target_os = "android")]
+    {
+        treefeller_destroy::run(&mut *game, pos, &mut *canceled);
     }
 }
 
@@ -199,4 +235,5 @@ pub(super) fn reset() {
     official_minimap::reset();
     official_recipes::set_viewer(None);
     smartf3_native::reset();
+    treefeller::reset();
 }

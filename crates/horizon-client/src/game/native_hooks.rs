@@ -2156,6 +2156,7 @@ impl Game<'_> {
         state: BlockStateId,
         canceled: &mut bool,
     ) {
+        super::android_bundled::native_destroy_block(self, pos, state, canceled);
         let _ = (pos, state, canceled);
     }
     /// A player placed `stack` as the block `state` at `pos`: where
