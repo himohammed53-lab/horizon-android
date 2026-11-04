@@ -63,7 +63,16 @@ def download_game(version, directory):
     # and client/server jar hashes are checked against the engine pins below.
     versions = directory / 'versions' / version
     manifest_path = versions / f'{version}.json'
-    lab.download(entry['url'], manifest_path, entry['sha1'])
+    # Mojang republishes the 26.3 version JSON now and then, and horizon-prepare
+    # accepts only the hashes listed in research-lock.json. The pinned copy stays
+    # downloadable by its hash, so take that one; the catalog's current file is
+    # only the fallback, and horizon-prepare still rejects it if it is unknown.
+    pinned_url = f"https://piston-meta.mojang.com/v1/packages/{pins['manifest_sha1']}/{version}.json"
+    try:
+        lab.download(pinned_url, manifest_path, pins['manifest_sha1'])
+    except Exception as error:
+        print(f'Pinned {version} version file unavailable ({error}); using the catalog entry', flush=True)
+        lab.download(entry['url'], manifest_path, entry['sha1'])
     manifest = json.loads(manifest_path.read_text())
     files = []
     for side in ['client', 'server']:
