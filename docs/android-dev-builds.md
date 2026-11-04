@@ -12,6 +12,16 @@ version contains the run number and source commit. Test data is separate;
 worlds and accounts are not automatically copied from the release app.
 The workflow does not publish GitHub Releases or send Discord messages.
 
+## Without a signing secret
+
+A fork that has not set `ANDROID_DEV_KEYSTORE_BASE64` still builds: the workflow
+generates one dev key and keeps it in the GitHub Actions cache, so its builds are
+signed alike and install over each other. GitHub drops a cache that nothing has
+used for 7 days; the next build then makes a new key, and Android refuses to
+update the app signed with the old one. Copy the worlds out of Horizon Android
+in the system Files app, uninstall the old dev app, then install the new one.
+Setting the secret below avoids this.
+
 ## One-time maintainer setup
 
 Create a **new, dedicated dev key**, not the release signing key. In PowerShell:

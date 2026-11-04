@@ -49,19 +49,37 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           persist-credentials: false
+      - name: Cache the generated dev signing identity
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.horizon-dev-signing
+          key: horizon-dev-signing-v1
       - name: Restore dedicated dev signing identity
         env:
           DEV_KEYSTORE: ${{ secrets.ANDROID_DEV_KEYSTORE_BASE64 }}
         run: |
           python3 - <<'PY'
-          import base64, os
+          import base64, os, shutil, subprocess
           from pathlib import Path
           value = os.environ.get('DEV_KEYSTORE', '')
-          if not value:
-              raise SystemExit('Set ANDROID_DEV_KEYSTORE_BASE64 first; see docs/android-dev-builds.md')
           path = Path('.local/android/debug.keystore')
           path.parent.mkdir(parents=True, exist_ok=True)
-          path.write_bytes(base64.b64decode(value, validate=True))
+          if value:
+              path.write_bytes(base64.b64decode(value, validate=True))
+          else:
+              # No secret set: generate one dev key and keep it in the cache, so
+              # the builds of this fork are signed alike and update each other.
+              # GitHub drops a cache unused for 7 days; the next build then
+              # makes a new key, and Android needs the old app uninstalled.
+              kept = Path.home() / '.horizon-dev-signing' / 'debug.keystore'
+              if not kept.exists():
+                  kept.parent.mkdir(parents=True, exist_ok=True)
+                  subprocess.run(['keytool', '-genkeypair', '-keystore', str(kept),
+                                  '-storepass', 'android', '-keypass', 'android',
+                                  '-alias', 'androiddebugkey', '-keyalg', 'RSA',
+                                  '-validity', '10000',
+                                  '-dname', 'CN=Horizon Android Dev CI'], check=True)
+              shutil.copyfile(kept, path)
           path.chmod(0o600)
           PY
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
