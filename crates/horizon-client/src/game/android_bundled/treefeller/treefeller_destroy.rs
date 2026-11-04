@@ -21,6 +21,10 @@ pub(super) fn run(game: &mut Game<'_>, pos: [i32; 3], canceled: &mut bool) {
     let origin = name_at(game, pos);
     let sneaking = game.keys.contains(&KeyCode::ShiftLeft);
     for kind in tf::Kind::ALL {
+        // Off in the Mods page, or switched off in the mod's own page.
+        if !game.native_on(kind.id()) {
+            continue;
+        }
         let settings = tf::settings(kind, |key| game.native_setting(kind.id(), key));
         if !settings.enabled || (settings.sneak_only && !sneaking) {
             continue;

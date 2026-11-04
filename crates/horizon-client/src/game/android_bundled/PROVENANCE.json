@@ -7,13 +7,6 @@
     "changes": "Static Android adapters; helper visibility/names adapted; reset profile state. SmartF3 preserves the Android F3 scale and code-of-conduct screen."
   },
   {
-    "id": "minimap",
-    "commit": "e3ee0a7c450b28c3ed58fa59a4881ec78c5ee2e0",
-    "repository": "https://github.com/horizon-rust/horizon-mods",
-    "license": "MIT",
-    "changes": "Static Android adapters; helper visibility/names adapted; reset profile state. SmartF3 preserves the Android F3 scale and code-of-conduct screen."
-  },
-  {
     "id": "recipes",
     "commit": "e3ee0a7c450b28c3ed58fa59a4881ec78c5ee2e0",
     "repository": "https://github.com/horizon-rust/horizon-mods",
@@ -33,5 +26,12 @@
     "repository": "https://github.com/d3grando/smartf3",
     "license": "MIT",
     "changes": "Static Android adapters; helper visibility/names adapted; reset profile state. SmartF3 preserves the Android F3 scale and code-of-conduct screen."
+  },
+  {
+    "id": "gamma",
+    "commit": "original",
+    "repository": "https://github.com/himohammed53-lab/horizon-android",
+    "license": "MIT",
+    "changes": "Original code of this fork, not taken from an upstream mod: Gamma, listed in Options > Mods; sets the renderer's brightness each frame."
   }
 ]

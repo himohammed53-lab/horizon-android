@@ -76,7 +76,7 @@ and its logo are trademarks of the Microsoft group of companies; Horizon is not 
 
 ## Statically bundled Android mods
 
-Zoom, Minimap and Recipes are adapted from [horizon-rust/horizon-mods](https://github.com/horizon-rust/horizon-mods/tree/e3ee0a7c450b28c3ed58fa59a4881ec78c5ee2e0/native),
+Zoom and Recipes are adapted from [horizon-rust/horizon-mods](https://github.com/horizon-rust/horizon-mods/tree/e3ee0a7c450b28c3ed58fa59a4881ec78c5ee2e0/native),
 copyright 2026 Ludovic Marie and the Horizon contributors, MIT.
 SmartF3 is adapted from [d3grando/smartf3](https://github.com/d3grando/smartf3),
 copyright 2026 d3grando, MIT. Exact revisions and adaptation notes are recorded in

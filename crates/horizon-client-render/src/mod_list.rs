@@ -11,16 +11,26 @@ use std::{
 
 pub const FILE: &str = "horizon-mods.txt";
 /// Fixed native modules compiled into Android APKs, all opt-in.
-pub const ANDROID_BUNDLED: [(&str, &str, &str); 4] = [
+pub const ANDROID_BUNDLED: [(&str, &str, &str); 6] = [
     (
         "zoom",
         "Zoom",
         "Hold Z to zoom; configurable in Options > Mods",
     ),
     (
-        "minimap",
-        "Minimap",
-        "A configurable map in the screen corner",
+        "falling_trees",
+        "Falling Trees",
+        "Break the bottom log and the whole tree comes down",
+    ),
+    (
+        "vein_miner",
+        "Vein Miner",
+        "Mine one ore while sneaking and the whole vein breaks",
+    ),
+    (
+        "gamma",
+        "Gamma",
+        "Brighten dark places such as caves beyond the brightness limit",
     ),
     (
         "recipes",
