@@ -1,0 +1,45 @@
+name: Build a .hmod mod
+run-name: Build .hmod · ${{ inputs.mod_dir }}
+
+# Builds one WebAssembly mod into a .hmod file you can import in the game's
+# Mods page. It never builds the app, and it does not run on push.
+on:
+  workflow_dispatch:
+    inputs:
+      mod_dir:
+        description: Folder of the mod crate (contains horizon-mod.toml)
+        type: string
+        default: crates/horizon-mod-sdk/examples/coords-hud
+
+permissions:
+  contents: read
+
+jobs:
+  hmod:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      HORIZON_TELEMETRY_URL: 'off'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+      - name: Install the WebAssembly target
+        run: |
+          rustup show
+          rustup target add wasm32-unknown-unknown
+      - name: Build the mod tool
+        run: cargo build --release -p cargo-horizon-mod
+      - name: Build the .hmod
+        working-directory: ${{ inputs.mod_dir }}
+        run: ${{ github.workspace }}/target/release/cargo-horizon-mod build
+      - name: Check the package
+        run: |
+          for f in "${{ inputs.mod_dir }}"/*.hmod; do
+            "$GITHUB_WORKSPACE/target/release/cargo-horizon-mod" check "$f"
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: hmod
+          path: ${{ inputs.mod_dir }}/*.hmod
+          if-no-files-found: error
