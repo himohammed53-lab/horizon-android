@@ -1880,11 +1880,11 @@ fn draw_sodium_row(
     let fill = if hover { 0xFF40_4040 } else { 0xC020_2020 };
     batch.fill(atlas, wd.x, wd.y, wd.w, wd.h, fill);
     if hover {
-        batch.fill(atlas, wd.x, wd.y, 2.0, wd.h, rgba(90, 200, 255, 255));
+        batch.fill(atlas, wd.x, wd.y, 2.0, wd.h, rgba(205, 205, 215, 255));
     }
     if let Some(v) = slider {
         let bar = (wd.w * v.clamp(0.0, 1.0)).floor();
-        batch.fill(atlas, wd.x, wd.y + wd.h - 2.0, bar, 2.0, rgba(90, 200, 255, 255));
+        batch.fill(atlas, wd.x, wd.y + wd.h - 2.0, bar, 2.0, rgba(205, 205, 215, 255));
     }
     let plain = label.plain();
     let (name, value) = plain.split_once(": ").unwrap_or((plain.as_str(), ""));
@@ -1920,7 +1920,7 @@ fn draw_video_tab(
         batch.fill(atlas, wd.x, wd.y, wd.w, wd.h, if current { 0xFF30_3030 } else { 0xA030_3030 });
     }
     if current {
-        batch.fill(atlas, wd.x + wd.w - 3.0, wd.y, 3.0, wd.h, rgba(90, 200, 255, 255));
+        batch.fill(atlas, wd.x + wd.w - 3.0, wd.y, 3.0, wd.h, rgba(205, 205, 215, 255));
     }
     let ink = if current { u32::MAX } else { rgba(170, 170, 170, 255) };
     batch.text_styled(atlas, label, wd.x + 8.0, wd.y + 7.0, ink, true);
@@ -3703,7 +3703,7 @@ impl OptionsUi {
                                     h: 9.0,
                                     kind: WKind::Text {
                                         text: tr(key),
-                                        color: rgba(90, 200, 255, 255),
+                                        color: rgba(205, 205, 215, 255),
                                         centered: false,
                                     },
                                     list: false,

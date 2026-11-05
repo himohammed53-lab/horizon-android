@@ -62,7 +62,7 @@ pub const STYLE: Style = Style {
     header_height: 16.0,
     band: 33.0,
     title_color: u32::MAX,
-    header_color: opaque(90, 200, 255),
+    header_color: opaque(205, 205, 215),
     description_color: opaque(170, 170, 170),
     cost_colors: [
         opaque(120, 200, 120),
@@ -74,14 +74,14 @@ pub const STYLE: Style = Style {
 };
 
 /// Sodium-like colours (ABGR like `opaque`; alpha in the top byte).
-const SCREEN: u32 = 0xE010_1010;
+const SCREEN: u32 = 0xA010_1010;
 const BAND: u32 = 0xF008_0808;
-const ROW: u32 = 0xFF26_2626;
-const ROW_HOVER: u32 = 0xFF3A_3A3A;
-const ROW_OFF: u32 = 0xFF18_1818;
+const ROW: u32 = 0xD026_2626;
+const ROW_HOVER: u32 = 0xE03A_3A3A;
+const ROW_OFF: u32 = 0xC018_1818;
 const EDGE: u32 = 0xFF50_5050;
-const ACCENT: u32 = opaque(90, 200, 255);
-const SLIDER: u32 = opaque(40, 110, 160);
+const ACCENT: u32 = opaque(205, 205, 215);
+const SLIDER: u32 = opaque(96, 96, 108);
 
 impl Style {
     /// Width of the description column on a screen `screen_width` wide.
