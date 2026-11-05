@@ -362,6 +362,19 @@ impl Game<'_> {
                         self.pad.touch_ui.cancel();
                         self.pad.touch_ui.virtual_mouse ^= true;
                     }
+                    Action::TouchToggle => {
+                        self.pad.touch_ui.cancel();
+                        self.pad.touch_ui.menu_touch_off ^= true;
+                        self.pad.touch.clear();
+                    }
+                    Action::TouchSettings => {
+                        if self.screen == Screen::Options {
+                            self.open_options_at(
+                                self.options_from_title,
+                                horizon_client::options_ui::Page::Touch,
+                            );
+                        }
+                    }
                     Action::More => self.pad.touch_ui.expanded = !self.pad.touch_ui.expanded,
                     Action::Keyboard => {
                         if crate::platform::active() {

@@ -13,6 +13,11 @@ use winit::{event::TouchPhase, keyboard::KeyCode};
 pub struct TouchUi {
     pub expanded: bool,
     pub virtual_mouse: bool,
+    /// The player hid the touch buttons on menu screens (this session).
+    pub menu_touch_off: bool,
+    /// Set each frame: a world is open, or the Options screen is.
+    pub in_world: bool,
+    pub in_options: bool,
     mouse_buttons: BTreeMap<u64, bool>,
     latched_modifiers: std::collections::HashSet<KeyCode>,
     relative: Option<RelativeTouch>,
@@ -43,6 +48,10 @@ pub enum Action {
     Key(KeyCode),
     Keyboard,
     VirtualMouse,
+    /// Show or hide the touch buttons over inventory and settings screens.
+    TouchToggle,
+    /// Open Options > Touch Controls.
+    TouchSettings,
     MouseButton(bool),
     More,
 }
@@ -319,6 +328,14 @@ impl TouchUi {
         if menu && (3.0..23.0).contains(&p[1]) && (w - 108.0..w - 56.0).contains(&p[0]) {
             return Some(Action::VirtualMouse);
         }
+        if menu && self.in_world && (3.0..23.0).contains(&p[1]) {
+            if (w - 164.0..w - 112.0).contains(&p[0]) {
+                return Some(Action::TouchToggle);
+            }
+            if self.in_options && (w - 220.0..w - 168.0).contains(&p[0]) {
+                return Some(Action::TouchSettings);
+            }
+        }
         if (3.0..23.0).contains(&p[1]) {
             if menu && (w - 53.0..w - 3.0).contains(&p[0]) {
                 return Some(Action::Key(KeyCode::Escape));
@@ -389,6 +406,23 @@ impl TouchUi {
                 3.0,
                 50.0,
             );
+        }
+        if menu && self.in_world {
+            button(
+                b,
+                a,
+                if self.menu_touch_off {
+                    "Btns OFF"
+                } else {
+                    "Btns ON"
+                },
+                b.width - 164.0,
+                3.0,
+                50.0,
+            );
+            if self.in_options {
+                button(b, a, "Setup", b.width - 220.0, 3.0, 50.0);
+            }
         }
         if menu && self.virtual_mouse {
             for ([x, y, width, _], right) in mouse_button_rects(b.width, b.height) {

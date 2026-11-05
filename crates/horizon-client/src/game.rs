@@ -14943,6 +14943,8 @@ impl Game<'_> {
             if (crate::touch_visible() || self.settings.keypad.enabled)
                 && self.pad.touch.editor.is_none()
             {
+                self.pad.touch_ui.in_world = self.title.is_none();
+                self.pad.touch_ui.in_options = self.screen == Screen::Options;
                 self.pad
                     .touch_ui
                     .draw(&mut hud, &self.gui.atlas, self.pad_in_menu());
