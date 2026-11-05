@@ -106,7 +106,7 @@ pub(super) fn button(
     }
     let padding = (w * 0.12).clamp(4.0, 12.0);
     let base = if h >= 60.0 {
-        22.0
+        26.0
     } else if w < 80.0 {
         13.0
     } else {
@@ -327,7 +327,7 @@ impl Launcher {
             button(
                 &mut ui,
                 &mut self.targets,
-                [x, 88.0, tab_width - 4.0, 54.0],
+                [x, 88.0, tab_width - 4.0, 62.0],
                 if w < 700.0 {
                     match page {
                         Page::Installed => "Files",
@@ -455,7 +455,7 @@ impl Launcher {
                 button(
                     &mut ui,
                     &mut self.targets,
-                    [32.0, h - 120.0, 400.0, 80.0],
+                    [32.0, h - 140.0, 480.0, 100.0],
                     if installed {
                         "Play"
                     } else if self.error.is_some() {

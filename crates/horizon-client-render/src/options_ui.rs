@@ -2770,7 +2770,7 @@ impl OptionsUi {
                     ),
                     Row::Buttons(
                         open("horizon.pages.open.extras", Page::Extras),
-                        Some(open("horizon.pages.open.mods", Page::Mods)),
+                        None,
                     ),
                     // No AI hides the AI Agent page and everything AI.
                     Row::Buttons(
@@ -3194,7 +3194,6 @@ impl OptionsUi {
                     // settings and its mods, as a mod adds its button here.
                     // Credits & Attribution (WinScreen's credits) follows them.
                     ("horizon.pages.open.horizon_settings", Some(Page::Horizon)),
-                    ("horizon.pages.open.mods", Some(Page::Mods)),
                     ("options.credits_and_attribution", Some(Page::Credits)),
                 ];
                 let rows = entries.len().div_ceil(2) as f32;
@@ -3676,7 +3675,7 @@ impl OptionsUi {
                     }
                 }
                 // Video Settings: one option to a line after a sidebar of sections, like Sodium's.
-                let sodium_video = page == Page::Video;
+                let sodium_video = false;
                 if sodium_video {
                     self.video_sections.clear();
                     let x0 = SODIUM_SIDEBAR + 12.0;
@@ -4121,7 +4120,7 @@ impl OptionsUi {
         self.size = (w, h);
         let in_world = self.in_world;
         // Video settings use the flat, dark look of Sodium's option screen.
-        let sodium = page == Page::Video;
+        let sodium = false;
         let list = bottom > top;
         if sodium {
             crate::graphics_style::STYLE.background(batch, atlas, top, bottom, in_world);
