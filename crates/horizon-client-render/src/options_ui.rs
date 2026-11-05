@@ -1531,6 +1531,8 @@ enum Act {
     ShaderReset,
     /// The installed native mod's settings page.
     ModSettings(usize),
+    /// Mods page: select a mod to show its details.
+    PickMod(usize),
     /// A native mod's key (mod, key) waits for a key; a button of its page.
     NativeKey(usize, usize),
     NativeButton(usize, usize),
@@ -1696,6 +1698,8 @@ fn slider_unsnapped(opt: Opt, held: bool, moved: Instant) -> bool {
 pub struct OptionsUi {
     pub stack: Vec<Page>,
     scroll: f32,
+    /// Mods page: the mod whose details show on the right.
+    mod_sel: usize,
     pub(crate) dragging: Option<Opt>,
     /// The shader pack option whose slider is held, and the handle's own position: it follows
     /// the pointer while the option takes the nearest of its values.
@@ -1826,6 +1830,46 @@ fn button(x: f32, y: f32, w: f32, label: Text, act: Act) -> Widget {
         },
         list: false,
         row: 0,
+    }
+}
+/// `Name 1.0` as the mod list stores it: the name and the version.
+fn split_mod_title(title: &str) -> (&str, &str) {
+    match title.rsplit_once(' ') {
+        Some((name, version)) if version.starts_with(|c: char| c.is_ascii_digit()) => {
+            (name, version)
+        }
+        _ => (title, ""),
+    }
+}
+/// The mod's first letter, upper case: its icon on the Mods page.
+fn initial_of(name: &str) -> String {
+    name.chars()
+        .find(|c| c.is_alphanumeric())
+        .map(|c| c.to_uppercase().collect())
+        .unwrap_or_else(|| "?".into())
+}
+/// A colour for a mod's icon letter, the same every time for the same id.
+fn mod_color(id: &str) -> u32 {
+    const COLORS: [u32; 8] = [
+        0xFF7777, 0xFFB454, 0xF2E65C, 0x6BE07A, 0x5CE0E0, 0x6AA8FF, 0xB48CFF, 0xFF7FD0,
+    ];
+    let hash = id
+        .bytes()
+        .fold(7u32, |h, b| h.wrapping_mul(31).wrapping_add(u32::from(b)));
+    COLORS[hash as usize % COLORS.len()]
+}
+/// ON in green, OFF in red; a stopped or invalid mod says so.
+fn mod_state(s: &Settings, i: usize, m: &crate::mod_list::Installed) -> Text {
+    if m.problem.as_deref() == Some(crate::mod_list::NOT_BUILT) {
+        return tr("horizon.mods.not_built");
+    }
+    if m.problem.is_some() {
+        return tr("horizon.mods.stopped").with_color(0xFF5555);
+    }
+    if m.dev || s.mods.is_on(i) {
+        on_off(true).with_color(0x55FF55)
+    } else {
+        on_off(false).with_color(0xFF5555)
     }
 }
 fn inactive(mut w: Widget) -> Widget {
@@ -3475,7 +3519,24 @@ impl OptionsUi {
                 });
                 let list_start = out.len();
                 let mut y = top + 2.0 - self.scroll;
-                for row in self.list_rows(s) {
+                // Mods: a list on the left, the chosen mod's details on the right.
+                let mod_menu = page == Page::Mods && !s.mods.installed.is_empty();
+                let mod_left = ((w * 0.44).clamp(150.0, 220.0)).floor();
+                if mod_menu {
+                    self.mod_sel = self.mod_sel.min(s.mods.installed.len() - 1);
+                    for (i, m) in s.mods.installed.iter().enumerate() {
+                        let (name, _) = split_mod_title(&m.title);
+                        let mut label = Text::literal(if i == self.mod_sel { "> " } else { "  " });
+                        label = label
+                            .append(Text::literal(initial_of(name)).with_color(mod_color(&m.id)))
+                            .append(Text::literal(format!(" {name} ")))
+                            .append(mod_state(s, i, m));
+                        out.push(button(8.0, y + 2.0, mod_left, label, Act::PickMod(i)));
+                        y += 24.0;
+                    }
+                }
+                let menu_rows = if mod_menu { Vec::new() } else { self.list_rows(s) };
+                for row in menu_rows {
                     rows.begin(&out, y);
                     match row {
                         Row::Header(key) => {
@@ -3547,6 +3608,9 @@ impl OptionsUi {
                 }
                 content = y + self.scroll - top + 2.0;
                 out[list_start..].iter_mut().for_each(|w| w.list = true);
+                if mod_menu {
+                    self.mod_details(s, &mut out, (8.0 + mod_left + 14.0, w, top, bottom));
+                }
                 let folder = match page {
                     Page::Mods => Some(("horizon.mods.open_folder", Act::OpenModFolder)),
                     Page::ShaderPacks => Some(("pack.openFolder", Act::OpenShaderPackFolder)),
@@ -3579,6 +3643,86 @@ impl OptionsUi {
             .map(|band| band.map(|y| y + previous_scroll - self.scroll))
             .collect();
         (out, top, bottom, content)
+    }
+    /// The Mods page's right side: the chosen mod's name, state, text and buttons.
+    fn mod_details(&self, s: &Settings, out: &mut Vec<Widget>, (x, w, top, bottom): (f32, f32, f32, f32)) {
+        let Some(m) = s.mods.installed.get(self.mod_sel) else {
+            return;
+        };
+        let width = (w - x - 10.0).max(60.0);
+        let text = |out: &mut Vec<Widget>, t: Text, color: u32, y: f32| {
+            out.push(Widget {
+                x,
+                y,
+                w: width,
+                h: 9.0,
+                kind: WKind::Text {
+                    text: t,
+                    color,
+                    centered: false,
+                },
+                list: false,
+                row: 0,
+            });
+        };
+        let (name, version) = split_mod_title(&m.title);
+        let y = top + 8.0;
+        text(
+            out,
+            Text::literal(initial_of(name)).with_color(mod_color(&m.id)),
+            u32::MAX,
+            y,
+        );
+        text(out, Text::literal(format!("   {name}")), u32::MAX, y);
+        let sub = if version.is_empty() {
+            m.id.clone()
+        } else {
+            format!("{version}  -  {}", m.id)
+        };
+        text(out, Text::literal(sub), 0xFF9A9A9A, y + 12.0);
+        text(
+            out,
+            Text::literal("Status: ").append(mod_state(s, self.mod_sel, m)),
+            u32::MAX,
+            y + 26.0,
+        );
+        let description = m.problem.as_deref().unwrap_or(&m.description);
+        let per_line = ((width / 5.2) as usize).max(12);
+        let mut line = String::new();
+        let mut lines = Vec::new();
+        for word in description.split_whitespace() {
+            if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > per_line {
+                lines.push(std::mem::take(&mut line));
+            }
+            if !line.is_empty() {
+                line.push(' ');
+            }
+            line.push_str(word);
+        }
+        if !line.is_empty() {
+            lines.push(line);
+        }
+        let room = (((bottom - top) - 100.0) / 10.0).max(2.0) as usize;
+        for (i, l) in lines.into_iter().take(room).enumerate() {
+            text(out, Text::literal(l), 0xFFC0C0C0, y + 42.0 + i as f32 * 10.0);
+        }
+        let dead = m.dev || m.id.is_empty();
+        let label = Text::literal("Mod: ").append(mod_state(s, self.mod_sel, m));
+        let toggle = button(x, bottom - 52.0, width.min(150.0), label, Act::ToggleMod(self.mod_sel));
+        out.push(if dead { inactive(toggle) } else { toggle });
+        if m.has_settings
+            || m.native
+                .as_ref()
+                .is_some_and(|page| !page.keys.is_empty() || !page.buttons.is_empty())
+        {
+            out.push(button(
+                x,
+                bottom - 28.0,
+                width.min(150.0),
+                tr("horizon.mods.settings"),
+                Act::ModSettings(self.mod_sel),
+            ));
+        }
     }
     fn clamp_scroll(&mut self, top: f32, bottom: f32, content: f32) {
         let max = (content - (bottom - top)).max(0.0);
@@ -4307,6 +4451,7 @@ impl OptionsUi {
                             s.controller.reset_bindings();
                             events.push(Event::Changed);
                         }
+                        Act::PickMod(i) => self.mod_sel = i,
                         Act::ToggleMod(i) => {
                             s.mods.toggle(i);
                             events.push(Event::Changed);
@@ -5252,6 +5397,7 @@ impl OptionsUi {
                             s.controller.reset_bindings();
                             events.push(Event::Changed);
                         }
+                        Act::PickMod(i) => self.mod_sel = i,
                         Act::ToggleMod(i) => {
                             s.mods.toggle(i);
                             events.push(Event::Changed);
@@ -5813,53 +5959,31 @@ mod tests {
                 native: None,
             });
         }
-        let (widgets, ..) = ui.layout(&s, size.0, size.1);
-        let rows: Vec<_> = widgets
-            .iter()
-            .filter(|w| {
-                matches!(
-                    w.kind,
-                    WKind::Button {
-                        act: Act::ToggleMod(_),
-                        ..
-                    }
-                )
-            })
-            .collect();
-        assert_eq!(rows.len(), 3);
-        for (i, row) in rows.iter().enumerate() {
-            let events = ui.click(
-                &mut s,
-                &atlas,
-                row.x + 1.0,
-                row.y + 1.0,
-                size,
-                [480, 240],
-                false,
-                false,
-            );
-            if i == 0 {
-                assert!(events.contains(&Event::Changed));
-                assert!(events.contains(&Event::ButtonClick));
-            } else {
-                assert!(events.is_empty());
-            }
-        }
+        // Pick each mod in the list, then press the toggle shown for it on the right.
+        let press = |ui: &mut OptionsUi, s: &mut Settings, i: usize| {
+            let find = |ui: &mut OptionsUi, s: &Settings, want: fn(usize) -> Act| {
+                let (widgets, ..) = ui.layout(s, size.0, size.1);
+                widgets
+                    .into_iter()
+                    .find(|w| matches!(&w.kind, WKind::Button { act, .. } if *act == want(i)))
+                    .expect("button for the mod")
+            };
+            let pick = find(ui, s, Act::PickMod);
+            ui.click(s, &atlas, pick.x + 1.0, pick.y + 1.0, size, [480, 240], false, false);
+            let toggle = find(ui, s, Act::ToggleMod);
+            ui.click(s, &atlas, toggle.x + 1.0, toggle.y + 1.0, size, [480, 240], false, false)
+        };
+        let first = press(&mut ui, &mut s, 0);
+        assert!(first.contains(&Event::Changed));
+        assert!(first.contains(&Event::ButtonClick));
+        // The dev mod and the invalid one cannot be switched.
+        assert!(press(&mut ui, &mut s, 1).is_empty());
+        assert!(press(&mut ui, &mut s, 2).is_empty());
         assert!(s.mods.is_on(0));
         assert!(s.mods.is_on(1));
         assert!(!s.mods.is_on(2));
         assert_eq!(s.mods.serialize(), "mod.normal:true\n");
-        let row = rows[0];
-        ui.click(
-            &mut s,
-            &atlas,
-            row.x + 1.0,
-            row.y + 1.0,
-            size,
-            [480, 240],
-            false,
-            false,
-        );
+        press(&mut ui, &mut s, 0);
         assert!(!s.mods.is_on(0));
         assert!(!ui.back(&mut s).contains(&Event::Close));
         assert_eq!(ui.page(), Page::Main);
@@ -5947,7 +6071,7 @@ mod tests {
                 )
             })
             .unwrap();
-        assert_eq!(toggle.w, 310.0);
+        assert_eq!(toggle.w, 150.0);
         let events = ui.click(
             &mut s,
             &atlas,
