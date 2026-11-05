@@ -309,7 +309,7 @@ impl Game<'_> {
             if i == 3 {
                 let m = Text::literal("M");
                 let tw = atlas.font.width_text(&m);
-                batch.text(atlas, &m, (x + (20.0 - tw) / 2.0).floor(), y + 6.0, u32::MAX, true);
+                batch.text_styled(atlas, &m, (x + (20.0 - tw) / 2.0).floor(), y + 6.0, u32::MAX, true);
             } else {
                 batch.sprite_scaled(atlas, sprite, x + 3.0, y + 3.0, 15.0, 15.0, u32::MAX);
             }

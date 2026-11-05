@@ -729,7 +729,11 @@ impl TouchControls {
         }
         let aspect = self.aspect();
         let attack_look =
-            self.settings.attack_button_look && self.crosshair() && !self.inventory_mode;
+            self.settings.attack_button_look
+                && self.crosshair()
+                && !self.inventory_mode
+                // On Android the attack button never turns the camera: the other thumb does.
+                && !cfg!(target_os = "android");
         if let Some((role, previous)) = self.fingers.get_mut(&id) {
             let delta = if let Role::Look {
                 start,
@@ -1779,7 +1783,7 @@ mod tests {
         for enabled in [true, false] {
             let mut touch = TouchControls::default();
             touch.settings.mode = Mode::Crosshair;
-            assert!(touch.settings.attack_button_look);
+            assert_eq!(touch.settings.attack_button_look, !cfg!(target_os = "android"));
             touch.settings.attack_button_look = enabled;
             let start = touch.placement(Control::Attack).center;
             touch.update(1, start, true, false);

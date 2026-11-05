@@ -237,7 +237,7 @@ impl Default for Settings {
             inventory_controls: false,
             virtual_mouse_sensitivity: 1.0,
             crosshair_gestures: false,
-            attack_button_look: true,
+            attack_button_look: !cfg!(target_os = "android"),
             gyroscope: false,
             gyro_sensitivity: 1.0,
             attack_indicator_left: true,
