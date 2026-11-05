@@ -13,6 +13,14 @@ is started by hand from the Actions tab. It builds the mod folders named in
 checks them with `cargo horizon-mod check` and uploads the `.hmod` files as the
 `hmod` artifact. It does not build the app.
 
+## API level 10
+
+Level 10 adds three `ui` functions: `set-list-colors(id, colors)` (each row of a
+`list` widget draws in its own colour), `request-text(id, title, initial)`
+(the game opens the system keyboard and a box for one line of text) and
+`poll-text()` (the lines the player confirmed). A mod that imports them is
+refused by a build below level 10 with the "update Horizon" message.
+
 ## API level 9
 
 Level 9 adds `game.get-view()` (`crates/horizon-mod-sdk/wit/horizon.wit`): the
@@ -45,7 +53,7 @@ A mod that imports them is refused by a build below level 8 with the usual
 | `crates/horizon-mod-sdk/examples/falling-trees` | `falling_trees_file` | server | Breaking the bottom log of a tree brings the trunk down (at most 128 logs, leaves must touch it); `/tree on` and `/tree off` |
 | `crates/horizon-mod-sdk/examples/vein-miner` | `vein_miner_file` | server | Mining an ore breaks the connected vein (at most 32 blocks); `/vein on` and `/vein off` |
 | `crates/horizon-mod-sdk/examples/gamma` | `gamma_file` | client | Brighter light; a settings page in Options > Mods (ON/OFF, brightness 1 to 16), `/gamma 1` to `/gamma 16`, `/gamma off`; starts at 8 |
-| `crates/horizon-mod-sdk/examples/waypoints` | `waypoints_file` | client | Waypoints drawn on the screen (grow as you near, name, colour, distance); a skull where you last died; list in Options > Mods, `/wp help` in chat. Needs API level 9 |
+| `crates/horizon-mod-sdk/examples/waypoints` | `waypoints_file` | client | Waypoints drawn on the screen (grow as you near, name, colour, distance); a skull where you last died; list in Options > Mods, `/wp help` in chat. Letter in a rounded square, shown only while looked at; rename, colour list, size in Options > Mods. Needs API level 10 |
 
 Server mods have no settings page (pages belong to client mods with capability
 `ui`); they are switched with their command. The game's own mods in

@@ -509,6 +509,13 @@ impl Game<'_> {
         for out in crate::platform::poll() {
             // A mod's key row waits for the key typed on the system keyboard.
             #[cfg(feature = "mods")]
+            if let Some(over) = self.mod_text_osk(&out) {
+                if over {
+                    crate::platform::hide();
+                }
+                continue;
+            }
+            #[cfg(feature = "mods")]
             if let Some(over) = self.mod_binding_osk(&out) {
                 if over {
                     crate::platform::hide();

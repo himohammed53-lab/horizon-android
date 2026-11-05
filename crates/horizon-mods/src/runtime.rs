@@ -363,6 +363,12 @@ struct UiState {
     /// The widgets `ui.set-settings` last pushed (the mod's page in
     /// Options > Mods).
     settings: Vec<UiWidget>,
+    /// `ui.set-list-colors`: row colours by list widget id.
+    list_colors: std::collections::HashMap<u32, Vec<u32>>,
+    /// `ui.request-text`, until the game takes it: (id, title, initial).
+    text_request: Option<(u32, String, String)>,
+    /// Lines the player confirmed, for `ui.poll-text`.
+    text_results: Vec<(u32, String)>,
     /// The calls since the last hook ended, for [`Output`].
     open: bool,
     close: bool,
@@ -1241,6 +1247,30 @@ impl Mods {
             .and_then(|e| e.run.as_ref())
             .map_or(&[], |r| &r.store.data().ui.settings)
     }
+    /// The colours mod `i` set for the rows of list widget `id`.
+    pub fn list_colors(&self, i: usize, id: u32) -> &[u32] {
+        self.entries
+            .get(i)
+            .and_then(|e| e.run.as_ref())
+            .and_then(|r| r.store.data().ui.list_colors.get(&id))
+            .map_or(&[], |v| v.as_slice())
+    }
+    /// The text request mod `i` made, if any: (id, title, initial).
+    pub fn take_text_request(&mut self, i: usize) -> Option<(u32, String, String)> {
+        self.entries
+            .get_mut(i)
+            .and_then(|e| e.run.as_mut())
+            .and_then(|r| r.store.data_mut().ui.text_request.take())
+    }
+    /// The player confirmed `text` for mod `i`'s request `id`.
+    pub fn push_text(&mut self, i: usize, id: u32, text: String) {
+        if let Some(r) = self.entries.get_mut(i).and_then(|e| e.run.as_mut()) {
+            let ui = &mut r.store.data_mut().ui;
+            if ui.text_results.len() < 16 {
+                ui.text_results.push((id, clip(text)));
+            }
+        }
+    }
     /// A `list` widget's row was picked on a surface of mod `i`.
     pub fn ui_select(&mut self, i: usize, id: u32, row: u32) {
         self.ui_event(i, |ui, s| {
@@ -1987,6 +2017,19 @@ impl ui::Host for State {
     }
     fn set_settings(&mut self, widgets: Vec<ui::Widget>) {
         self.ui.settings = clip_widgets(widgets);
+    }
+    fn set_list_colors(&mut self, id: u32, colors: Vec<u32>) {
+        if self.ui.list_colors.len() < 16 || self.ui.list_colors.contains_key(&id) {
+            self.ui
+                .list_colors
+                .insert(id, colors.into_iter().take(LIST_ROWS).collect());
+        }
+    }
+    fn request_text(&mut self, id: u32, title: String, initial: String) {
+        self.ui.text_request = Some((id, clip(title), clip(initial)));
+    }
+    fn poll_text(&mut self) -> Vec<(u32, String)> {
+        std::mem::take(&mut self.ui.text_results)
     }
 }
 impl storage::Host for State {

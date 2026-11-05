@@ -39,6 +39,8 @@ use {
 #[derive(Default)]
 pub(super) struct ModsState {
     #[cfg(feature = "mods")]
+    pub(super) text_edit: Option<TextEdit>,
+    #[cfg(feature = "mods")]
     pub(super) mods: Mods,
     /// Capability `input`: a claimed item's use while the button is down.
     #[cfg(feature = "mods")]
@@ -131,6 +133,15 @@ const FONT_CHARS: u32 = 0x250;
 /// A `ui` mod's own screen, or its settings page from Options > Mods: the
 /// widgets the mod pushed, laid out and drawn with the menus' own widgets.
 #[cfg(feature = "mods")]
+/// A line of text a mod asked for (`ui.request-text`), typed on the system
+/// keyboard.
+#[cfg(feature = "mods")]
+pub(super) struct TextEdit {
+    owner: usize,
+    id: u32,
+    title: String,
+    text: String,
+}
 struct ModScreen {
     /// The running mod's index in `mods.mods.entries()`.
     owner: usize,
@@ -1228,6 +1239,7 @@ impl Game<'_> {
                         batch,
                         atlas,
                         self.cursor,
+                        self.mods.mods.list_colors(ms.owner, l.id),
                         &l.rows,
                         l.selected,
                         scroll.amount,
@@ -1261,6 +1273,40 @@ impl Game<'_> {
             let stack = ItemStack::new(id.as_str(), 1);
             self.draw_item(batch, &stack, ix, iy);
         }
+        if let Some(edit) = &self.mods.text_edit {
+            let atlas = &self.gui.atlas;
+            let (bx, by, bw, bh) = (cx - 110.0, (batch.height / 2.0).floor() - 34.0, 220.0, 64.0);
+            batch.fill(atlas, bx - 1.0, by - 1.0, bw + 2.0, bh + 2.0, 0xFFFF_FFFF);
+            batch.fill(atlas, bx, by, bw, bh, 0xF010_1010);
+            ui::centered_text(
+                batch,
+                atlas,
+                &Text::literal(edit.title.clone()),
+                bx,
+                by + 6.0,
+                bw,
+                u32::MAX,
+            );
+            batch.fill(atlas, bx + 10.0, by + 22.0, bw - 20.0, 16.0, 0xFF00_0000);
+            ui::centered_text(
+                batch,
+                atlas,
+                &Text::literal(format!("{}_", edit.text)),
+                bx + 10.0,
+                by + 26.0,
+                bw - 20.0,
+                0xFFFF_FFAA,
+            );
+            ui::centered_text(
+                batch,
+                atlas,
+                &Text::literal("Enter or tap to confirm".to_owned()),
+                bx,
+                by + 46.0,
+                bw,
+                0xFFAA_AAAA,
+            );
+        }
     }
     /// A click on the mod screen: Done leaves it, a `list` row is the mod's
     /// `ui-events::select`.
@@ -1276,6 +1322,13 @@ impl Game<'_> {
             return;
         }
         if button != MouseButton::Left {
+            return;
+        }
+        // A tap while a line is being typed confirms it.
+        if self.mods.text_edit.is_some() {
+            self.finish_mod_text();
+            #[cfg(target_os = "android")]
+            crate::platform::hide();
             return;
         }
         let (w, h) = self.gui_size();
@@ -1323,6 +1376,7 @@ impl Game<'_> {
                 self.audio.play_button_click();
                 let owner = self.mods.screen.as_ref().map_or(0, |ms| ms.owner);
                 self.mods.mods.ui_select(owner, b.id, 0);
+                self.mod_text_request(owner);
                 self.show_mod_output();
                 return;
             }
@@ -1341,7 +1395,52 @@ impl Game<'_> {
         if let Some((id, row)) = hit {
             self.audio.play_button_click();
             self.mods.mods.ui_select(owner, id, row);
+            self.mod_text_request(owner);
             self.show_mod_output();
+        }
+    }
+    /// The mod asked for a line of text (`ui.request-text`): the system
+    /// keyboard opens on it.
+    fn mod_text_request(&mut self, owner: usize) {
+        let Some((id, title, initial)) = self.mods.mods.take_text_request(owner) else {
+            return;
+        };
+        #[cfg(target_os = "android")]
+        crate::platform::show(&initial);
+        self.mods.text_edit = Some(TextEdit {
+            owner,
+            id,
+            title,
+            text: initial,
+        });
+    }
+    /// The typed line goes to the mod (`ui.poll-text`).
+    fn finish_mod_text(&mut self) {
+        if let Some(edit) = self.mods.text_edit.take() {
+            self.mods.mods.push_text(edit.owner, edit.id, edit.text);
+        }
+    }
+    /// The system keyboard's changes while a mod's line is being typed:
+    /// Some(true) when it ended (the keyboard should close).
+    #[cfg(target_os = "android")]
+    pub(super) fn mod_text_osk(&mut self, out: &horizon_client::osk::Output) -> Option<bool> {
+        use horizon_client::osk::Output;
+        let edit = self.mods.text_edit.as_mut()?;
+        match out {
+            Output::Text(t) => {
+                if edit.text.chars().count() < 24 {
+                    edit.text.push_str(&t.replace('\n', ""));
+                }
+                Some(false)
+            }
+            Output::Backspace => {
+                edit.text.pop();
+                Some(false)
+            }
+            Output::Enter | Output::Close => {
+                self.finish_mod_text();
+                Some(true)
+            }
         }
     }
     /// The wheel over a `list` scrolls it.
@@ -1382,6 +1481,7 @@ fn draw_list_rows(
     batch: &mut HudBatch,
     atlas: &horizon_client::hud::HudAtlas,
     cursor: (f32, f32),
+    colors: &[u32],
     rows: &[String],
     selected: Option<u32>,
     scroll: f32,
@@ -1405,7 +1505,10 @@ fn draw_list_rows(
             &Text::literal(rows[ri].clone()),
             x + 6.0,
             ry + 2.0,
-            u32::MAX,
+            colors
+                .get(ri)
+                .filter(|&&c| c != 0)
+                .map_or(u32::MAX, |&c| c | 0xFF00_0000),
             true,
         );
     }

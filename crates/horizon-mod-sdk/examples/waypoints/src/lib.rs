@@ -1,12 +1,13 @@
-//! Horizon mod: waypoints on the screen. Each one is a coloured diamond with
-//! its name and distance, placed where it is in the world (pinned to the
-//! screen's edge when it is off to the side or behind) and bigger the nearer
-//! it is. Where the player last died a skull is saved. The list, colours and
-//! visibility are in Options > Mods > Waypoints; `/wp` works from chat
-//! (`/wp help`). Waypoints are kept in the mod's storage.
+//! Horizon mod: waypoints on the screen. Each one is a rounded square in its
+//! colour holding the first letter of its name, with the name above and the
+//! distance below, placed where it is in the world and bigger the nearer it
+//! is. It shows only while the player looks towards it. Where the player last
+//! died a skull is saved. The list, names, colours, sizes and visibility are
+//! in Options > Mods > Waypoints; `/wp` works from chat (`/wp help`).
+//! Waypoints are kept in the mod's storage.
 use horizon_mod_sdk::{
     Mod, Registration, chat, game,
-    render::{self, ItemShape, Point, QuadShape, Shape, TextShape},
+    render::{self, FillShape, ItemShape, Point, Rect, Shape, TextShape},
     storage,
     ui::{self, ButtonWidget, ListWidget, TextWidget, Widget},
 };
@@ -24,12 +25,21 @@ const PALETTE: [(&str, u32); 9] = [
     ("White", 0xFFFFFF),
 ];
 
+const SIZES: [u32; 5] = [50, 75, 100, 150, 200];
+
 const SHOW_ALL: u32 = 1;
 const LIST: u32 = 2;
 const COLOR: u32 = 3;
 const VISIBLE: u32 = 4;
 const DELETE: u32 = 5;
 const ADD: u32 = 6;
+const RENAME: u32 = 7;
+const SIZE: u32 = 8;
+const COLOR_LIST: u32 = 9;
+const BACK: u32 = 10;
+/// Text request ids.
+const ASK_NAME: u32 = 1;
+const ASK_NEW: u32 = 2;
 
 #[derive(Clone, Debug, PartialEq)]
 struct Waypoint {
@@ -41,6 +51,8 @@ struct Waypoint {
     color: u32,
     visible: bool,
     death: bool,
+    /// Percent of the normal size.
+    size: u32,
 }
 
 struct Waypoints {
@@ -50,6 +62,10 @@ struct Waypoints {
     /// Where the player stood at the last tick with health left.
     last_alive: Option<(i32, i32, i32, String)>,
     alive: bool,
+    /// The colour list shows instead of the main page.
+    picking: bool,
+    /// Where "Add waypoint here" was pressed, while its name is typed.
+    pending: Option<(i32, i32, i32, String)>,
 }
 
 fn clean(name: &str) -> String {
@@ -64,8 +80,8 @@ fn encode(list: &[Waypoint]) -> String {
     list.iter()
         .map(|w| {
             format!(
-                "{}|{}|{}|{}|{}|{:06x}|{}|{}",
-                w.name, w.x, w.y, w.z, w.dim, w.color, w.visible as u8, w.death as u8
+                "{}|{}|{}|{}|{}|{:06x}|{}|{}|{}",
+                w.name, w.x, w.y, w.z, w.dim, w.color, w.visible as u8, w.death as u8, w.size
             )
         })
         .collect::<Vec<_>>()
@@ -76,7 +92,7 @@ fn decode(text: &str) -> Vec<Waypoint> {
     text.lines()
         .filter_map(|line| {
             let p: Vec<&str> = line.split('|').collect();
-            if p.len() != 8 {
+            if p.len() != 8 && p.len() != 9 {
                 return None;
             }
             Some(Waypoint {
@@ -88,6 +104,11 @@ fn decode(text: &str) -> Vec<Waypoint> {
                 color: u32::from_str_radix(p[5], 16).ok()? & 0xFF_FFFF,
                 visible: p[6] == "1",
                 death: p[7] == "1",
+                size: p
+                    .get(8)
+                    .and_then(|v| v.parse().ok())
+                    .filter(|v| (25..=300).contains(v))
+                    .unwrap_or(100),
             })
         })
         .take(MAX)
@@ -112,11 +133,6 @@ fn color_name(color: u32) -> String {
         .iter()
         .find(|&&(_, c)| c == color)
         .map_or_else(|| format!("#{color:06x}"), |&(n, _)| n.to_owned())
-}
-
-fn next_color(color: u32) -> u32 {
-    let i = PALETTE.iter().position(|&(_, c)| c == color);
-    PALETTE[i.map_or(0, |i| (i + 1) % PALETTE.len())].1
 }
 
 /// Where a world point lands on a `w` × `h` screen seen from the camera: the
@@ -180,11 +196,16 @@ impl Waypoints {
         ))
     }
 
-    fn add(&mut self, name: &str) -> Result<String, String> {
+    /// Saves a waypoint at `at` (or where the player stands) called `name`.
+    fn add_at(
+        &mut self,
+        at: Option<(i32, i32, i32, String)>,
+        name: &str,
+    ) -> Result<String, String> {
         if self.list.len() >= MAX {
             return Err(format!("At most {MAX} waypoints"));
         }
-        let (x, y, z, dim) = self.here().ok_or("Join a world first")?;
+        let (x, y, z, dim) = at.or_else(|| self.here()).ok_or("Join a world first")?;
         let name = clean(name);
         let name = if name.is_empty() {
             format!("Point {}", self.list.len() + 1)
@@ -201,10 +222,15 @@ impl Waypoints {
             color,
             visible: true,
             death: false,
+            size: 100,
         });
         self.selected = Some(self.list.len() - 1);
         self.changed();
         Ok(format!("{name} saved at {x} {y} {z}"))
+    }
+
+    fn add(&mut self, name: &str) -> Result<String, String> {
+        self.add_at(None, name)
     }
 
     fn changed(&self) {
@@ -213,6 +239,33 @@ impl Waypoints {
     }
 
     fn page(&self) {
+        if self.picking {
+            ui::set_list_colors(
+                COLOR_LIST,
+                &PALETTE.iter().map(|&(_, c)| c).collect::<Vec<_>>(),
+            );
+            ui::set_settings(&[
+                Widget::Text(TextWidget {
+                    id: 101,
+                    text: "Pick a colour".into(),
+                    color: 0,
+                }),
+                Widget::List(ListWidget {
+                    id: COLOR_LIST,
+                    rows: PALETTE.iter().map(|&(n, _)| n.to_owned()).collect(),
+                    selected: self
+                        .selected
+                        .and_then(|i| self.list.get(i))
+                        .and_then(|w| PALETTE.iter().position(|&(_, c)| c == w.color))
+                        .map(|i| i as u32),
+                }),
+                Widget::Button(ButtonWidget {
+                    id: BACK,
+                    label: "Back".into(),
+                }),
+            ]);
+            return;
+        }
         let mut widgets = vec![
             Widget::Button(ButtonWidget {
                 id: SHOW_ALL,
@@ -223,7 +276,7 @@ impl Waypoints {
                 label: "Add waypoint here".into(),
             }),
         ];
-        let rows = self
+        let rows: Vec<String> = self
             .list
             .iter()
             .enumerate()
@@ -239,6 +292,10 @@ impl Waypoints {
                 )
             })
             .collect();
+        ui::set_list_colors(
+            LIST,
+            &self.list.iter().map(|w| w.color).collect::<Vec<_>>(),
+        );
         widgets.push(Widget::List(ListWidget {
             id: LIST,
             rows,
@@ -246,8 +303,16 @@ impl Waypoints {
         }));
         if let Some(w) = self.selected.and_then(|i| self.list.get(i)) {
             widgets.push(Widget::Button(ButtonWidget {
+                id: RENAME,
+                label: format!("Rename: {}", w.name),
+            }));
+            widgets.push(Widget::Button(ButtonWidget {
                 id: COLOR,
                 label: format!("Colour: {}", color_name(w.color)),
+            }));
+            widgets.push(Widget::Button(ButtonWidget {
+                id: SIZE,
+                label: format!("Size: {}%", w.size),
             }));
             widgets.push(Widget::Button(ButtonWidget {
                 id: VISIBLE,
@@ -258,12 +323,28 @@ impl Waypoints {
                 label: "Delete this waypoint".into(),
             }));
         }
-        widgets.push(Widget::Text(TextWidget {
-            id: 100,
-            text: "Rename: /wp name <number> <new name>".into(),
-            color: 0xAAAAAA,
-        }));
         ui::set_settings(&widgets);
+    }
+
+    /// A rounded square of `half` × 2 on a side centred on (`x`, `y`).
+    fn rounded(shapes: &mut Vec<Shape>, x: f32, y: f32, half: f32, color: u32) {
+        let r = if half >= 10.0 { 2.0 } else { 1.0 };
+        let mut fill = |rx: f32, ry: f32, w: f32, h: f32| {
+            shapes.push(Shape::Fill(FillShape {
+                rect: Rect { x: rx, y: ry, w, h },
+                color,
+            }));
+        };
+        fill(x - half + r, y - half, 2.0 * half - 2.0 * r, 2.0 * half);
+        fill(x - half, y - half + r, 2.0 * half, 2.0 * half - 2.0 * r);
+        if r > 1.0 {
+            fill(
+                x - half + 1.0,
+                y - half + 1.0,
+                2.0 * half - 2.0,
+                2.0 * half - 2.0,
+            );
+        }
     }
 
     fn draw(&self) {
@@ -295,38 +376,45 @@ impl Waypoints {
                 size,
                 at,
             );
-            let s = (26.0 / (1.0 + dist as f32 / 60.0)).clamp(8.0, 22.0);
-            let s = if inside { s } else { s.min(12.0) };
-            let half = s / 2.0;
+            // Only while looking towards it.
+            if !inside {
+                continue;
+            }
+            let scale = w.size as f32 / 100.0;
+            let side = (30.0 / (1.0 + dist as f32 / 80.0)).clamp(12.0, 26.0) * scale;
+            let half = (side / 2.0).max(5.0);
             if w.death {
-                let scale = s / 12.0;
+                let sc = side / 12.0;
                 shapes.push(Shape::Item(ItemShape {
                     item: "minecraft:skeleton_skull".into(),
                     at: Point {
-                        x: x - 8.0 * scale,
-                        y: y - 8.0 * scale,
+                        x: x - 8.0 * sc,
+                        y: y - 8.0 * sc,
                     },
-                    scale,
+                    scale: sc,
                 }));
             } else {
-                for (grow, color) in [(2.0, 0xCC00_0000), (0.0, 0xFF00_0000 | w.color)] {
-                    let r = half + grow;
-                    shapes.push(Shape::Quad(QuadShape {
-                        corners: (
-                            Point { x, y: y - r },
-                            Point { x: x + r, y },
-                            Point { x, y: y + r },
-                            Point { x: x - r, y },
-                        ),
-                        color,
-                    }));
-                }
+                Self::rounded(&mut shapes, x, y, half + 1.5, 0xE000_0000);
+                Self::rounded(&mut shapes, x, y, half, 0xFF00_0000 | w.color);
+                let letter: String = w
+                    .name
+                    .chars()
+                    .next()
+                    .map(|c| c.to_uppercase().collect())
+                    .unwrap_or_default();
+                shapes.push(Shape::Text(TextShape {
+                    text: letter,
+                    at: Point { x, y: y - 4.0 },
+                    color: 0xFFFFFF,
+                    centered: true,
+                    shadow: true,
+                }));
             }
             shapes.push(Shape::Text(TextShape {
                 text: w.name.clone(),
                 at: Point {
                     x,
-                    y: y - half - 12.0,
+                    y: y - half - 13.0,
                 },
                 color: w.color,
                 centered: true,
@@ -357,9 +445,33 @@ impl Waypoints {
             Err(format!("No waypoint {n} (see /wp list)"))
         }
     }
+
+    /// The names the player typed (Rename, Add).
+    fn typed(&mut self) {
+        for (id, text) in ui::poll_text() {
+            match id {
+                ASK_NAME => {
+                    let name = clean(&text);
+                    if let Some(w) = self.selected.and_then(|i| self.list.get_mut(i))
+                        && !name.is_empty()
+                    {
+                        w.name = name;
+                        self.changed();
+                    }
+                }
+                ASK_NEW => {
+                    let at = self.pending.take();
+                    if let Err(e) = self.add_at(at, &text) {
+                        chat::show(&e);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
 }
 
-const HELP: &str = "/wp add [name] | list | del N | name N new name | color N red or #ff8800 | hide N | show N | view on or off";
+const HELP: &str = "/wp add [name] | list | del N | name N new name | color N red or #ff8800 | size N 50-300 | hide N | show N | view on or off";
 
 impl Mod for Waypoints {
     fn init() -> Result<(Self, Registration), String> {
@@ -371,6 +483,8 @@ impl Mod for Waypoints {
             selected: None,
             last_alive: None,
             alive: false,
+            picking: false,
+            pending: None,
         };
         me.page();
         Ok((
@@ -384,6 +498,7 @@ impl Mod for Waypoints {
     }
 
     fn tick(&mut self, _tick: u64) {
+        self.typed();
         let Some(p) = game::get_player() else {
             return;
         };
@@ -408,6 +523,7 @@ impl Mod for Waypoints {
                     color: 0xFF5555,
                     visible: true,
                     death: true,
+                    size: 100,
                 });
                 self.list.truncate(MAX);
                 self.selected = None;
@@ -418,6 +534,7 @@ impl Mod for Waypoints {
     }
 
     fn frame(&mut self, _seconds: f32) {
+        self.typed();
         self.draw();
     }
 
@@ -434,13 +551,14 @@ impl Mod for Waypoints {
                 }
                 for (i, w) in self.list.iter().enumerate() {
                     chat::show(&format!(
-                        "{}. {} ({} {} {}) {}{}",
+                        "{}. {} ({} {} {}) {} {}%{}",
                         i + 1,
                         w.name,
                         w.x,
                         w.y,
                         w.z,
                         color_name(w.color),
+                        w.size,
                         if w.visible { "" } else { ", hidden" }
                     ));
                 }
@@ -473,6 +591,20 @@ impl Mod for Waypoints {
                 self.changed();
                 Ok(Some(format!("Colour is {}", color_name(color))))
             }
+            "size" => {
+                let (n, v) = rest.split_once(' ').unwrap_or((rest, ""));
+                let i = self.index(n)?;
+                let size: u32 = v
+                    .trim()
+                    .trim_end_matches('%')
+                    .parse()
+                    .ok()
+                    .filter(|v| (25..=300).contains(v))
+                    .ok_or("Use /wp size N 25 to 300 (100 is normal)")?;
+                self.list[i].size = size;
+                self.changed();
+                Ok(Some(format!("Size is {size}%")))
+            }
             "hide" | "show" => {
                 let i = self.index(rest)?;
                 self.list[i].visible = sub == "show";
@@ -499,9 +631,12 @@ impl Mod for Waypoints {
         match id {
             SHOW_ALL => self.show = !self.show,
             ADD => {
-                if let Err(e) = self.add("") {
-                    chat::show(&e);
+                self.pending = self.here();
+                if self.pending.is_none() {
+                    chat::show("Join a world first");
+                    return;
                 }
+                ui::request_text(ASK_NEW, "Name of the new waypoint", "");
                 return;
             }
             LIST => {
@@ -509,9 +644,37 @@ impl Mod for Waypoints {
                 self.page();
                 return;
             }
+            RENAME => {
+                if let Some(w) = self.selected.and_then(|i| self.list.get(i)) {
+                    ui::request_text(ASK_NAME, "New name", &w.name);
+                }
+                return;
+            }
             COLOR => {
+                self.picking = true;
+                self.page();
+                return;
+            }
+            COLOR_LIST => {
+                if let (Some(w), Some(&(_, c))) = (
+                    self.selected.and_then(|i| self.list.get_mut(i)),
+                    PALETTE.get(row as usize),
+                ) {
+                    w.color = c;
+                }
+                self.picking = false;
+            }
+            BACK => {
+                self.picking = false;
+                self.page();
+                return;
+            }
+            SIZE => {
                 if let Some(w) = self.selected.and_then(|i| self.list.get_mut(i)) {
-                    w.color = next_color(w.color);
+                    let next = SIZES.iter().position(|&s| s == w.size).map_or(0, |i| {
+                        (i + 1) % SIZES.len()
+                    });
+                    w.size = SIZES[next];
                 }
             }
             VISIBLE => {
@@ -531,6 +694,7 @@ impl Mod for Waypoints {
     }
 
     fn ui_settings_opened(&mut self) {
+        self.picking = false;
         self.page();
     }
 }

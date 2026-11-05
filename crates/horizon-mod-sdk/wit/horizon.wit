@@ -207,6 +207,17 @@ interface ui {
     /// opening the page is `ui-events::settings-opened`: push fresh widgets
     /// then; later calls update the page while it shows.
     set-settings: func(widgets: list<widget>);
+    /// Colours for the rows of the `list` widget `id` (0xRRGGBB, one per row;
+    /// 0 is the menus' white): the rows draw in them, so a colour picker shows
+    /// each colour in its own colour. Kept until the next call for that id.
+    set-list-colors: func(id: u32, colors: list<u32>);
+    /// Asks the player for a line of text: the game shows its keyboard and a
+    /// box titled `title` holding `initial`. What they typed comes back from
+    /// `poll-text` as (`id`, text) once they confirm; closing the keyboard
+    /// without it confirms too. Only the last request of one hook counts.
+    request-text: func(id: u32, title: string, initial: string);
+    /// The lines the player confirmed since the last call, as (id, text).
+    poll-text: func() -> list<tuple<u32, string>>;
 }
 
 /// What the game calls on a mod that shows widgets (capability `ui`):
