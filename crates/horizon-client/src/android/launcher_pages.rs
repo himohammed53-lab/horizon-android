@@ -125,6 +125,33 @@ pub(super) fn button(
     );
     targets.push((rect, action));
 }
+/// A mod's ON (green) or OFF (red) switch: one press flips it.
+fn switch_button(
+    ui: &mut Ui,
+    targets: &mut Vec<([f32; 4], Action)>,
+    rect: [f32; 4],
+    on: bool,
+    action: Action,
+) {
+    let [x, y, w, h] = rect;
+    let (fill, label) = if on {
+        (color::hex(0x2e9b4f, 255), "ON")
+    } else {
+        (color::hex(0xc8433a, 255), "OFF")
+    };
+    ui.rounded(x, y, w, h, 2.0, fill);
+    let size = 20.0;
+    let width = ui.measure(Face::Medium, size, label);
+    ui.text(
+        Face::Medium,
+        size,
+        x + (w - width) / 2.0,
+        y + 10.0,
+        color::hex(0xffffff, 255),
+        label,
+    );
+    targets.push((rect, action));
+}
 fn toggle(
     ui: &mut Ui,
     targets: &mut Vec<([f32; 4], Action)>,
@@ -262,7 +289,7 @@ impl Launcher {
             32.0,
             if w < 700.0 { 12.0 } else { 28.0 },
             color::TEXT,
-            &format!("Horizon Android {}", crate::backend::VERSION),
+            "Horizon",
         );
         button(
             &mut ui,
@@ -285,7 +312,7 @@ impl Launcher {
             button(
                 &mut ui,
                 &mut self.targets,
-                [x, 88.0, tab_width - 4.0, 42.0],
+                [x, 88.0, tab_width - 4.0, 46.0],
                 if w < 700.0 {
                     match page {
                         Page::Installed => "Files",
@@ -409,30 +436,6 @@ impl Launcher {
                     color::MUTED,
                     &detail,
                 );
-            } else {
-                let rows = if installed {
-                    [
-                        "01  Open a world or join a Java server",
-                        "02  Touch setup: Options > Controls",
-                        "03  Find packs and .hmod in the tabs",
-                    ]
-                } else {
-                    [
-                        "01  Download resources from Mojang",
-                        "02  Install and verify on this phone",
-                        "03  Play offline or sign in for servers",
-                    ]
-                };
-                for (index, line) in rows.iter().enumerate() {
-                    ui.text(
-                        Face::Regular,
-                        17.0,
-                        32.0,
-                        top + 100.0 + index as f32 * 42.0,
-                        color::MUTED,
-                        line,
-                    );
-                }
             }
             if installing {
                 ui.text(
@@ -447,7 +450,7 @@ impl Launcher {
                 button(
                     &mut ui,
                     &mut self.targets,
-                    [32.0, h - 100.0, 320.0, 60.0],
+                    [32.0, h - 108.0, 360.0, 68.0],
                     if installed {
                         "Play"
                     } else if self.error.is_some() {
@@ -599,6 +602,8 @@ impl Launcher {
                         && horizon_client::mod_list::ANDROID_BUNDLED
                             .iter()
                             .any(|(id, _, _)| *id == p.id))
+                        // `.hnmod` source mods cannot be installed here: no row.
+                        && !(page == Page::Mods && crate::catalog::source_only_mod(p))
                 })
                 .collect();
             let row_count = bundled.len() + catalog_rows.len();
@@ -622,17 +627,12 @@ impl Launcher {
                 let summary = ui.fit_text(Face::Regular, 14.0, description, w - 214.0);
                 ui.text(Face::Medium, 19.0, 32.0, y, color::TEXT, &title);
                 ui.text(Face::Regular, 14.0, 32.0, y + 29.0, color::MUTED, &summary);
-                button(
+                switch_button(
                     &mut ui,
                     &mut self.targets,
                     [w - 150.0, y, 118.0, 42.0],
-                    if self.catalog.bundled_enabled.contains(*id) {
-                        "Disable"
-                    } else {
-                        "Enable"
-                    },
+                    self.catalog.bundled_enabled.contains(*id),
                     Action::ToggleBundled(id),
-                    false,
                 );
             }
             for (row, (i, p)) in catalog_rows.into_iter().enumerate() {

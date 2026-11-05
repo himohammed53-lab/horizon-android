@@ -977,6 +977,35 @@ impl Game<'_> {
             .insert(name, key);
         self.settings.save(&Self::options_path());
     }
+    /// The Android keyboard's output while a mod key row waits for its key:
+    /// a letter, digit or Space binds it, Enter binds Enter, Backspace binds
+    /// none (as Escape does), and closing the keyboard keeps the old key.
+    /// `Some(true)` when the binding is over (the keyboard can go), `Some(false)`
+    /// when the output was no key (still waiting), `None` when no row waits.
+    #[cfg(target_os = "android")]
+    pub(super) fn mod_binding_osk(&mut self, out: &horizon_client::osk::Output) -> Option<bool> {
+        use horizon_client::osk::Output;
+        self.mods.screen.as_ref().filter(|ms| ms.binding.is_some())?;
+        let key = match out {
+            Output::Text(text) => match text.chars().last() {
+                Some(c) if c.is_ascii_alphanumeric() => {
+                    format!("key.keyboard.{}", c.to_ascii_lowercase())
+                }
+                Some(' ') => "key.keyboard.space".to_owned(),
+                _ => return Some(false),
+            },
+            Output::Enter => "key.keyboard.enter".to_owned(),
+            Output::Backspace => "key.keyboard.unknown".to_owned(),
+            Output::Close => {
+                if let Some(ms) = self.mods.screen.as_mut() {
+                    ms.binding = None;
+                }
+                return Some(true);
+            }
+        };
+        self.bind_mod_key(key);
+        Some(true)
+    }
     /// A key while a mod screen is up: true when a key row waited for
     /// it (Key Binds: Escape binds none).
     pub(super) fn mod_screen_key(&mut self, key: KeyCode) -> bool {
@@ -1268,6 +1297,9 @@ impl Game<'_> {
             if let Some(ms) = self.mods.screen.as_mut() {
                 ms.binding = Some(name);
             }
+            // No physical keyboard on a phone: the system keyboard picks the key.
+            #[cfg(target_os = "android")]
+            self.android_show_keyboard();
             return;
         }
         let top = MOD_UI_TOP + keys.len() as f32 * MOD_UI_KEY_ROW;

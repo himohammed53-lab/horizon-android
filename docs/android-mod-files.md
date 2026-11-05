@@ -44,3 +44,12 @@ Server mods have no settings page (pages belong to client mods with capability
 built by the same workflow: put their folders in `mod_dirs`.
 
 Not yet verified on a device: `break-blocks` and the two server mods.
+
+## Launcher and keys
+
+- The Mods page's switch for the bundled mods reads ON (green) or OFF (red).
+- `.hnmod` source mods are not listed: they cannot be installed here.
+- A mod's key row in Options > Mods (a key the mod registered, for example
+  Gamma's) opens the system keyboard: a letter, digit, Space or Enter binds
+  it; closing the keyboard keeps the old key. A key can also be bound to a
+  touch button in the touch layout editor.

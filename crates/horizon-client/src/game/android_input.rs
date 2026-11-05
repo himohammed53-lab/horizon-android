@@ -494,6 +494,14 @@ impl Game<'_> {
             ));
         }
         for out in crate::platform::poll() {
+            // A mod's key row waits for the key typed on the system keyboard.
+            #[cfg(feature = "mods")]
+            if let Some(over) = self.mod_binding_osk(&out) {
+                if over {
+                    crate::platform::hide();
+                }
+                continue;
+            }
             let next_sign_line = self.sign_edit.is_some() && matches!(out, Output::Enter);
             let done =
                 matches!(out, Output::Close) || (matches!(out, Output::Enter) && !next_sign_line);
