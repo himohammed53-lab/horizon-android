@@ -581,6 +581,14 @@ impl Game<'_> {
         Snapshot {
             player,
             clock,
+            view: self.locator_camera.map(|(at, yaw, pitch, fov)| horizon_mods::View {
+                x: at[0],
+                y: at[1],
+                z: at[2],
+                yaw,
+                pitch,
+                fov,
+            }),
             gui_size: self.gui_size(),
             held: self.mod_held(),
             frame: self.frame_reading(),

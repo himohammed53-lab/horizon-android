@@ -47,6 +47,20 @@ interface game {
     get-player: func() -> option<player>;
     /// None on the title screen.
     get-clock: func() -> option<clock>;
+    /// The camera the last frame was drawn from, for placing things in the
+    /// world on the screen (a waypoint): project a point with the camera's
+    /// position, `yaw` and `pitch` (degrees, as the player's), the vertical
+    /// `fov` in degrees, and `render.gui-size` for the screen's shape.
+    record view {
+        x: f64,
+        y: f64,
+        z: f64,
+        yaw: f32,
+        pitch: f32,
+        fov: f32,
+    }
+    /// None on the title screen.
+    get-view: func() -> option<view>;
     /// A block along the player's view.
     record hit {
         /// The block hit.

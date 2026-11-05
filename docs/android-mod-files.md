@@ -13,6 +13,14 @@ is started by hand from the Actions tab. It builds the mod folders named in
 checks them with `cargo horizon-mod check` and uploads the `.hmod` files as the
 `hmod` artifact. It does not build the app.
 
+## API level 9
+
+Level 9 adds `game.get-view()` (`crates/horizon-mod-sdk/wit/horizon.wit`): the
+camera the last frame was drawn from (position, yaw, pitch, vertical field of
+view). With `render.gui-size` a client mod can project a point of the world to
+the screen, for markers such as waypoints. A mod that imports it is refused by
+a build below level 9 with the "update Horizon" message.
+
 ## API level 8
 
 Level 8 adds two functions (`crates/horizon-mod-sdk/wit/horizon.wit`):

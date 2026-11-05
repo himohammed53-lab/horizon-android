@@ -312,7 +312,7 @@ impl Launcher {
             button(
                 &mut ui,
                 &mut self.targets,
-                [x, 88.0, tab_width - 4.0, 42.0],
+                [x, 88.0, tab_width - 4.0, 46.0],
                 if w < 700.0 {
                     match page {
                         Page::Installed => "Files",
@@ -334,32 +334,22 @@ impl Launcher {
             let installing = self.worker.is_some();
             let progress = *self.install.lock().unwrap();
             let top = 160.0;
-            ui.text(
-                Face::Medium,
-                32.0,
-                32.0,
-                top,
-                color::TEXT,
-                if installing {
-                    "Getting your game ready"
-                } else if installed {
-                    "Ready to play"
-                } else {
-                    if compact {
+            if installing || !installed {
+                ui.text(
+                    Face::Medium,
+                    32.0,
+                    32.0,
+                    top,
+                    color::TEXT,
+                    if installing {
+                        "Getting your game ready"
+                    } else if compact {
                         "Your Java worlds"
                     } else {
                         "Your Java worlds, on Android"
-                    }
-                },
-            );
-            ui.text(
-                Face::Regular,
-                17.0,
-                32.0,
-                top + 47.0,
-                color::MUTED,
-                &format!("Minecraft 26.3  /  Profile {}", self.catalog.config.profile),
-            );
+                    },
+                );
+            }
             if installing {
                 let current = InstallStage::ALL
                     .iter()
@@ -450,7 +440,7 @@ impl Launcher {
                 button(
                     &mut ui,
                     &mut self.targets,
-                    [32.0, h - 100.0, 320.0, 60.0],
+                    [32.0, h - 106.0, 340.0, 66.0],
                     if installed {
                         "Play"
                     } else if self.error.is_some() {
@@ -1084,6 +1074,11 @@ impl Launcher {
             );
         }
         let status = self.error.as_deref().unwrap_or(&self.catalog.status);
+        let status = if page == Page::Play && self.error.is_none() && self.worker.is_none() {
+            ""
+        } else {
+            status
+        };
         for (i, line) in status
             .chars()
             .collect::<Vec<_>>()

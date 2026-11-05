@@ -43,7 +43,7 @@ mod ui_bindings {
     });
 }
 pub use bindings::horizon::mods::{
-    game::{Clock, Hit, Player},
+    game::{Clock, Hit, Player, View},
     hud::{Corner, Line},
 };
 use bindings::{
@@ -138,6 +138,8 @@ const STORAGE_WRITE_BUDGET: u64 = 1 << 20;
 pub struct Snapshot {
     pub player: Option<Player>,
     pub clock: Option<Clock>,
+    /// The camera the last frame drew from (`game.get-view`).
+    pub view: Option<View>,
     /// The screen in GUI pixels (capability `render`'s `gui-size`).
     pub gui_size: (f32, f32),
     /// The main hand's stack (capability `input`'s `held`).
@@ -1424,6 +1426,9 @@ impl game::Host for State {
     }
     fn get_clock(&mut self) -> Option<Clock> {
         self.snapshot.clock
+    }
+    fn get_view(&mut self) -> Option<View> {
+        self.snapshot.view
     }
     fn raycast(&mut self, distance: f32) -> Option<Hit> {
         let (at, hit) = self.snapshot.view_hit.as_ref()?;
