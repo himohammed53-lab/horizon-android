@@ -285,6 +285,14 @@ impl Launcher {
         let scale = ui.density / ui.batch.scale;
         ui.batch.fill(&gui.atlas, 0.0, 0.0, w * scale, h * scale, color::BG);
         ui.text(
+            Face::Regular,
+            12.0,
+            32.0,
+            h - 22.0,
+            color::MUTED,
+            "Horizon for Android  -  built together by Muhamed and Claude",
+        );
+        ui.text(
             Face::Medium,
             if w < 400.0 {
                 20.0
@@ -296,7 +304,7 @@ impl Launcher {
             32.0,
             if w < 700.0 { 12.0 } else { 28.0 },
             color::TEXT,
-            "Horizon by Muhamed x Claude",
+            "Horizon",
         );
         button(
             &mut ui,
