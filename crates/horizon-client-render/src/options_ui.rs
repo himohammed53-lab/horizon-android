@@ -1859,6 +1859,75 @@ fn mod_color(id: &str) -> u32 {
         .fold(7u32, |h, b| h.wrapping_mul(31).wrapping_add(u32::from(b)));
     COLORS[hash as usize % COLORS.len()]
 }
+/// A mod's icon, 32 x 32: its `icon.png` scaled up, else its first letter on a colour.
+fn draw_mod_icon(batch: &mut HudBatch, atlas: &HudAtlas, s: &Settings, i: usize, x: f32, y: f32) {
+    let Some(m) = s.mods.installed.get(i) else {
+        return;
+    };
+    if let Some(pixels) = s.mods.icons.get(&m.id) {
+        for (n, p) in pixels.iter().enumerate().filter(|(_, p)| p[3] != 0) {
+            let (px, py) = (x + (n % 16) as f32 * 2.0, y + (n / 16) as f32 * 2.0);
+            batch.fill(atlas, px, py, 2.0, 2.0, rgba(p[0], p[1], p[2], p[3]));
+        }
+        return;
+    }
+    let c = mod_color(&m.id);
+    let dim = |shift: u32| (((c >> shift) & 255) / 2) as u8;
+    batch.fill(atlas, x, y, 32.0, 32.0, rgba(dim(16), dim(8), dim(0), 255));
+    let (name, _) = split_mod_title(&m.title);
+    let letter = Text::literal(initial_of(name));
+    let tw = atlas.font.width_text(&letter);
+    batch.text_styled(atlas, &letter, x + ((32.0 - tw) / 2.0).floor(), y + 12.0, u32::MAX, true);
+}
+/// One mod on the Mods page's list, flat like Mod Menu's: icon, name, a line of its
+/// description and its state, outlined when chosen.
+#[allow(clippy::too_many_arguments)]
+fn draw_mod_row(
+    batch: &mut HudBatch,
+    atlas: &HudAtlas,
+    s: &Settings,
+    i: usize,
+    wd: &Widget,
+    name: &Text,
+    selected: bool,
+    hover: bool,
+) {
+    let Some(m) = s.mods.installed.get(i) else {
+        return;
+    };
+    let outline = if selected {
+        u32::MAX
+    } else if hover {
+        0xFFA0_A0A0
+    } else {
+        0
+    };
+    if outline != 0 {
+        batch.fill(atlas, wd.x, wd.y, wd.w, wd.h, outline);
+    }
+    let inner = if selected || hover { 0xFF00_0000 } else { 0x7000_0000 };
+    batch.fill(atlas, wd.x + 1.0, wd.y + 1.0, wd.w - 2.0, wd.h - 2.0, inner);
+    draw_mod_icon(batch, atlas, s, i, wd.x + 2.0, wd.y + 1.0);
+    let state = mod_state(s, i, m);
+    let sw = atlas.font.width_text(&state.resolved());
+    let tx = wd.x + 38.0;
+    batch.text_styled(atlas, name, tx, wd.y + 5.0, u32::MAX, true);
+    batch.text_styled(atlas, &state, wd.x + wd.w - sw - 5.0, wd.y + 5.0, u32::MAX, true);
+    // The description, cut to the room the row has.
+    let room = wd.w - 38.0 - 6.0;
+    let text = m.problem.as_deref().unwrap_or(&m.description);
+    let mut line = String::new();
+    for c in text.chars() {
+        let mut next = line.clone();
+        next.push(c);
+        if atlas.font.width(&format!("{next}...")) > room {
+            line.push_str("...");
+            break;
+        }
+        line = next;
+    }
+    batch.text_styled(atlas, &Text::literal(line), tx, wd.y + 19.0, 0xFF9A_9A9A, true);
+}
 /// ON in green, OFF in red; a stopped or invalid mod says so.
 fn mod_state(s: &Settings, i: usize, m: &crate::mod_list::Installed) -> Text {
     if m.problem.as_deref() == Some(crate::mod_list::NOT_BUILT) {
@@ -3527,17 +3596,17 @@ impl OptionsUi {
                     self.mod_sel = self.mod_sel.min(s.mods.installed.len() - 1);
                     for (i, m) in s.mods.installed.iter().enumerate() {
                         let (name, _) = split_mod_title(&m.title);
-                        let mut label = Text::literal(if i == self.mod_sel { "> " } else { "  " });
-                        // A mod with an icon.png shows it (drawn over the button's left).
-                        if !s.mods.icons.contains_key(&m.id) {
-                            label = label
-                                .append(Text::literal(initial_of(name)).with_color(mod_color(&m.id)));
-                        }
-                        label = label
-                            .append(Text::literal(format!(" {name} ")))
-                            .append(mod_state(s, i, m));
-                        out.push(button(8.0, y + 2.0, mod_left, label, Act::PickMod(i)));
-                        y += 24.0;
+                        // Drawn as a flat Mod Menu row, not as a button; the label is its name.
+                        let mut row = button(
+                            8.0,
+                            y + 2.0,
+                            mod_left,
+                            Text::literal(name.to_owned()),
+                            Act::PickMod(i),
+                        );
+                        row.h = 34.0;
+                        out.push(row);
+                        y += 38.0;
                     }
                 }
                 let menu_rows = if mod_menu { Vec::new() } else { self.list_rows(s) };
@@ -3671,29 +3740,44 @@ impl OptionsUi {
             });
         };
         let (name, version) = split_mod_title(&m.title);
+        // The icon (32 x 32) is drawn at (x, top + 8) beside the name.
         let y = top + 8.0;
-        let has_icon = s.mods.icons.contains_key(&m.id);
-        if !has_icon {
-            text(
-                out,
-                Text::literal(initial_of(name)).with_color(mod_color(&m.id)),
-                u32::MAX,
+        let nx = x + 40.0;
+        let at = |out: &mut Vec<Widget>, t: Text, color: u32, y: f32| {
+            out.push(Widget {
+                x: nx,
                 y,
-            );
-        }
-        let indent = if has_icon { "       " } else { "   " };
-        text(out, Text::literal(format!("{indent}{name}")), u32::MAX, y);
+                w: width - 40.0,
+                h: 9.0,
+                kind: WKind::Text {
+                    text: t,
+                    color,
+                    centered: false,
+                },
+                list: false,
+                row: 0,
+            });
+        };
+        at(
+            out,
+            Text::literal(name.to_owned()).with_style(&Style {
+                bold: Some(true),
+                ..Style::default()
+            }),
+            u32::MAX,
+            y + 4.0,
+        );
         let sub = if version.is_empty() {
             m.id.clone()
         } else {
             format!("{version}  -  {}", m.id)
         };
-        text(out, Text::literal(sub), 0xFF9A9A9A, y + 12.0);
+        at(out, Text::literal(sub), 0xFF9A9A9A, y + 18.0);
         text(
             out,
             Text::literal("Status: ").append(mod_state(s, self.mod_sel, m)),
             u32::MAX,
-            y + 26.0,
+            y + 42.0,
         );
         let description = m.problem.as_deref().unwrap_or(&m.description);
         let per_line = ((width / 5.2) as usize).max(12);
@@ -3711,27 +3795,28 @@ impl OptionsUi {
         if !line.is_empty() {
             lines.push(line);
         }
-        let room = (((bottom - top) - 100.0) / 10.0).max(2.0) as usize;
+        let room = (((bottom - top) - 130.0) / 10.0).max(2.0) as usize;
         for (i, l) in lines.into_iter().take(room).enumerate() {
-            text(out, Text::literal(l), 0xFFC0C0C0, y + 42.0 + i as f32 * 10.0);
+            text(out, Text::literal(l), 0xFFC0C0C0, y + 58.0 + i as f32 * 10.0);
         }
         let dead = m.dev || m.id.is_empty();
         let label = Text::literal("Mod: ").append(mod_state(s, self.mod_sel, m));
         let toggle = button(x, bottom - 52.0, width.min(150.0), label, Act::ToggleMod(self.mod_sel));
         out.push(if dead { inactive(toggle) } else { toggle });
-        if m.has_settings
-            || m.native
+        // Like Mod Menu's Configure: always there, greyed when the mod has no settings.
+        let configurable = m.has_settings
+            || m
+                .native
                 .as_ref()
-                .is_some_and(|page| !page.keys.is_empty() || !page.buttons.is_empty())
-        {
-            out.push(button(
-                x,
-                bottom - 28.0,
-                width.min(150.0),
-                tr("horizon.mods.settings"),
-                Act::ModSettings(self.mod_sel),
-            ));
-        }
+                .is_some_and(|page| !page.keys.is_empty() || !page.buttons.is_empty());
+        let settings = button(
+            x,
+            bottom - 28.0,
+            width.min(150.0),
+            tr("horizon.mods.settings"),
+            Act::ModSettings(self.mod_sel),
+        );
+        out.push(if configurable { settings } else { inactive(settings) });
     }
     fn clamp_scroll(&mut self, top: f32, bottom: f32, content: f32) {
         let max = (content - (bottom - top)).max(0.0);
@@ -3892,10 +3977,16 @@ impl OptionsUi {
         let (widgets, top, bottom, content) = self.layout(s, w, h);
         self.size = (w, h);
         let in_world = self.in_world;
-        ui::menu_background(batch, atlas, 0.0, 0.0, w, h, in_world);
+        // Video settings use the flat, dark look of Sodium's option screen.
+        let sodium = page == Page::Video;
         let list = bottom > top;
-        if list {
-            ui::list_background(batch, atlas, top, bottom, in_world);
+        if sodium {
+            crate::graphics_style::STYLE.background(batch, atlas, top, bottom, in_world);
+        } else {
+            ui::menu_background(batch, atlas, 0.0, 0.0, w, h, in_world);
+            if list {
+                ui::list_background(batch, atlas, top, bottom, in_world);
+            }
         }
         let visible = |wd: &Widget| !wd.list || (wd.y < bottom && wd.y + wd.h > top);
         // The list's narration: the language list is an ObjectSelectionList,
@@ -3978,33 +4069,65 @@ impl OptionsUi {
                 });
             }
             match &wd.kind {
+                WKind::Button {
+                    label,
+                    act: Act::PickMod(i),
+                    ..
+                } => draw_mod_row(batch, atlas, s, *i, wd, label, *i == self.mod_sel, hover),
                 WKind::Button { label, active, .. } => {
                     let label = fitted.as_ref().map_or(label, |f| &f.0);
-                    ui::button(batch, atlas, wd.x, wd.y, wd.w, wd.h, label, *active, hover);
-                    crate::widgets::last_narratable(|n| {
-                        narrate_widget(n, s, wd, hover, list_key, framebuffer);
-                    });
+                    if sodium {
+                        let at = (wd.x, wd.y, wd.w);
+                        crate::graphics_style::STYLE.button(
+                            batch,
+                            atlas,
+                            at,
+                            label,
+                            hover && *active,
+                            *active,
+                        );
+                    } else {
+                        ui::button(batch, atlas, wd.x, wd.y, wd.w, wd.h, label, *active, hover);
+                        crate::widgets::last_narratable(|n| {
+                            narrate_widget(n, s, wd, hover, list_key, framebuffer);
+                        });
+                    }
                 }
                 WKind::Slider { label, value, opt } => {
                     let dragging = self.dragging == Some(*opt);
                     let shown = self.slider_shown(*opt, *value);
-                    ui::slider_ext(
-                        batch,
-                        atlas,
-                        wd.x,
-                        wd.y,
-                        wd.w,
-                        label,
-                        shown,
-                        hover || dragging,
-                        is_focused,
-                        self.can_change_value && is_focused,
-                        true,
-                        dragging,
-                    );
-                    crate::widgets::last_narratable(|n| {
-                        narrate_widget(n, s, wd, hover, list_key, framebuffer);
-                    });
+                    if sodium {
+                        crate::graphics_style::STYLE.slider_ext(
+                            batch,
+                            atlas,
+                            (wd.x, wd.y, wd.w),
+                            label,
+                            shown,
+                            hover || dragging,
+                            is_focused,
+                            self.can_change_value && is_focused,
+                            true,
+                            dragging,
+                        );
+                    } else {
+                        ui::slider_ext(
+                            batch,
+                            atlas,
+                            wd.x,
+                            wd.y,
+                            wd.w,
+                            label,
+                            shown,
+                            hover || dragging,
+                            is_focused,
+                            self.can_change_value && is_focused,
+                            true,
+                            dragging,
+                        );
+                        crate::widgets::last_narratable(|n| {
+                            narrate_widget(n, s, wd, hover, list_key, framebuffer);
+                        });
+                    }
                 }
                 WKind::ShaderSlider { label, value, name } => {
                     let label = fitted.as_ref().map_or(label, |f| &f.0);
@@ -4091,32 +4214,24 @@ impl OptionsUi {
                     );
                 }
             }
-            // The Mods page: a mod's icon.png on its list row and beside its name.
-            let icon_at = match &wd.kind {
-                WKind::Button {
-                    act: Act::PickMod(i),
-                    ..
-                } => Some((*i, wd.x + 4.0, wd.y + 2.0)),
-                WKind::Button {
-                    act: Act::ToggleMod(i),
-                    ..
-                } => Some((*i, wd.x, top + 5.0)),
-                _ => None,
-            };
-            if let Some((i, x, y)) = icon_at
-                && let Some(pixels) = s.mods.installed.get(i).and_then(|m| s.mods.icons.get(&m.id))
+            // The Mods page: the chosen mod's icon beside its name on the right.
+            if let WKind::Button {
+                act: Act::ToggleMod(i),
+                ..
+            } = &wd.kind
             {
-                for (n, p) in pixels.iter().enumerate().filter(|(_, p)| p[3] != 0) {
-                    let (px, py) = (x + (n % 16) as f32, y + (n / 16) as f32);
-                    batch.fill(atlas, px, py, 1.0, 1.0, rgba(p[0], p[1], p[2], p[3]));
-                }
+                draw_mod_icon(batch, atlas, s, *i, wd.x, top + 8.0);
             }
             if wd.list && (wd.y < top || wd.y + wd.h > bottom) {
                 batch.clip_since(start, 0.0, top, w, bottom);
             }
         }
         if list {
-            ui::separators(batch, atlas, top, bottom, in_world);
+            if sodium {
+                crate::graphics_style::STYLE.frame(batch, atlas, top, bottom, in_world);
+            } else {
+                ui::separators(batch, atlas, top, bottom, in_world);
+            }
             let sx = self.scrollbar_x(w);
             ui::scrollbar(batch, atlas, sx, top, bottom, content, self.scroll);
         }
@@ -6081,10 +6196,11 @@ mod tests {
         });
         ui.show(Page::Mods);
         let (widgets, ..) = ui.layout(&s, 480.0, 240.0);
-        assert!(!widgets.iter().any(|w| matches!(
+        assert!(widgets.iter().any(|w| matches!(
             w.kind,
             WKind::Button {
                 act: Act::ModSettings(_),
+                active: false,
                 ..
             }
         )));

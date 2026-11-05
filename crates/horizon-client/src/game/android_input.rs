@@ -370,7 +370,7 @@ impl Game<'_> {
                     }
                     Action::TouchToggle => {
                         self.pad.touch_ui.cancel();
-                        self.pad.touch_ui.menu_touch_off ^= true;
+                        self.pad.touch_ui.menu_touch_on ^= true;
                         self.pad.touch.clear();
                     }
                     Action::More => self.pad.touch_ui.expanded = !self.pad.touch_ui.expanded,

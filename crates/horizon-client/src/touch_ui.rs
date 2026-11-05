@@ -13,8 +13,8 @@ use winit::{event::TouchPhase, keyboard::KeyCode};
 pub struct TouchUi {
     pub expanded: bool,
     pub virtual_mouse: bool,
-    /// The player hid the touch buttons on menu screens (this session).
-    pub menu_touch_off: bool,
+    /// The player turned the touch buttons on over the settings screens (they start hidden).
+    pub menu_touch_on: bool,
     /// Set each frame: a world is open.
     pub in_world: bool,
     mouse_buttons: BTreeMap<u64, bool>,
@@ -325,10 +325,8 @@ impl TouchUi {
         if menu && (3.0..23.0).contains(&p[1]) && (w - 108.0..w - 56.0).contains(&p[0]) {
             return Some(Action::VirtualMouse);
         }
-        if menu && self.in_world && (3.0..23.0).contains(&p[1]) {
-            if (w - 148.0..w - 112.0).contains(&p[0]) {
-                return Some(Action::TouchToggle);
-            }
+        if menu && (3.0..23.0).contains(&p[1]) && (w - 148.0..w - 112.0).contains(&p[0]) {
+            return Some(Action::TouchToggle);
         }
         if (3.0..23.0).contains(&p[1]) {
             if menu && (w - 53.0..w - 3.0).contains(&p[0]) {
@@ -401,11 +399,12 @@ impl TouchUi {
                 50.0,
             );
         }
-        if menu && self.in_world {
+        if menu {
+            // The label is what a press does: ON shows the touch buttons, OFF hides them.
             button(
                 b,
                 a,
-                if self.menu_touch_off {
+                if self.menu_touch_on {
                     "BT OFF"
                 } else {
                     "BT ON"

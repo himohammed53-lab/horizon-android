@@ -187,13 +187,13 @@ impl Game<'_> {
     }
     #[cfg(target_os = "android")]
     pub(super) fn android_inventory_controls(&self) -> bool {
-        // Always on: the touch buttons show over the inventory, crafting and
-        // settings screens without the "Controls in inventory" option.
-        !self.pad.touch_ui.menu_touch_off
-            && matches!(
-                self.screen,
-                Screen::Inventory | Screen::Creative | Screen::Options
-            )
+        // The inventory and crafting screens always show the touch buttons; the
+        // settings screens start without them until the player presses BT ON.
+        match self.screen {
+            Screen::Inventory | Screen::Creative => true,
+            Screen::Options => self.pad.touch_ui.menu_touch_on,
+            _ => false,
+        }
     }
     /// Once per loop iteration: read the pads and act on button changes.
     pub(super) fn poll_pads(&mut self, event_loop: &dyn EventLoopCtl) {

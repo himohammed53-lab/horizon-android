@@ -94,14 +94,14 @@ pub(super) fn button(
     accent: bool,
 ) {
     let [x, y, w, h] = rect;
-    ui.rounded(
-        x,
-        y,
-        w,
-        h,
-        2.0,
-        if accent { color::ACCENT } else { color::RAISED },
-    );
+    // Glass: a faint light rim round a translucent plate (the accent stays solid).
+    if accent {
+        ui.rounded(x, y, w, h, 6.0, color::ACCENT);
+    } else {
+        ui.rounded(x, y, w, h, 6.0, color::hex(0xffffff, 46));
+        ui.rounded(x + 1.0, y + 1.0, w - 2.0, h - 2.0, 5.0, color::hex(0x0b1220, 150));
+        ui.rounded(x + 1.0, y + 1.0, w - 2.0, h - 2.0, 5.0, color::RAISED);
+    }
     let padding = (w * 0.12).clamp(4.0, 12.0);
     let base = if w < 80.0 { 13.0 } else { 16.0 };
     let font = if matches!(action, Action::Page(_)) {
@@ -275,8 +275,21 @@ impl Launcher {
         }
         let (w, h) = (ui.w, ui.h);
         let scale = ui.density / ui.batch.scale;
-        ui.batch
-            .fill(&gui.atlas, 0.0, 0.0, w * scale, h * scale, color::BG);
+        // A soft blue-to-dark backdrop under the glass plates.
+        ui.batch.fill_gradient(
+            &gui.atlas,
+            (0.0, 0.0, w * scale, h * scale),
+            color::hex(0x1b2a4a, 255),
+            color::BG,
+        );
+        ui.text(
+            Face::Regular,
+            12.0,
+            32.0,
+            h - 22.0,
+            color::MUTED,
+            "Horizon for Android  -  developed by Muhamed and Claude",
+        );
         ui.text(
             Face::Medium,
             if w < 400.0 {
