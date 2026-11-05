@@ -290,7 +290,7 @@ impl Launcher {
             32.0,
             h - 22.0,
             color::MUTED,
-            "Horizon for Android  -  built together by Muhamed and Claude",
+            "Horizon Android  -  developed by Muhamed and Claude",
         );
         ui.text(
             Face::Medium,
