@@ -76,8 +76,6 @@ fn pause_buttons(
         (x0 + 4.0, y0 + 50.0, 204.0, "menu.returnToGame", 0, true),
         (x0 + 4.0, y0 + 74.0, 98.0, "gui.advancements", 4, true),
         (x0 + 110.0, y0 + 74.0, 98.0, "gui.stats", 3, true),
-        // Horizon: the Mods page (Mod Menu) without going through Options.
-        (x0 + 4.0, y0 + 98.0, 204.0, "horizon.pages.open.mods", 15, true),
     ];
     if additions {
         // addCustomDialogButtons: one full-width button, labelled with the
@@ -134,14 +132,15 @@ const ICON_LABELS: [&str; 4] = [
     "menu.reportBugs",
     "menu.sendFeedback",
     "gui.friends.open",
-    "menu.playerReporting",
+    "horizon.pages.open.mods",
 ];
 /// Whether an icon button is active: `reportBugsButton.active =
 /// !dataVersion().isSideSeries()` (26.3 is the `main` series), the feedback
 /// button always, friends when the friends list is shown.
 fn icon_active(icon: usize, friends: bool) -> bool {
     match icon {
-        0 | 1 => true,
+        // Horizon: the fourth slot is the Mods button (an "M"), not player reporting.
+        0 | 1 | 3 => true,
         FRIENDS_ICON => friends,
         _ => false,
     }
@@ -294,7 +293,7 @@ impl Game<'_> {
                     "menu.reportBugs",
                     "menu.sendFeedback",
                     "",
-                    "menu.playerReporting",
+                    "horizon.pages.open.mods",
                 ][i];
                 *n = if i == FRIENDS_ICON {
                     widgets::Narratable::named(t("gui.friends.open.narration"), n.rect, active)
@@ -307,7 +306,13 @@ impl Game<'_> {
             // SpriteIconButton.CenteredIcon: the 15x15 sprite at
             // x + width / 2 - 15 / 2 in integer pixels, untinted even
             // when the button is inactive.
-            batch.sprite_scaled(atlas, sprite, x + 3.0, y + 3.0, 15.0, 15.0, u32::MAX);
+            if i == 3 {
+                let m = Text::literal("M");
+                let tw = atlas.font.width_text(&m);
+                batch.text(atlas, &m, (x + (20.0 - tw) / 2.0).floor(), y + 6.0, u32::MAX, true);
+            } else {
+                batch.sprite_scaled(atlas, sprite, x + 3.0, y + 3.0, 15.0, 15.0, u32::MAX);
+            }
             if hover {
                 tooltip = Some(if i == FRIENDS_ICON {
                     Text::literal(horizon_client::friends_screen::TITLE)
@@ -382,7 +387,8 @@ impl Game<'_> {
             .map(|b| b.4)
             .or_else(|| {
                 // The report bugs and feedback icons (ids 12 and 13).
-                (0..2)
+                [0usize, 1, 3]
+                    .into_iter()
                     .find(|&i| ui::hovered(self.cursor, icons[i].0, icons[i].1, 20.0, 20.0))
                     .map(|i| 12 + i as u8)
             })
@@ -890,13 +896,13 @@ mod tests {
         // friends follows its list, player reporting waits for its screen.
         assert!(icon_active(0, false) && icon_active(1, false));
         assert!(icon_active(FRIENDS_ICON, true) && !icon_active(FRIENDS_ICON, false));
-        assert!(!icon_active(3, true));
+        assert!(icon_active(3, true));
     }
 
     #[test]
     fn pause_keyboard_focus_includes_the_active_icon_buttons() {
-        assert_eq!(pause_icon_focus_ids(false), [12, 13]);
-        assert_eq!(pause_icon_focus_ids(true), [12, 13, 10]);
+        assert_eq!(pause_icon_focus_ids(false), [12, 13, 15]);
+        assert_eq!(pause_icon_focus_ids(true), [12, 13, 10, 15]);
     }
 
     #[test]

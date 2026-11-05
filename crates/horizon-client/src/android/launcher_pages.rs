@@ -283,15 +283,7 @@ impl Launcher {
         }
         let (w, h) = (ui.w, ui.h);
         let scale = ui.density / ui.batch.scale;
-        draw_backdrop(&mut ui.batch, &gui.atlas, w * scale, h * scale);
-        ui.text(
-            Face::Regular,
-            12.0,
-            32.0,
-            h - 22.0,
-            color::MUTED,
-            "Horizon for Android  -  built together by Muhamed and Claude",
-        );
+        ui.batch.fill(&gui.atlas, 0.0, 0.0, w * scale, h * scale, color::BG);
         ui.text(
             Face::Medium,
             if w < 400.0 {
@@ -304,7 +296,7 @@ impl Launcher {
             32.0,
             if w < 700.0 { 12.0 } else { 28.0 },
             color::TEXT,
-            "Horizon",
+            "Horizon by Muhamed x Claude",
         );
         button(
             &mut ui,
@@ -1845,67 +1837,3 @@ impl Launcher {
     }
 }
 
-/// The launcher's background: the picture (a 192 x 108 copy of it) as a smooth mesh over the
-/// whole screen, cropped to fill it, with a veil so the text stays readable.
-fn draw_backdrop(batch: &mut HudBatch, atlas: &horizon_client::hud::HudAtlas, w: f32, h: f32) {
-    use std::sync::OnceLock;
-    static IMAGE: OnceLock<Option<(usize, usize, Vec<[u8; 3]>)>> = OnceLock::new();
-    let image = IMAGE.get_or_init(|| {
-        let mut decoder =
-            png::Decoder::new(std::io::Cursor::new(include_bytes!("launcher_bg.png").as_slice()));
-        decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
-        let mut reader = decoder.read_info().ok()?;
-        let (iw, ih) = (reader.info().width as usize, reader.info().height as usize);
-        let mut buffer = vec![0; reader.output_buffer_size()?];
-        let frame = reader.next_frame(&mut buffer).ok()?;
-        let channels = frame.color_type.samples();
-        let pixels = buffer[..frame.buffer_size()]
-            .chunks(channels)
-            .map(|c| [c[0], c[1], c[2]])
-            .collect::<Vec<_>>();
-        (pixels.len() == iw * ih).then_some((iw, ih, pixels))
-    });
-    let Some((iw, ih, pixels)) = image else {
-        batch.fill(atlas, 0.0, 0.0, w, h, color::BG);
-        return;
-    };
-    let (iw, ih) = (*iw, *ih);
-    // Cover: scale the picture until it fills the screen, cropping the overflow.
-    let scale = (w / iw as f32).max(h / ih as f32);
-    let (ox, oy) = ((w - iw as f32 * scale) / 2.0, (h - ih as f32 * scale) / 2.0);
-    let sample = |sx: f32, sy: f32| -> u32 {
-        let fx = ((sx - ox) / scale - 0.5).clamp(0.0, iw as f32 - 1.0);
-        let fy = ((sy - oy) / scale - 0.5).clamp(0.0, ih as f32 - 1.0);
-        let (x0, y0) = (fx.floor() as usize, fy.floor() as usize);
-        let (x1, y1) = ((x0 + 1).min(iw - 1), (y0 + 1).min(ih - 1));
-        let (tx, ty) = (fx - x0 as f32, fy - y0 as f32);
-        let mut out = [0u8; 3];
-        for (c, o) in out.iter_mut().enumerate() {
-            let top = f32::from(pixels[y0 * iw + x0][c]) * (1.0 - tx)
-                + f32::from(pixels[y0 * iw + x1][c]) * tx;
-            let bottom = f32::from(pixels[y1 * iw + x0][c]) * (1.0 - tx)
-                + f32::from(pixels[y1 * iw + x1][c]) * tx;
-            *o = (top * (1.0 - ty) + bottom * ty).round() as u8;
-        }
-        horizon_client::hud::rgba(out[0], out[1], out[2], 255)
-    };
-    const COLS: usize = 64;
-    const ROWS: usize = 36;
-    let (cw, ch) = (w / COLS as f32, h / ROWS as f32);
-    for gy in 0..ROWS {
-        for gx in 0..COLS {
-            let (x, y) = (gx as f32 * cw, gy as f32 * ch);
-            batch.fill_corners(
-                atlas,
-                (x, y, cw + 0.5, ch + 0.5),
-                [
-                    sample(x, y),
-                    sample(x + cw, y),
-                    sample(x + cw, y + ch),
-                    sample(x, y + ch),
-                ],
-            );
-        }
-    }
-    batch.fill(atlas, 0.0, 0.0, w, h, horizon_client::hud::rgba(8, 4, 24, 110));
-}

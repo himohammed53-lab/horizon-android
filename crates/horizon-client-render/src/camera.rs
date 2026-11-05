@@ -470,7 +470,9 @@ impl Camera {
         }
         self.old_fov_modifier = self.fov_modifier;
         self.fov_modifier += (target_fov_modifier - self.fov_modifier) * 0.5;
-        self.fov_modifier = clamp(self.fov_modifier, 0.1, 1.5);
+        // Vanilla stops at 0.1 (10x); Android's Zoom mod goes on to 100x.
+        let least = if cfg!(target_os = "android") { 0.005 } else { 0.1 };
+        self.fov_modifier = clamp(self.fov_modifier, least, 1.5);
     }
     /// `Camera.setRotation`.
     pub fn set_rotation(&mut self, y_rot: f32, x_rot: f32) {
