@@ -62,7 +62,7 @@ pub const STYLE: Style = Style {
     header_height: 16.0,
     band: 33.0,
     title_color: u32::MAX,
-    header_color: opaque(205, 205, 215),
+    header_color: opaque(255, 255, 85),
     description_color: opaque(170, 170, 170),
     cost_colors: [
         opaque(120, 200, 120),
@@ -72,16 +72,6 @@ pub const STYLE: Style = Style {
         opaque(85, 255, 85),
     ],
 };
-
-/// Sodium-like colours (ABGR like `opaque`; alpha in the top byte).
-const SCREEN: u32 = 0xA010_1010;
-const BAND: u32 = 0xF008_0808;
-const ROW: u32 = 0xD026_2626;
-const ROW_HOVER: u32 = 0xE03A_3A3A;
-const ROW_OFF: u32 = 0xC018_1818;
-const EDGE: u32 = 0xFF50_5050;
-const ACCENT: u32 = opaque(205, 205, 215);
-const SLIDER: u32 = opaque(96, 96, 108);
 
 impl Style {
     /// Width of the description column on a screen `screen_width` wide.
@@ -93,30 +83,17 @@ impl Style {
         let total = self.control_width + self.gap + self.text_width(screen_width);
         ((screen_width - total) / 2.0).floor()
     }
-    /// A flat dark panel with a one pixel frame, the look of Sodium's option rows.
-    fn panel(
-        &self,
-        batch: &mut HudBatch,
-        atlas: &HudAtlas,
-        (x, y, w, h): (f32, f32, f32, f32),
-        fill: u32,
-        border: u32,
-    ) {
-        batch.fill(atlas, x, y, w, h, border);
-        batch.fill(atlas, x + 1.0, y + 1.0, w - 2.0, h - 2.0, fill);
-    }
     pub fn background(
         &self,
         batch: &mut HudBatch,
         atlas: &HudAtlas,
         top: f32,
         bottom: f32,
-        _in_world: bool,
+        in_world: bool,
     ) {
         let (w, h) = (batch.width, batch.height);
-        batch.fill(atlas, 0.0, 0.0, w, h, SCREEN);
-        batch.fill(atlas, 0.0, 0.0, w, top, BAND);
-        batch.fill(atlas, 0.0, bottom, w, h - bottom, BAND);
+        ui::menu_background(batch, atlas, 0.0, 0.0, w, h, in_world);
+        ui::list_background(batch, atlas, top, bottom, in_world);
     }
     pub fn frame(
         &self,
@@ -124,20 +101,15 @@ impl Style {
         atlas: &HudAtlas,
         top: f32,
         bottom: f32,
-        _in_world: bool,
+        in_world: bool,
     ) {
-        let w = batch.width;
-        batch.fill(atlas, 0.0, top - 1.0, w, 1.0, ACCENT);
-        batch.fill(atlas, 0.0, bottom, w, 1.0, EDGE);
+        ui::separators(batch, atlas, top, bottom, in_world);
     }
     pub fn title(&self, batch: &mut HudBatch, atlas: &HudAtlas, text: &Text) {
         let w = batch.width;
         ui::centered_text(batch, atlas, text, 0.0, 12.0, w, self.title_color);
-        let width = atlas.font.width_text(&text.resolved()).min(w - 20.0);
-        batch.fill(atlas, ((w - width) / 2.0).floor(), 23.0, width, 1.0, ACCENT);
     }
     pub fn header(&self, batch: &mut HudBatch, atlas: &HudAtlas, text: &Text, x: f32, y: f32) {
-        batch.fill(atlas, x, y + 14.0, self.control_width + self.gap + self.text_width(batch.width), 1.0, EDGE);
         batch.text_styled(atlas, text, x, y + 4.0, self.header_color, true);
     }
     pub fn button(
@@ -149,14 +121,7 @@ impl Style {
         hover: bool,
         active: bool,
     ) {
-        let (fill, border) = match (active, hover) {
-            (false, _) => (ROW_OFF, EDGE),
-            (true, true) => (ROW_HOVER, ACCENT),
-            (true, false) => (ROW, EDGE),
-        };
-        self.panel(batch, atlas, (x, y, w, 20.0), fill, border);
-        let color = if active { u32::MAX } else { opaque(130, 130, 130) };
-        ui::centered_text(batch, atlas, label, x, y + 6.0, w, color);
+        ui::button(batch, atlas, x, y, w, 20.0, label, active, hover);
     }
     pub fn slider(
         &self,
@@ -169,14 +134,19 @@ impl Style {
         active: bool,
         dragging: bool,
     ) {
-        let lit = hover && active || dragging;
-        self.panel(batch, atlas, (x, y, w, 20.0), ROW, if lit { ACCENT } else { EDGE });
-        let fill = ((w - 4.0) * value.clamp(0.0, 1.0)).floor();
-        batch.fill(atlas, x + 2.0, y + 2.0, fill, 16.0, if active { SLIDER } else { ROW_OFF });
-        let color = if active { u32::MAX } else { opaque(130, 130, 130) };
-        ui::centered_text(batch, atlas, label, x, y + 6.0, w, color);
+        ui::slider(
+            batch,
+            atlas,
+            x,
+            y,
+            w,
+            label,
+            value,
+            hover && active,
+            active,
+            dragging && active,
+        );
     }
-    #[allow(clippy::too_many_arguments)]
     pub fn slider_ext(
         &self,
         batch: &mut HudBatch,
@@ -186,11 +156,24 @@ impl Style {
         value: f32,
         hover: bool,
         focused: bool,
-        _can_change_value: bool,
+        can_change_value: bool,
         active: bool,
         dragging: bool,
     ) {
-        self.slider(batch, atlas, (x, y, w), label, value, hover || focused, active, dragging);
+        ui::slider_ext(
+            batch,
+            atlas,
+            x,
+            y,
+            w,
+            label,
+            value,
+            hover && active,
+            focused,
+            can_change_value,
+            active,
+            dragging && active,
+        );
     }
     /// The cost tag and the description beside a control, wrapped to two lines.
     pub fn description(
