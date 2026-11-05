@@ -103,7 +103,13 @@ pub(super) fn button(
         ui.rounded(x + 1.0, y + 1.0, w - 2.0, h - 2.0, 5.0, color::RAISED);
     }
     let padding = (w * 0.12).clamp(4.0, 12.0);
-    let base = if w < 80.0 { 13.0 } else { 16.0 };
+    let base = if h >= 60.0 {
+        22.0
+    } else if w < 80.0 {
+        13.0
+    } else {
+        16.0
+    };
     let font = if matches!(action, Action::Page(_)) {
         (base * ((w - 2.0 * padding) / ui.measure(Face::Medium, base, label).max(1.0)).min(1.0))
             .max(9.0)
@@ -115,7 +121,7 @@ pub(super) fn button(
         Face::Medium,
         font,
         x + padding,
-        y + 11.0,
+        y + ((h - base * 1.45) / 2.0).max(11.0),
         if accent {
             color::ON_ACCENT
         } else {
@@ -288,7 +294,7 @@ impl Launcher {
             32.0,
             h - 22.0,
             color::MUTED,
-            "Horizon for Android  -  developed by Muhamed and Claude",
+            "Horizon for Android  -  built together by Muhamed and Claude",
         );
         ui.text(
             Face::Medium,
@@ -325,7 +331,7 @@ impl Launcher {
             button(
                 &mut ui,
                 &mut self.targets,
-                [x, 88.0, tab_width - 4.0, 46.0],
+                [x, 88.0, tab_width - 4.0, 54.0],
                 if w < 700.0 {
                     match page {
                         Page::Installed => "Files",
@@ -453,7 +459,7 @@ impl Launcher {
                 button(
                     &mut ui,
                     &mut self.targets,
-                    [32.0, h - 106.0, 340.0, 66.0],
+                    [32.0, h - 120.0, 400.0, 80.0],
                     if installed {
                         "Play"
                     } else if self.error.is_some() {
@@ -1113,14 +1119,6 @@ impl Launcher {
                 ),
             );
         }
-        button(
-            &mut ui,
-            &mut self.targets,
-            [w - 142.0, h - 52.0, 110.0, 32.0],
-            "GitHub",
-            Action::Repository,
-            false,
-        );
         if self.login.visible {
             self.list_targets.clear();
             self.list_view = None;

@@ -1533,6 +1533,8 @@ enum Act {
     ModSettings(usize),
     /// Mods page: select a mod to show its details.
     PickMod(usize),
+    /// Video Settings (Sodium style): jump to section `.0` of the list.
+    VideoTab(usize),
     /// A native mod's key (mod, key) waits for a key; a button of its page.
     NativeKey(usize, usize),
     NativeButton(usize, usize),
@@ -1700,6 +1702,8 @@ pub struct OptionsUi {
     scroll: f32,
     /// Mods page: the mod whose details show on the right.
     mod_sel: usize,
+    /// Video Settings: each section's name and where it starts in the list.
+    video_sections: Vec<(Text, f32)>,
     pub(crate) dragging: Option<Opt>,
     /// The shader pack option whose slider is held, and the handle's own position: it follows
     /// the pointer while the option takes the nearest of its values.
@@ -1780,6 +1784,7 @@ impl Default for OptionsUi {
             stack: vec![Page::Main],
             scroll: 0.0,
             mod_sel: 0,
+            video_sections: Vec::new(),
             dragging: None,
             shader_dragging: None,
             shift: false,
@@ -1858,6 +1863,67 @@ fn mod_color(id: &str) -> u32 {
         .bytes()
         .fold(7u32, |h, b| h.wrapping_mul(31).wrapping_add(u32::from(b)));
     COLORS[hash as usize % COLORS.len()]
+}
+/// Width of Video Settings' sidebar of sections.
+const SODIUM_SIDEBAR: f32 = 100.0;
+/// A Video Settings option as Sodium draws it: its name on the left, its value on the
+/// right, and under a slider's row a thin bar showing how far it is set.
+fn draw_sodium_row(
+    batch: &mut HudBatch,
+    atlas: &HudAtlas,
+    wd: &Widget,
+    label: &Text,
+    hover: bool,
+    active: bool,
+    slider: Option<f32>,
+) {
+    let fill = if hover { 0xFF40_4040 } else { 0xC020_2020 };
+    batch.fill(atlas, wd.x, wd.y, wd.w, wd.h, fill);
+    if hover {
+        batch.fill(atlas, wd.x, wd.y, 2.0, wd.h, rgba(90, 200, 255, 255));
+    }
+    if let Some(v) = slider {
+        let bar = (wd.w * v.clamp(0.0, 1.0)).floor();
+        batch.fill(atlas, wd.x, wd.y + wd.h - 2.0, bar, 2.0, rgba(90, 200, 255, 255));
+    }
+    let plain = label.plain();
+    let (name, value) = plain.split_once(": ").unwrap_or((plain.as_str(), ""));
+    let ink = if active { u32::MAX } else { rgba(130, 130, 130, 255) };
+    if value.is_empty() {
+        let text = Text::literal(name.to_owned());
+        let tw = atlas.font.width_text(&text);
+        let tx = wd.x + ((wd.w - tw) / 2.0).floor();
+        batch.text_styled(atlas, &text, tx, wd.y + 6.0, ink, true);
+        return;
+    }
+    batch.text_styled(atlas, &Text::literal(name.to_owned()), wd.x + 8.0, wd.y + 6.0, ink, true);
+    let shown = match value {
+        "ON" => rgba(85, 255, 85, 255),
+        "OFF" => rgba(255, 85, 85, 255),
+        _ if active => rgba(150, 225, 255, 255),
+        _ => ink,
+    };
+    let text = Text::literal(value.to_owned());
+    let tw = atlas.font.width_text(&text);
+    batch.text_styled(atlas, &text, wd.x + wd.w - tw - 8.0, wd.y + 6.0, shown, true);
+}
+/// One of Video Settings' sidebar sections.
+fn draw_video_tab(
+    batch: &mut HudBatch,
+    atlas: &HudAtlas,
+    wd: &Widget,
+    label: &Text,
+    current: bool,
+    hover: bool,
+) {
+    if current || hover {
+        batch.fill(atlas, wd.x, wd.y, wd.w, wd.h, if current { 0xFF30_3030 } else { 0xA030_3030 });
+    }
+    if current {
+        batch.fill(atlas, wd.x + wd.w - 3.0, wd.y, 3.0, wd.h, rgba(90, 200, 255, 255));
+    }
+    let ink = if current { u32::MAX } else { rgba(170, 170, 170, 255) };
+    batch.text_styled(atlas, label, wd.x + 8.0, wd.y + 7.0, ink, true);
 }
 /// A mod's icon, 32 x 32: its `icon.png` scaled up, else its first letter on a colour.
 fn draw_mod_icon(batch: &mut HudBatch, atlas: &HudAtlas, s: &Settings, i: usize, x: f32, y: f32) {
@@ -3609,7 +3675,64 @@ impl OptionsUi {
                         y += 38.0;
                     }
                 }
-                let menu_rows = if mod_menu { Vec::new() } else { self.list_rows(s) };
+                // Video Settings: one option to a line after a sidebar of sections, like Sodium's.
+                let sodium_video = page == Page::Video;
+                if sodium_video {
+                    self.video_sections.clear();
+                    let x0 = SODIUM_SIDEBAR + 12.0;
+                    let cw = (w - x0 - 16.0).clamp(150.0, 420.0);
+                    let rows = self.list_rows(s);
+                    if !matches!(rows.first(), Some(Row::Header(_))) {
+                        self.video_sections.push((Text::literal("Horizon"), 0.0));
+                    }
+                    for row in rows {
+                        match row {
+                            Row::Header(key) => {
+                                self.video_sections
+                                    .push((tr(key), y + self.scroll - top - 2.0));
+                                out.push(Widget {
+                                    x: x0,
+                                    y: y + 6.0,
+                                    w: cw,
+                                    h: 9.0,
+                                    kind: WKind::Text {
+                                        text: tr(key),
+                                        color: rgba(90, 200, 255, 255),
+                                        centered: false,
+                                    },
+                                    list: false,
+                                    row: 0,
+                                });
+                                y += 20.0;
+                            }
+                            Row::Big(o) => {
+                                out.push(option_widget(s, o, x0, y + 2.0, cw));
+                                y += 24.0;
+                            }
+                            Row::Pair(a, b) => {
+                                for o in std::iter::once(a).chain(b) {
+                                    out.push(option_widget(s, o, x0, y + 2.0, cw));
+                                    y += 24.0;
+                                }
+                            }
+                            Row::Buttons(a, b) => {
+                                for mut wd in std::iter::once(a).chain(b) {
+                                    wd.x = x0;
+                                    wd.y = y + 2.0;
+                                    wd.w = cw;
+                                    out.push(wd);
+                                    y += 24.0;
+                                }
+                            }
+                            Row::Note(_) => {}
+                        }
+                    }
+                }
+                let menu_rows = if mod_menu || sodium_video {
+                    Vec::new()
+                } else {
+                    self.list_rows(s)
+                };
                 for row in menu_rows {
                     rows.begin(&out, y);
                     match row {
@@ -3684,6 +3807,19 @@ impl OptionsUi {
                 out[list_start..].iter_mut().for_each(|w| w.list = true);
                 if mod_menu {
                     self.mod_details(s, &mut out, (8.0 + mod_left + 14.0, w, top, bottom));
+                }
+                for (i, (name, _)) in self.video_sections.iter().enumerate() {
+                    if sodium_video {
+                        let mut tab = button(
+                            0.0,
+                            top + 4.0 + i as f32 * 24.0,
+                            SODIUM_SIDEBAR,
+                            name.clone(),
+                            Act::VideoTab(i),
+                        );
+                        tab.h = 22.0;
+                        out.push(tab);
+                    }
                 }
                 let folder = match page {
                     Page::Mods => Some(("horizon.mods.open_folder", Act::OpenModFolder)),
@@ -3982,6 +4118,7 @@ impl OptionsUi {
         let list = bottom > top;
         if sodium {
             crate::graphics_style::STYLE.background(batch, atlas, top, bottom, in_world);
+            batch.fill(atlas, 0.0, top, SODIUM_SIDEBAR, bottom - top, 0xA000_0000);
         } else {
             ui::menu_background(batch, atlas, 0.0, 0.0, w, h, in_world);
             if list {
@@ -4077,15 +4214,21 @@ impl OptionsUi {
                 WKind::Button { label, active, .. } => {
                     let label = fitted.as_ref().map_or(label, |f| &f.0);
                     if sodium {
-                        let at = (wd.x, wd.y, wd.w);
-                        crate::graphics_style::STYLE.button(
-                            batch,
-                            atlas,
-                            at,
-                            label,
-                            hover && *active,
-                            *active,
-                        );
+                        if let WKind::Button {
+                            act: Act::VideoTab(i),
+                            ..
+                        } = &wd.kind
+                        {
+                            // The section the list is showing now.
+                            let here = self
+                                .video_sections
+                                .iter()
+                                .rposition(|v| v.1 <= self.scroll + 8.0)
+                                .unwrap_or(0);
+                            draw_video_tab(batch, atlas, wd, label, *i == here, hover);
+                        } else {
+                            draw_sodium_row(batch, atlas, wd, label, hover && *active, *active, None);
+                        }
                     } else {
                         ui::button(batch, atlas, wd.x, wd.y, wd.w, wd.h, label, *active, hover);
                         crate::widgets::last_narratable(|n| {
@@ -4097,17 +4240,14 @@ impl OptionsUi {
                     let dragging = self.dragging == Some(*opt);
                     let shown = self.slider_shown(*opt, *value);
                     if sodium {
-                        crate::graphics_style::STYLE.slider_ext(
+                        draw_sodium_row(
                             batch,
                             atlas,
-                            (wd.x, wd.y, wd.w),
+                            wd,
                             label,
-                            shown,
-                            hover || dragging,
-                            is_focused,
-                            self.can_change_value && is_focused,
+                            hover || dragging || is_focused,
                             true,
-                            dragging,
+                            Some(shown),
                         );
                     } else {
                         ui::slider_ext(
@@ -4596,6 +4736,9 @@ impl OptionsUi {
                             events.push(Event::Changed);
                         }
                         Act::PickMod(i) => self.mod_sel = i,
+                        Act::VideoTab(i) => {
+                            self.scroll = self.video_sections.get(i).map_or(0.0, |v| v.1);
+                        }
                         Act::ToggleMod(i) => {
                             s.mods.toggle(i);
                             events.push(Event::Changed);
@@ -5542,6 +5685,9 @@ impl OptionsUi {
                             events.push(Event::Changed);
                         }
                         Act::PickMod(i) => self.mod_sel = i,
+                        Act::VideoTab(i) => {
+                            self.scroll = self.video_sections.get(i).map_or(0.0, |v| v.1);
+                        }
                         Act::ToggleMod(i) => {
                             s.mods.toggle(i);
                             events.push(Event::Changed);
