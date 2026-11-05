@@ -1,0 +1,16 @@
+[package]
+name = "gamma"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Horizon mod: brighter light, so caves and the night are lit"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+horizon-mod-sdk = { path = "../.." }
+
+[lints]
+workspace = true

@@ -394,6 +394,12 @@ interface render {
     /// wins) leave the camera vanilla's. With several mods, the strongest
     /// zoom counts.
     set-zoom: func(zoom: zoom);
+    /// Sets how bright the world's light is drawn, beyond the player's
+    /// Brightness option: 1 is that option's brightest ("Bright"), larger
+    /// values light caves and the night more, at most 16. 0 gives the
+    /// player's own option back. Kept until the next call; with several
+    /// mods, the brightest counts.
+    set-brightness: func(value: f32);
     record minimap {
         corner: corner,
         /// Its side in GUI pixels, 16 to 256.
@@ -692,6 +698,22 @@ interface %world {
     /// in order after this call returns, before that dimension's next tick;
     /// one in a chunk not loaded then is skipped. At most 4096 per call.
     set-blocks: func(dimension: string, blocks: list<block-change>) -> result<_, string>;
+    record block-ref {
+        x: s32,
+        y: s32,
+        z: s32,
+    }
+    /// Breaks blocks the way the player `player` (a `players.online` id)
+    /// would, with the tool in their hand: the block's drops fall, the tool
+    /// wears, and the game's own rules apply (adventure mode, protected
+    /// places). A block that is air, not loaded, or that needs a tool the
+    /// player's hand does not have (it would only be lost) is skipped, and
+    /// so are the rest once the tool has one use left. Only the player of
+    /// this game (single player and the LAN host) is served for now: a
+    /// guest's breaks are skipped. An id that is not online is an error. The
+    /// breaks are made in order after this call returns, before the next
+    /// tick; they do not call `block-broken` again. At most 512 per call.
+    break-blocks: func(player: string, dimension: string, blocks: list<block-ref>) -> result<_, string>;
 }
 
 /// What the server calls in a server mod (manifest `api = "0.3"`,

@@ -1,0 +1,16 @@
+[package]
+name = "vein-miner"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Horizon server mod: mining an ore breaks the whole connected vein"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+horizon-mod-sdk = { path = "../.." }
+
+[lints]
+workspace = true

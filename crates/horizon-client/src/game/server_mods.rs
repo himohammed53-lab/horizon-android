@@ -371,6 +371,7 @@ mod run {
         /// Makes the blocks server mods set in the level in place, in order,
         /// as `/setblock` does. Those of other dimensions wait for their level.
         pub(in crate::game) fn apply_mod_block_writes(&mut self) {
+            self.apply_mod_block_breaks();
             if self.mods.block_writes.is_empty() {
                 return;
             }
@@ -399,6 +400,65 @@ mod run {
             }
         }
 
+        /// Breaks the blocks server mods asked for (`world.break-blocks`) as
+        /// this game's own player would: the held tool wears, the drops fall,
+        /// and the game's rules apply. Another player's id is skipped, as is
+        /// a position of another dimension (it waits for its level).
+        fn apply_mod_block_breaks(&mut self) {
+            if self.mods.block_breaks.is_empty() {
+                return;
+            }
+            let dim = self.dim.id();
+            let (now, later): (Vec<_>, Vec<_>) = std::mem::take(&mut self.mods.block_breaks)
+                .into_iter()
+                .partition(|(_, d, _)| d == dim);
+            self.mods.block_breaks = later;
+            let me = uuid_string(self.player_uuid());
+            self.mods.breaking = true;
+            for (player, _, b) in now {
+                if player != me {
+                    log::debug!("Horizon: a server mod broke blocks as {player}: not served");
+                    continue;
+                }
+                let at = [b.x, b.y, b.z];
+                // An air or unloaded position has nothing to break.
+                let state = self.world.block(at[0], at[1], at[2]);
+                let (name, requires_tool) = {
+                    let facts = self.res.facts().get(state);
+                    (facts.name.to_string(), facts.requires_tool)
+                };
+                if name == "minecraft:air" {
+                    continue;
+                }
+                if !self.creative {
+                    // The held tool has one use left: the player's own break
+                    // may take it, a mod's may not.
+                    let spent = self.held().is_some_and(|s| {
+                        self.res
+                            .items()
+                            .get(&s.item)
+                            .is_some_and(|i| i.max_damage > 0 && s.damage + 1 >= i.max_damage)
+                    });
+                    if spent {
+                        break;
+                    }
+                    // A block this tool cannot harvest would only be lost.
+                    if requires_tool && !self.res.items().correct_for_drops(self.held(), &name) {
+                        continue;
+                    }
+                }
+                if let Err(e) = self.break_block_as_player(at) {
+                    log::debug!(
+                        "Horizon: a server mod's break at {} {} {}: {e:?}",
+                        b.x,
+                        b.y,
+                        b.z
+                    );
+                }
+            }
+            self.mods.breaking = false;
+        }
+
         /// A player broke (or placed) `state` at `pos`: the player acting now.
         pub(in crate::game) fn mod_block_event(
             &mut self,
@@ -406,7 +466,8 @@ mod run {
             state: BlockStateId,
             placed: bool,
         ) {
-            if !self.hears_players() {
+            // A server mod's own breaks are not news to it.
+            if !self.hears_players() || self.mods.breaking {
                 return;
             }
             let who = self.lan_acting.map_or(Who::Local, Who::Conn);
@@ -566,6 +627,26 @@ mod run {
                         queued.drain(..over);
                         log::warn!(
                             "Horizon: mod {name} set more blocks than wait for their level: {over} dropped"
+                        );
+                    }
+                }
+                Output::BreakBlocks {
+                    name,
+                    player,
+                    dimension,
+                    blocks,
+                } => {
+                    let queued = &mut self.mods.block_breaks;
+                    queued.extend(
+                        blocks
+                            .into_iter()
+                            .map(|b| (player.clone(), dimension.clone(), b)),
+                    );
+                    if queued.len() > MAX_QUEUED_WRITES {
+                        let over = queued.len() - MAX_QUEUED_WRITES;
+                        queued.drain(..over);
+                        log::warn!(
+                            "Horizon: mod {name} asked to break more blocks than wait for their level: {over} dropped"
                         );
                     }
                 }

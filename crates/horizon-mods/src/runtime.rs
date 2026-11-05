@@ -56,7 +56,7 @@ pub use server_bindings::{
         Argument, ArgumentKind, ArgumentValue, BlockPos, ServerCommand,
     },
     horizon::mods::players::{GameMode, Player as ServerPlayer},
-    horizon::mods::world::BlockChange,
+    horizon::mods::world::{BlockChange, BlockRef},
 };
 type ClientEvents = bindings::exports::horizon::mods::events::Guest;
 type ServerEvents = server_bindings::exports::horizon::mods::server_events::Guest;
@@ -230,6 +230,13 @@ pub enum Output {
         name: String,
         dimension: String,
         blocks: Vec<BlockChange>,
+    },
+    /// `world.break-blocks`: blocks to break as `player` would, in order.
+    BreakBlocks {
+        name: String,
+        player: String,
+        dimension: String,
+        blocks: Vec<BlockRef>,
     },
     /// `ui.open-screen`: the mod's entry in `entries()`; what it shows is
     /// [`Mods::screen`].
@@ -412,6 +419,8 @@ struct State {
     corner: Option<CornerPanel>,
     /// Capability `render`'s zoom, when the mod zooms.
     zoom: Option<ModZoom>,
+    /// Capability `render`'s brightness; 0 when the mod sets none.
+    brightness: f32,
     /// Capability `render`'s minimap, when the mod shows one.
     minimap: Option<ModMinimap>,
     /// Capability `render`'s far terrain, when the mod draws one.
@@ -617,6 +626,7 @@ impl Mods {
             shapes: Vec::new(),
             corner: None,
             zoom: None,
+            brightness: 0.0,
             minimap: None,
             far_terrain: None,
             input: InputState::default(),
@@ -1167,6 +1177,15 @@ impl Mods {
             .filter_map(|e| e.run.as_ref()?.store.data().zoom)
             .max_by(|a, b| a.factor.total_cmp(&b.factor))
     }
+    /// The brightest light a running mod asks for (capability `render`):
+    /// none when no mod sets one.
+    pub fn brightness(&self) -> Option<f32> {
+        self.entries
+            .iter()
+            .filter_map(|e| Some(e.run.as_ref()?.store.data().brightness))
+            .filter(|b| *b > 0.0)
+            .max_by(f32::total_cmp)
+    }
     /// The minimap the first running mod shows (capability `render`).
     pub fn minimap(&self) -> Option<ModMinimap> {
         self.entries
@@ -1560,6 +1579,14 @@ impl chat::Host for State {
     }
 }
 impl mod_world::Host for State {
+    fn break_blocks(
+        &mut self,
+        player: String,
+        dimension: String,
+        blocks: Vec<BlockRef>,
+    ) -> Result<(), String> {
+        self.queue_breaks(player, dimension, blocks)
+    }
     fn get_block(&mut self, dimension: String, x: i32, y: i32, z: i32) -> Option<String> {
         let view = self.world.lock().ok()?;
         view.as_ref()?.block(&dimension, x, y, z)
@@ -1586,6 +1613,39 @@ impl mod_world::Host for State {
         if !blocks.is_empty() {
             self.out.push(Output::SetBlocks {
                 name: self.name.clone(),
+                dimension,
+                blocks,
+            });
+        }
+        Ok(())
+    }
+}
+impl State {
+    /// `world.break-blocks`, shared by the trait impl below.
+    fn queue_breaks(
+        &mut self,
+        player: String,
+        dimension: String,
+        blocks: Vec<BlockRef>,
+    ) -> Result<(), String> {
+        if blocks.len() > BREAKS_PER_CALL {
+            return Err(format!(
+                "{} blocks: at most {BREAKS_PER_CALL} per call",
+                blocks.len()
+            ));
+        }
+        if !self.snapshot.players.iter().any(|p| p.id == player) {
+            return Err(format!("{player} is not on the server"));
+        }
+        if let Some(view) = self.world.lock().ok().as_ref().and_then(|v| v.as_ref())
+            && !view.has_dimension(&dimension)
+        {
+            return Err(format!("no dimension {dimension}"));
+        }
+        if !blocks.is_empty() {
+            self.out.push(Output::BreakBlocks {
+                name: self.name.clone(),
+                player,
                 dimension,
                 blocks,
             });
@@ -1729,6 +1789,10 @@ const SHAKE_SECONDS: f32 = 10.0;
 /// or more, and turning never stops.
 const ZOOM_MAX: f32 = 10.0;
 const TURN_MIN: f32 = 0.05;
+/// `render.set-brightness`'s largest value.
+const BRIGHTNESS_MAX: f32 = 16.0;
+/// Blocks a mod may break per `world.break-blocks` call.
+pub const BREAKS_PER_CALL: usize = 512;
 /// `set-minimap`'s side in GUI pixels and its blocks per map pixel.
 const MINIMAP_SIZE: (f32, f32) = (16.0, 256.0);
 const MINIMAP_SCALE: (f32, f32) = (0.5, 4.0);
@@ -1814,6 +1878,13 @@ impl render::Host for State {
                 1.0
             },
         });
+    }
+    fn set_brightness(&mut self, value: f32) {
+        self.brightness = if value.is_finite() {
+            value.clamp(0.0, BRIGHTNESS_MAX)
+        } else {
+            0.0
+        };
     }
     fn set_minimap(&mut self, minimap: Option<ModMinimap>) {
         let finite = |v: f32, lo: f32, hi: f32| if v.is_finite() { v.clamp(lo, hi) } else { lo };

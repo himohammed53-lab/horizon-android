@@ -1,15 +1,15 @@
 name: Build a .hmod mod
-run-name: Build .hmod · ${{ inputs.mod_dir }}
+run-name: Build .hmod · ${{ inputs.mod_dirs }}
 
 # Builds one WebAssembly mod into a .hmod file you can import in the game's
 # Mods page. It never builds the app, and it does not run on push.
 on:
   workflow_dispatch:
     inputs:
-      mod_dir:
-        description: Folder of the mod crate (contains horizon-mod.toml)
+      mod_dirs:
+        description: Folders of the mod crates (each has horizon-mod.toml), separated by spaces
         type: string
-        default: crates/horizon-mod-sdk/examples/coords-hud
+        default: crates/horizon-mod-sdk/examples/vein-miner crates/horizon-mod-sdk/examples/gamma
 
 permissions:
   contents: read
@@ -30,9 +30,13 @@ jobs:
           rustup target add wasm32-unknown-unknown
       - name: Build the mod tool
         run: cargo build --release -p cargo-horizon-mod
-      - name: Build the .hmod
-        working-directory: ${{ inputs.mod_dir }}
-        run: ${{ github.workspace }}/target/release/cargo-horizon-mod build
+      - name: Build the .hmod files
+        env:
+          MOD_DIRS: ${{ inputs.mod_dirs }}
+        run: |
+          for dir in $MOD_DIRS; do
+            (cd "$dir" && "$GITHUB_WORKSPACE/target/release/cargo-horizon-mod" build)
+          done
       - name: Collect and check the package
         run: |
           mkdir -p out

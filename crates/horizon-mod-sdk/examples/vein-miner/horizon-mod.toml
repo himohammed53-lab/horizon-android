@@ -1,0 +1,8 @@
+id = "vein_miner_file"
+name = "Vein Miner (mod file)"
+version = "0.1.0"
+description = "Mine one ore and the connected vein of the same ore breaks too, with the drops and the wear of your own tool. /vein off and /vein on switch it."
+authors = ["Horizon Android fork"]
+api = "0.3"
+side = "server"
+capabilities = ["players", "world"]

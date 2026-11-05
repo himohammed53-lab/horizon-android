@@ -1,0 +1,9 @@
+id = "gamma_file"
+name = "Gamma (mod file)"
+version = "0.1.0"
+description = "Lights dark places beyond the Brightness option. /gamma 8 sets the brightness (1 to 16), /gamma off gives your own option back."
+authors = ["Horizon Android fork"]
+api = "0.1"
+side = "client"
+capabilities = ["render", "chat"]
+experimental = ["render"]

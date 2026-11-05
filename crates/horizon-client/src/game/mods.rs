@@ -71,6 +71,13 @@ pub(super) struct ModsState {
     /// tick.
     #[cfg(feature = "mods")]
     pub(super) block_writes: Vec<(String, horizon_mods::BlockChange)>,
+    /// Blocks server mods asked to break (`world.break-blocks`): the player's
+    /// id, the dimension, the position; broken before that level's next tick.
+    #[cfg(feature = "mods")]
+    pub(super) block_breaks: Vec<(String, String, horizon_mods::BlockRef)>,
+    /// A server mod's own break is being made: `block-broken` stays quiet.
+    #[cfg(feature = "mods")]
+    pub(super) breaking: bool,
     /// `command.run` lines for this window's own world, run on the next tick:
     /// run at once, their chat lines would reach the mods while their output
     /// is still being shown, and a mod answering its own lines would recurse.
@@ -810,7 +817,8 @@ impl Game<'_> {
                 server @ (Output::Tell { .. }
                 | Output::Broadcast { .. }
                 | Output::Reply { .. }
-                | Output::SetBlocks { .. }) => {
+                | Output::SetBlocks { .. }
+                | Output::BreakBlocks { .. }) => {
                     self.route_server_output(host.as_deref_mut(), server);
                     continue;
                 }
