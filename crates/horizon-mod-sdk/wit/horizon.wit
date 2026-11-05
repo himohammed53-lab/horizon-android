@@ -708,11 +708,11 @@ interface %world {
     /// wears, and the game's own rules apply (adventure mode, protected
     /// places). A block that is air, not loaded, or that needs a tool the
     /// player's hand does not have (it would only be lost) is skipped, and
-    /// so are the rest once the tool has one use left. Only the player of
-    /// this game (single player and the LAN host) is served for now: a
-    /// guest's breaks are skipped. An id that is not online is an error. The
-    /// breaks are made in order after this call returns, before the next
-    /// tick; they do not call `block-broken` again. At most 512 per call.
+    /// so are the rest once the tool has one use left. An id that is not
+    /// online is an error; a player in another dimension than the level
+    /// being ticked is skipped. The breaks are made in order after this call
+    /// returns, before the next tick; they do not call `block-broken`
+    /// again. At most 512 per call.
     break-blocks: func(player: string, dimension: string, blocks: list<block-ref>) -> result<_, string>;
 }
 

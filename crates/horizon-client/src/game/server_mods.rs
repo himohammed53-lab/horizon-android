@@ -401,9 +401,11 @@ mod run {
         }
 
         /// Breaks the blocks server mods asked for (`world.break-blocks`) as
-        /// this game's own player would: the held tool wears, the drops fall,
-        /// and the game's rules apply. Another player's id is skipped, as is
-        /// a position of another dimension (it waits for its level).
+        /// their player would: the held tool wears, the drops fall, and the
+        /// game's rules apply. On the server thread and on a LAN host the
+        /// players are guests, each acting through [`Game::as_guest`]; a
+        /// position of another dimension waits for its level, and a player in
+        /// another dimension is skipped.
         fn apply_mod_block_breaks(&mut self) {
             if self.mods.block_breaks.is_empty() {
                 return;
@@ -415,48 +417,81 @@ mod run {
             self.mods.block_breaks = later;
             let me = uuid_string(self.player_uuid());
             self.mods.breaking = true;
+            // Players whose tool has no use to spare: the rest of their
+            // breaks are dropped.
+            let mut spent: Vec<String> = Vec::new();
             for (player, _, b) in now {
-                if player != me {
-                    log::debug!("Horizon: a server mod broke blocks as {player}: not served");
+                if spent.contains(&player) {
                     continue;
                 }
                 let at = [b.x, b.y, b.z];
-                // An air or unloaded position has nothing to break.
-                let state = self.world.block(at[0], at[1], at[2]);
-                let (name, requires_tool) = {
-                    let facts = self.res.facts().get(state);
-                    (facts.name.to_string(), facts.requires_tool)
-                };
-                if name == "minecraft:air" {
-                    continue;
-                }
-                if !self.creative {
-                    // The held tool has one use left: the player's own break
-                    // may take it, a mod's may not.
-                    let spent = self.held().is_some_and(|s| {
-                        self.res
-                            .items()
-                            .get(&s.item)
-                            .is_some_and(|i| i.max_damage > 0 && s.damage + 1 >= i.max_damage)
-                    });
-                    if spent {
-                        break;
+                let conn = self.lan.as_ref().and_then(|host| {
+                    host.hub
+                        .guests
+                        .iter()
+                        .find(|g| uuid_string(g.uuid) == player && host.hub.here(g))
+                        .map(|g| g.conn)
+                });
+                let more = match conn {
+                    Some(conn) => {
+                        let Some(mut host) = self.lan.take() else {
+                            continue;
+                        };
+                        let more = self.as_guest(&mut host, conn, |g| g.mod_break_one(at));
+                        self.lan = Some(host);
+                        more.unwrap_or(true)
                     }
-                    // A block this tool cannot harvest would only be lost.
-                    if requires_tool && !self.res.items().correct_for_drops(self.held(), &name) {
+                    None if player == me => self.mod_break_one(at),
+                    None => {
+                        log::debug!("Horizon: a server mod broke blocks as {player}: not here");
                         continue;
                     }
-                }
-                if let Err(e) = self.break_block_as_player(at) {
-                    log::debug!(
-                        "Horizon: a server mod's break at {} {} {}: {e:?}",
-                        b.x,
-                        b.y,
-                        b.z
-                    );
+                };
+                if !more {
+                    spent.push(player);
                 }
             }
             self.mods.breaking = false;
+        }
+
+        /// One break of a server mod as the player now acting. False once the
+        /// held tool has one use left: no more breaks for this player.
+        fn mod_break_one(&mut self, at: [i32; 3]) -> bool {
+            // An air or unloaded position has nothing to break.
+            let state = self.world.block(at[0], at[1], at[2]);
+            let (name, requires_tool) = {
+                let facts = self.res.facts().get(state);
+                (facts.name.to_string(), facts.requires_tool)
+            };
+            if name == "minecraft:air" {
+                return true;
+            }
+            if !self.creative {
+                // The held tool has one use left: the player's own break may
+                // take it, a mod's may not.
+                let spent = self.held().is_some_and(|s| {
+                    self.res
+                        .items()
+                        .get(&s.item)
+                        .is_some_and(|i| i.max_damage > 0 && s.damage + 1 >= i.max_damage)
+                });
+                if spent {
+                    return false;
+                }
+                // A block this tool cannot harvest would only be lost.
+                if requires_tool && !self.res.items().correct_for_drops(self.held(), &name) {
+                    return true;
+                }
+            }
+            if let Err(e) = self.break_block_as_player(at) {
+                log::debug!(
+                    "Horizon: a server mod's break at {} {} {}: {e:?}",
+                    at[0],
+                    at[1],
+                    at[2]
+                );
+            }
+            true
         }
 
         /// A player broke (or placed) `state` at `pos`: the player acting now.

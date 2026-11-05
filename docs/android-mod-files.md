@@ -24,7 +24,7 @@ Level 8 adds two functions (`crates/horizon-mod-sdk/wit/horizon.wit`):
 - `world.break-blocks(player, dimension, blocks)` (server mods): breaks blocks
   as the player of this game would. The held tool wears and the drops fall; a
   block the held tool cannot harvest is skipped, and so are the rest once the
-  tool has one use left. Another player's breaks are skipped for now. These
+  tool has one use left. These
   breaks do not reach `block-broken` again.
 
 A mod that imports them is refused by a build below level 8 with the usual
@@ -40,4 +40,4 @@ A mod that imports them is refused by a build below level 8 with the usual
 Their ids differ from the bundled `vein_miner` and `gamma` rows so both can be
 installed; turn one of each pair off to avoid doing the work twice.
 
-Not verified on a device yet: both examples, and `break-blocks` with guests.
+Verified on a device: Gamma. Not yet: `break-blocks`.
