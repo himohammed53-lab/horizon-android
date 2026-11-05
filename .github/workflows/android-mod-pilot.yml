@@ -33,13 +33,15 @@ jobs:
       - name: Build the .hmod
         working-directory: ${{ inputs.mod_dir }}
         run: ${{ github.workspace }}/target/release/cargo-horizon-mod build
-      - name: Check the package
+      - name: Collect and check the package
         run: |
-          for f in "${{ inputs.mod_dir }}"/*.hmod; do
+          mkdir -p out
+          cp "$GITHUB_WORKSPACE"/target/horizon-mod/*.hmod out/
+          for f in out/*.hmod; do
             "$GITHUB_WORKSPACE/target/release/cargo-horizon-mod" check "$f"
           done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: hmod
-          path: ${{ inputs.mod_dir }}/*.hmod
+          path: out/*.hmod
           if-no-files-found: error
