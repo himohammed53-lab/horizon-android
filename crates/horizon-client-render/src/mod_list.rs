@@ -122,6 +122,7 @@ impl ModList {
             disabled,
             keys,
             installed: Vec::new(),
+            icons: BTreeMap::new(),
         }
     }
     pub fn serialize(&self) -> String {

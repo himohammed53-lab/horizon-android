@@ -1779,6 +1779,7 @@ impl Default for OptionsUi {
         Self {
             stack: vec![Page::Main],
             scroll: 0.0,
+            mod_sel: 0,
             dragging: None,
             shader_dragging: None,
             shift: false,
