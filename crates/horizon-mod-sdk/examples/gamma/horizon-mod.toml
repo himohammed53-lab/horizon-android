@@ -1,9 +1,9 @@
 id = "gamma_file"
 name = "Gamma"
 version = "0.2.0"
-description = "Lights dark places such as caves beyond the Brightness option. Its settings page has ON/OFF and the brightness; /gamma 1 to 16 and /gamma off work from chat."
+description = "Lights dark places such as caves beyond the Brightness option. Its settings page has ON/OFF and the brightness. The G key switches it (rebindable); /gamma 1 to 16 and /gamma off work from chat."
 authors = ["Horizon Android fork"]
 api = "0.1"
 side = "client"
-capabilities = ["render", "ui", "storage", "chat"]
-experimental = ["render", "ui"]
+capabilities = ["render", "ui", "input", "storage", "chat"]
+experimental = ["render", "ui", "input"]

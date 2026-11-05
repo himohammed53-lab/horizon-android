@@ -1,12 +1,19 @@
 //! Horizon mod: brighter light, so caves and the night are lit. Its page in
 //! Options > Mods has two buttons: Gamma ON or OFF, and the brightness it
-//! cycles through (1 is the Brightness option's own "Bright"). `/gamma <1-16>`
-//! and `/gamma off` do the same from chat. The choice is kept in the mod's
-//! storage.
+//! cycles through (1 is the Brightness option's own "Bright"). A key (G by
+//! default, rebindable in Options > Mods, and bindable to a touch button in
+//! the touch layout editor) switches it on and off while playing.
+//! `/gamma <1-16>` and `/gamma off` do the same from chat. The choice is kept
+//! in the mod's storage.
 use horizon_mod_sdk::{
-    Mod, Registration, chat, render, storage,
+    Mod, Registration, chat,
+    input::{self, Event},
+    render, storage,
     ui::{self, ButtonWidget, Widget},
 };
+
+/// The key's name for `register-key`.
+const KEY: &str = "toggle";
 
 /// The brightness the button cycles through.
 const LEVELS: [u8; 5] = [1, 2, 4, 8, 16];
@@ -61,21 +68,33 @@ impl Mod for Gamma {
             .filter(|v| LEVELS.contains(v))
             .unwrap_or(DEFAULT);
         let on = stored("on").is_none_or(|v| v.trim() != "false");
+        input::register_key(KEY, "Toggle Gamma", "key.keyboard.g")?;
         let gamma = Gamma {
             on,
             level,
             sent: false,
         };
         gamma.page();
-        Ok((gamma, Registration::new().command("gamma").on_tick()))
+        Ok((gamma, Registration::new().command("gamma").on_frame()))
     }
 
-    /// The first tick sends the stored choice: the game keeps it until the
-    /// next call.
-    fn tick(&mut self, _tick: u64) {
+    /// The first frame sends the stored choice (the game keeps it until the
+    /// next call); then the key's presses switch Gamma.
+    fn frame(&mut self, _seconds: f32) {
         if !self.sent {
             self.send();
             self.sent = true;
+        }
+        let mut pressed = false;
+        for event in input::poll() {
+            if matches!(event, Event::KeyDown(ref k) if k == KEY) {
+                pressed = true;
+            }
+        }
+        if pressed {
+            self.on = !self.on;
+            self.changed();
+            chat::show(&format!("Gamma {}", if self.on { "on" } else { "off" }));
         }
     }
 
