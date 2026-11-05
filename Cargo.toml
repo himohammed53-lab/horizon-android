@@ -44,6 +44,7 @@ members = [
     "crates/horizon-mod-sdk/examples/falling-trees",
     "crates/horizon-mod-sdk/examples/gamma",
     "crates/horizon-mod-sdk/examples/vein-miner",
+    "crates/horizon-mod-sdk/examples/waypoints",
     "mods/official/fps-overlay",
     "mods/official/keystrokes",
     "mods/official/far-view",
