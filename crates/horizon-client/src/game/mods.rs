@@ -40,6 +40,9 @@ use {
 pub(super) struct ModsState {
     #[cfg(feature = "mods")]
     pub(super) text_edit: Option<TextEdit>,
+    /// The mods the options had turned on when the mods were last started.
+    #[cfg(feature = "mods")]
+    pub(super) started: Vec<String>,
     #[cfg(feature = "mods")]
     pub(super) mods: Mods,
     /// Capability `input`: a claimed item's use while the button is down.
@@ -428,6 +431,7 @@ impl Game<'_> {
         };
         let mods = Mods::load_for(self.mod_runs(), &paths, on, vanilla_command);
         self.mods.mods = mods;
+        self.mods.started = self.wanted_mod_ids();
         let chosen = &self.settings.mods;
         self.mods.mods.set_bindings(|id| chosen.keys_of(id));
         // Entries were replaced wholesale: a screen's owner index is stale.
@@ -521,26 +525,24 @@ impl Game<'_> {
     /// After the options changed: restart the mods if the list of the ones
     /// turned on did.
     pub(super) fn sync_mods(&mut self) {
-        let running: Vec<&str> = self
-            .mods
-            .mods
-            .entries()
-            .iter()
-            .filter(|e| e.status != Status::Off)
-            .filter_map(|e| Some(e.manifest.as_ref()?.id.as_str()))
-            .collect();
-        let wanted: Vec<&str> = self
-            .settings
+        // Compared with the list the mods were last started for, not with
+        // the ones running: server mods and native takeovers never run in
+        // this window, so that comparison differed on every click in the
+        // options and reloaded (recompiled) every mod each time.
+        if self.mods.started != self.wanted_mod_ids() {
+            self.start_mods();
+        }
+    }
+    /// The ids of the installed mods the options have turned on.
+    fn wanted_mod_ids(&self) -> Vec<String> {
+        self.settings
             .mods
             .installed
             .iter()
             .enumerate()
             .filter(|&(i, _)| self.settings.mods.is_on(i))
-            .map(|(_, m)| m.id.as_str())
-            .collect();
-        if running != wanted {
-            self.start_mods();
-        }
+            .map(|(_, m)| m.id.clone())
+            .collect()
     }
     /// What mods read this tick (or frame, for mods with a `frame` hook): the
     /// server's players as they were at the last tick's end.

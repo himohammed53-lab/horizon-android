@@ -41,6 +41,10 @@ pub(super) struct Pads {
     pub(super) touch_aim: Option<[f32; 2]>,
     #[cfg(target_os = "android")]
     pub(super) touch_ui: horizon_client::touch_ui::TouchUi,
+    /// Mouse buttons the touch Attack and Use buttons pressed over a menu
+    /// screen, sent to the screen at the next poll.
+    #[cfg(target_os = "android")]
+    pub(super) menu_clicks: Vec<(winit::event::MouseButton, bool)>,
     /// Splitscreen: this player's pad, read by `PadRouter` for every game, instead of the pads.
     pub(super) feed: Option<PadState>,
     /// The real controllers and the DualSense's output.

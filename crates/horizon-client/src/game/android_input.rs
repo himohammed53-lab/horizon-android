@@ -220,6 +220,12 @@ impl Game<'_> {
 
     fn android_custom_mouse(&mut self, button: MouseButton, down: bool) -> Result<()> {
         if !matches!(self.screen, Screen::Inventory | Screen::Creative) {
+            // Over a menu (Options, ...) the Attack and Use buttons click the
+            // screen at the cursor, as the left and right mouse buttons do.
+            if self.pad_in_menu() {
+                self.pad.menu_clicks.push((button, down));
+                return Ok(());
+            }
             return self.play_mouse(button, down);
         }
         let right = button == MouseButton::Right;
@@ -366,14 +372,6 @@ impl Game<'_> {
                         self.pad.touch_ui.cancel();
                         self.pad.touch_ui.menu_touch_off ^= true;
                         self.pad.touch.clear();
-                    }
-                    Action::TouchSettings => {
-                        if self.screen == Screen::Options {
-                            self.open_options_at(
-                                self.options_from_title,
-                                horizon_client::options_ui::Page::Touch,
-                            );
-                        }
                     }
                     Action::More => self.pad.touch_ui.expanded = !self.pad.touch_ui.expanded,
                     Action::Keyboard => {
@@ -743,6 +741,31 @@ impl Game<'_> {
         &mut self,
         events: &dyn super::event_loop::EventLoopCtl,
     ) {
+        if !self.pad.menu_clicks.is_empty() {
+            let clicks = std::mem::take(&mut self.pad.menu_clicks);
+            if self.pad_in_menu()
+                && let Some(id) = self.window.as_ref().map(|w| w.id())
+            {
+                for (button, down) in clicks {
+                    if !matches!(button, MouseButton::Left | MouseButton::Right) {
+                        continue;
+                    }
+                    self.handle_window_event(
+                        events,
+                        id,
+                        WindowEvent::MouseInput {
+                            device_id: DeviceId::dummy(),
+                            button,
+                            state: if down {
+                                ElementState::Pressed
+                            } else {
+                                ElementState::Released
+                            },
+                        },
+                    );
+                }
+            }
+        }
         if !self.focused || !self.pad_in_menu() || !self.pad.touch_ui.virtual_mouse {
             self.pad.touch_ui.cancel_relative();
             for right in self.pad.touch_ui.release_all_mouse() {
