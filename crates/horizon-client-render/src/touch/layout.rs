@@ -301,7 +301,7 @@ impl Settings {
             self.crosshair_gestures = true;
         }
         self.virtual_mouse_sensitivity = if self.virtual_mouse_sensitivity.is_finite() {
-            self.virtual_mouse_sensitivity.clamp(0.25, 3.0)
+            self.virtual_mouse_sensitivity.clamp(0.25, 6.0)
         } else {
             1.0
         };
