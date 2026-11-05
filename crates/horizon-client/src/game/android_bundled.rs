@@ -33,58 +33,6 @@ mod zoom_settings;
 mod zoom_click;
 
 #[cfg(target_os = "android")]
-#[path = "android_bundled/recipes/runtime.rs"]
-pub(super) mod official_recipes;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/recipes/glue.rs"]
-pub(super) mod official_recipes_glue;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/recipes/recipes_list.rs"]
-mod recipes_list;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/recipes/recipes_settings.rs"]
-mod recipes_settings;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/recipes/recipes_click.rs"]
-mod recipes_click;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/recipes/recipes_frame.rs"]
-mod recipes_frame;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/recipes/recipes_event.rs"]
-mod recipes_event;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/smartf3/runtime.rs"]
-pub(super) mod smartf3;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/smartf3/native.rs"]
-pub(super) mod smartf3_native;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/smartf3/smartf3_command.rs"]
-mod smartf3_command;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/smartf3/smartf3_list.rs"]
-mod smartf3_list;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/smartf3/smartf3_settings.rs"]
-mod smartf3_settings;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/smartf3/smartf3_click.rs"]
-mod smartf3_click;
-
-#[cfg(target_os = "android")]
 #[path = "android_bundled/mod_brightness.rs"]
 mod mod_brightness;
 
@@ -117,8 +65,6 @@ pub(super) fn native_mods(game: &mut Game<'_>, mods: &mut Vec<NativeMod>) {
     #[cfg(target_os = "android")]
     {
         zoom_list::run(&mut *mods);
-        recipes_list::run(&mut *mods);
-        smartf3_list::run(&mut *mods);
     }
 }
 
@@ -127,8 +73,6 @@ pub(super) fn native_settings(game: &mut Game<'_>, mod_id: &str, buttons: &mut V
     #[cfg(target_os = "android")]
     {
         zoom_settings::run(&mut *game, mod_id, &mut *buttons);
-        recipes_settings::run(&mut *game, mod_id, &mut *buttons);
-        smartf3_settings::run(&mut *game, mod_id, &mut *buttons);
     }
 }
 
@@ -137,8 +81,6 @@ pub(super) fn native_settings_click(game: &mut Game<'_>, mod_id: &str, button: u
     #[cfg(target_os = "android")]
     {
         zoom_click::run(&mut *game, mod_id, button);
-        recipes_click::run(&mut *game, mod_id, button);
-        smartf3_click::run(&mut *game, mod_id, button);
     }
 }
 
@@ -160,30 +102,19 @@ pub(super) fn native_frame(game: &mut Game<'_>, elapsed: Duration) {
     let _ = (&game, &elapsed);
     #[cfg(target_os = "android")]
     {
-        recipes_frame::run(&mut *game);
         mod_brightness::run(&mut *game);
     }
 }
 
 pub(super) fn native_panel_event(game: &mut Game<'_>, mod_id: &str, event: &NativePanelEvent) {
     let _ = (&game, &mod_id, &event);
-    #[cfg(target_os = "android")]
-    {
-        recipes_event::run(&mut *game, mod_id, event);
-    }
 }
 
 pub(super) fn native_command(game: &mut Game<'_>, command: &str, ran: &mut bool) {
     let _ = (&game, &command, &ran);
-    #[cfg(target_os = "android")]
-    {
-        smartf3_command::run(&mut *game, command, &mut *ran);
-    }
 }
 
 #[cfg(target_os = "android")]
 pub(super) fn reset() {
     official_zoom::reset();
-    official_recipes::set_viewer(None);
-    smartf3_native::reset();
 }

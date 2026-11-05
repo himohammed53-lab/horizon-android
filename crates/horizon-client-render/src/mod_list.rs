@@ -11,23 +11,11 @@ use std::{
 
 pub const FILE: &str = "horizon-mods.txt";
 /// Fixed native modules compiled into Android APKs, all opt-in.
-pub const ANDROID_BUNDLED: [(&str, &str, &str); 3] = [
-    (
-        "zoom",
-        "Zoom",
-        "Hold Z to zoom; configurable in Options > Mods",
-    ),
-    (
-        "recipes",
-        "Recipes",
-        "Item recipes and uses beside the inventory",
-    ),
-    (
-        "smartf3",
-        "SmartF3",
-        "Configurable modules for the F3 debug screen",
-    ),
-];
+pub const ANDROID_BUNDLED: [(&str, &str, &str); 1] = [(
+    "zoom",
+    "Zoom",
+    "Hold Z to zoom up to 100x; configurable in Options > Mods",
+)];
 
 /// The folder holding `.hmod` files, beside `options.txt`.
 pub const DIR: &str = "horizon-mods";

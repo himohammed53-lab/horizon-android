@@ -506,6 +506,11 @@ impl Game<'_> {
             })
             .collect();
         self.list_native_mods();
+        // The bundled Zoom's icon travels inside the app.
+        #[cfg(target_os = "android")]
+        if let Some(icon) = decode_icon(include_bytes!("android_bundled/zoom/icon.png")) {
+            self.settings.mods.icons.insert("zoom".to_owned(), icon);
+        }
     }
     /// The chat's tree after the running mods changed.
     fn sync_mod_commands(&mut self) {

@@ -203,9 +203,7 @@ mod native_explosions;
 mod native_falling;
 mod native_hooks;
 #[cfg(target_os = "android")]
-use android_bundled::{
-    official_recipes, official_recipes_glue, official_zoom, smartf3,
-};
+use android_bundled::official_zoom;
 mod native_lifecycle;
 mod native_menus;
 mod native_mobs;
@@ -7912,10 +7910,6 @@ impl Game<'_> {
         }
     }
     fn hud(&mut self, size: [u32; 2]) -> HudBatch {
-        #[cfg(target_os = "android")]
-        if let Some(batch) = self.smartf3_hud(size) {
-            return batch;
-        }
         // The pack prompt replaces the connecting screen (setScreen), but
         // in game it opens over the world.
         let mut batch = if (self.server_packs.prompt.is_some()
