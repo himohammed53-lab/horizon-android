@@ -315,7 +315,7 @@ impl TouchUi {
         }
     }
     pub fn action(&self, w: f32, h: f32, p: [f32; 2], menu: bool) -> Option<Action> {
-        if menu && self.virtual_mouse {
+        if menu && self.virtual_mouse && self.menu_touch_on {
             for ([x, y, width, height], right) in mouse_button_rects(w, h) {
                 if (x..x + width).contains(&p[0]) && (y..y + height).contains(&p[1]) {
                     return Some(Action::MouseButton(right));
@@ -414,7 +414,7 @@ impl TouchUi {
                 36.0,
             );
         }
-        if menu && self.virtual_mouse {
+        if menu && self.virtual_mouse && self.menu_touch_on {
             for ([x, y, width, _], right) in mouse_button_rects(b.width, b.height) {
                 button(b, a, if right { "RMB" } else { "LMB" }, x, y, width);
             }
