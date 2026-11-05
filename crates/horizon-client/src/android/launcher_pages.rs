@@ -312,7 +312,7 @@ impl Launcher {
             button(
                 &mut ui,
                 &mut self.targets,
-                [x, 88.0, tab_width - 4.0, 46.0],
+                [x, 88.0, tab_width - 4.0, 42.0],
                 if w < 700.0 {
                     match page {
                         Page::Installed => "Files",
@@ -450,7 +450,7 @@ impl Launcher {
                 button(
                     &mut ui,
                     &mut self.targets,
-                    [32.0, h - 108.0, 360.0, 68.0],
+                    [32.0, h - 100.0, 320.0, 60.0],
                     if installed {
                         "Play"
                     } else if self.error.is_some() {
