@@ -1,0 +1,8 @@
+id = "falling_trees_file"
+name = "Falling Trees"
+version = "0.1.0"
+description = "Break the bottom log of a tree and the trunk above it comes down, with the drops and the wear of your own tool. /tree off and /tree on switch it."
+authors = ["Horizon Android fork"]
+api = "0.3"
+side = "server"
+capabilities = ["players", "world"]

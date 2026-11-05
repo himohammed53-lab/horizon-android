@@ -85,44 +85,8 @@ mod smartf3_settings;
 mod smartf3_click;
 
 #[cfg(target_os = "android")]
-#[path = "android_bundled/treefeller/runtime.rs"]
-pub(super) mod treefeller;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/treefeller/treefeller_list.rs"]
-mod treefeller_list;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/treefeller/treefeller_settings.rs"]
-mod treefeller_settings;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/treefeller/treefeller_click.rs"]
-mod treefeller_click;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/treefeller/treefeller_destroy.rs"]
-mod treefeller_destroy;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/gamma/runtime.rs"]
-pub(super) mod gamma;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/gamma/gamma_list.rs"]
-mod gamma_list;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/gamma/gamma_settings.rs"]
-mod gamma_settings;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/gamma/gamma_click.rs"]
-mod gamma_click;
-
-#[cfg(target_os = "android")]
-#[path = "android_bundled/gamma/gamma_frame.rs"]
-mod gamma_frame;
+#[path = "android_bundled/mod_brightness.rs"]
+mod mod_brightness;
 
 pub(super) fn native_key(game: &mut Game<'_>, key: &str, pressed: bool) {
     let _ = (&game, &key, &pressed);
@@ -155,8 +119,6 @@ pub(super) fn native_mods(game: &mut Game<'_>, mods: &mut Vec<NativeMod>) {
         zoom_list::run(&mut *mods);
         recipes_list::run(&mut *mods);
         smartf3_list::run(&mut *mods);
-        treefeller_list::run(&mut *mods);
-        gamma_list::run(&mut *mods);
     }
 }
 
@@ -167,8 +129,6 @@ pub(super) fn native_settings(game: &mut Game<'_>, mod_id: &str, buttons: &mut V
         zoom_settings::run(&mut *game, mod_id, &mut *buttons);
         recipes_settings::run(&mut *game, mod_id, &mut *buttons);
         smartf3_settings::run(&mut *game, mod_id, &mut *buttons);
-        treefeller_settings::run(&mut *game, mod_id, &mut *buttons);
-        gamma_settings::run(&mut *game, mod_id, &mut *buttons);
     }
 }
 
@@ -179,8 +139,6 @@ pub(super) fn native_settings_click(game: &mut Game<'_>, mod_id: &str, button: u
         zoom_click::run(&mut *game, mod_id, button);
         recipes_click::run(&mut *game, mod_id, button);
         smartf3_click::run(&mut *game, mod_id, button);
-        treefeller_click::run(&mut *game, mod_id, button);
-        gamma_click::run(&mut *game, mod_id, button);
     }
 }
 
@@ -191,10 +149,6 @@ pub(super) fn native_destroy_block(
     canceled: &mut bool,
 ) {
     let _ = (&game, &pos, &state, &canceled);
-    #[cfg(target_os = "android")]
-    {
-        treefeller_destroy::run(&mut *game, pos, &mut *canceled);
-    }
 }
 
 /// The bundled minimap was removed from this fork: no native minimap is shown.
@@ -207,7 +161,7 @@ pub(super) fn native_frame(game: &mut Game<'_>, elapsed: Duration) {
     #[cfg(target_os = "android")]
     {
         recipes_frame::run(&mut *game);
-        gamma_frame::run(&mut *game);
+        mod_brightness::run(&mut *game);
     }
 }
 
@@ -232,6 +186,4 @@ pub(super) fn reset() {
     official_zoom::reset();
     official_recipes::set_viewer(None);
     smartf3_native::reset();
-    treefeller::reset();
-    gamma::reset();
 }

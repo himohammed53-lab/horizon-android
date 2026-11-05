@@ -14,24 +14,10 @@
     "changes": "Static Android adapters; helper visibility/names adapted; reset profile state. SmartF3 preserves the Android F3 scale and code-of-conduct screen."
   },
   {
-    "id": "treefeller",
-    "commit": "original",
-    "repository": "https://github.com/himohammed53-lab/horizon-android",
-    "license": "MIT",
-    "changes": "Original code of this fork, not taken from an upstream mod: Falling Trees and Vein Miner, listed in Options > Mods and run from the block-break hook."
-  },
-  {
     "id": "smartf3",
     "commit": "184b92bab7851684bbe6b840c5b8cacc10fa05f2",
     "repository": "https://github.com/d3grando/smartf3",
     "license": "MIT",
     "changes": "Static Android adapters; helper visibility/names adapted; reset profile state. SmartF3 preserves the Android F3 scale and code-of-conduct screen."
-  },
-  {
-    "id": "gamma",
-    "commit": "original",
-    "repository": "https://github.com/himohammed53-lab/horizon-android",
-    "license": "MIT",
-    "changes": "Original code of this fork, not taken from an upstream mod: Gamma, listed in Options > Mods; sets the renderer's brightness each frame."
   }
 ]

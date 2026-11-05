@@ -30,14 +30,17 @@ Level 8 adds two functions (`crates/horizon-mod-sdk/wit/horizon.wit`):
 A mod that imports them is refused by a build below level 8 with the usual
 "update Horizon" message.
 
-## Examples
+## Mods
 
 | Folder | Mod id | Side | What it does |
 |---|---|---|---|
+| `crates/horizon-mod-sdk/examples/falling-trees` | `falling_trees_file` | server | Breaking the bottom log of a tree brings the trunk down (at most 128 logs, leaves must touch it); `/tree on` and `/tree off` |
 | `crates/horizon-mod-sdk/examples/vein-miner` | `vein_miner_file` | server | Mining an ore breaks the connected vein (at most 32 blocks); `/vein on` and `/vein off` |
-| `crates/horizon-mod-sdk/examples/gamma` | `gamma_file` | client | `/gamma 1` to `/gamma 16`, `/gamma off`; starts at 8 |
+| `crates/horizon-mod-sdk/examples/gamma` | `gamma_file` | client | Brighter light; a settings page in Options > Mods (ON/OFF, brightness 1 to 16), `/gamma 1` to `/gamma 16`, `/gamma off`; starts at 8 |
 
-Their ids differ from the bundled `vein_miner` and `gamma` rows so both can be
-installed; turn one of each pair off to avoid doing the work twice.
+Server mods have no settings page (pages belong to client mods with capability
+`ui`); they are switched with their command. The game's own mods in
+`mods/official` (zoom, minimap, recipes, keystrokes, fps-overlay, far-view) are
+built by the same workflow: put their folders in `mod_dirs`.
 
-Verified on a device: Gamma. Not yet: `break-blocks`.
+Not yet verified on a device: `break-blocks` and the two server mods.

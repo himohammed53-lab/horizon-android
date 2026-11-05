@@ -16,7 +16,7 @@ edition = "2024"
 serde_json = "1"
 """, encoding='utf-8')
     lines = ['#![allow(dead_code)]']
-    for mod in ['zoom', 'recipes', 'smartf3', 'treefeller', 'gamma']:
+    for mod in ['zoom', 'recipes', 'smartf3']:
         source = ROOT / 'crates/horizon-client/src/game/android_bundled' / mod / 'runtime.rs'
         lines.append(f'#[path = "{source.as_posix()}"] mod {mod};')
     source = ROOT / 'crates/horizon-client-render/src/mod_list.rs'
