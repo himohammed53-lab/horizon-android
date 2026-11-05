@@ -3683,13 +3683,20 @@ impl OptionsUi {
                     let cw = (w - x0 - 16.0).clamp(150.0, 420.0);
                     let rows = self.list_rows(s);
                     if !matches!(rows.first(), Some(Row::Header(_))) {
-                        self.video_sections.push((Text::literal("Horizon"), 0.0));
+                        self.video_sections.push((Text::literal("General"), 0.0));
                     }
                     for row in rows {
                         match row {
                             Row::Header(key) => {
-                                self.video_sections
-                                    .push((tr(key), y + self.scroll - top - 2.0));
+                                let tab = match key {
+                                    "options.video.display.header" => Text::literal("General"),
+                                    "options.video.quality.header" => Text::literal("Quality"),
+                                    "options.video.preferences.header" => {
+                                        Text::literal("Performance")
+                                    }
+                                    _ => tr(key),
+                                };
+                                self.video_sections.push((tab, y + self.scroll - top - 2.0));
                                 out.push(Widget {
                                     x: x0,
                                     y: y + 6.0,

@@ -1373,6 +1373,28 @@ impl HudBatch {
         self.quad(corners, [uv; 4], color);
     }
     /// GuiGraphics.fillGradient: `top` to `bottom`, down the rectangle.
+    /// A rectangle whose four corners have their own colours (top left, top right, bottom
+    /// right, bottom left), blended smoothly between them.
+    pub fn fill_corners(
+        &mut self,
+        atlas: &HudAtlas,
+        (x, y, w, h): (f32, f32, f32, f32),
+        colors: [u32; 4],
+    ) {
+        let r = atlas.white;
+        let uv = [(r.u0 + r.u1) / 2.0, (r.v0 + r.v1) / 2.0];
+        let p = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+        for i in [0, 1, 2, 0, 2, 3] {
+            self.vertices.push(HudVertex {
+                pos: p[i],
+                uv,
+                color: colors[i],
+                depth: 0.0,
+                glint_uv: [0.0, 0.0],
+                text: 0,
+            });
+        }
+    }
     pub fn fill_gradient(
         &mut self,
         atlas: &HudAtlas,

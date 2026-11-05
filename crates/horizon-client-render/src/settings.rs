@@ -222,7 +222,7 @@ impl Default for Settings {
             gamma: 0.5,
             // Vanilla's default, as for an options.txt without the key: a
             // capped frame rate leaves the cores idle when VSync is off.
-            max_fps: 120,
+            max_fps: if cfg!(target_os = "android") { 60 } else { 120 },
             vsync: true,
             fullscreen: false,
             smooth_lighting: true,
@@ -965,7 +965,7 @@ mod tests {
     #[test]
     fn no_options_txt_paces_frames_like_an_empty_one() {
         let (fresh, empty) = (Settings::default(), Settings::parse(""));
-        assert_eq!(fresh.max_fps, 120);
+        assert_eq!(fresh.max_fps, if cfg!(target_os = "android") { 60 } else { 120 });
         assert_eq!(fresh.max_fps, empty.max_fps);
         assert_eq!(fresh.vsync, empty.vsync);
         assert_eq!(fresh.inactivity_fps_limit, empty.inactivity_fps_limit);
