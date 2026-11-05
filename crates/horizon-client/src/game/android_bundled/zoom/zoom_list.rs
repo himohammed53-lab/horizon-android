@@ -8,10 +8,22 @@ pub(super) fn run(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
         id: zoom::ID.into(),
         title: format!("Zoom {}", zoom::VERSION),
         description: zoom::DESCRIPTION.into(),
-        keys: vec![[
-            zoom::KEY.into(),
-            "Zoom key".into(),
-            zoom::DEFAULT_KEY.into(),
-        ]],
+        keys: vec![
+            [
+                zoom::KEY.into(),
+                "Zoom key".into(),
+                zoom::DEFAULT_KEY.into(),
+            ],
+            [
+                zoom::KEY_IN.into(),
+                "Zoom in key (while zooming)".into(),
+                zoom::DEFAULT_IN.into(),
+            ],
+            [
+                zoom::KEY_OUT.into(),
+                "Zoom out key (while zooming)".into(),
+                zoom::DEFAULT_OUT.into(),
+            ],
+        ],
     });
 }

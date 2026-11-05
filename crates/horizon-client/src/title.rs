@@ -352,6 +352,8 @@ pub enum Action {
     None,
     Quit,
     Options,
+    /// The Mods list (Horizon's replacement of the Realms row).
+    Mods,
     Accessibility,
     Language,
     /// AccessibilityOnboardingScreen's Music & Sounds button.
@@ -1583,9 +1585,10 @@ impl Title {
                         cx - 100.0,
                         y + 48.0,
                         200.0,
-                        &lang::get_or("menu.online", "Minecraft Realms"),
-                        false,
-                        0,
+                        // Horizon has no Realms: the row opens the Mods list.
+                        "Mods",
+                        true,
+                        8,
                     ),
                     b(
                         cx - 100.0,
@@ -3225,6 +3228,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 Action::None
             }
             (Mode::Main, Some(3)) => Action::Options,
+            (Mode::Main, Some(8)) => Action::Mods,
             (Mode::Main, Some(7)) => Action::Accessibility,
             (Mode::Main, Some(6)) => Action::Language,
             (Mode::Select { worlds, selected }, Some(10)) => {

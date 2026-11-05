@@ -723,6 +723,7 @@ impl Loading {
         match action {
             Action::Quit => crate::game::exit_app(event_loop),
             Action::Options => self.open_menu_options(Page::Main),
+            Action::Mods => self.open_menu_options(Page::Mods),
             Action::Accessibility => self.open_menu_options(Page::Accessibility),
             Action::Language => self.open_menu_options(Page::Language),
             Action::Sounds => self.open_menu_options(Page::Sound),

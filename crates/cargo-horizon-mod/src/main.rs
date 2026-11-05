@@ -199,6 +199,13 @@ fn build_in(root: &Path, release: bool) -> Result<PathBuf, String> {
     for name in &content.files {
         files.push((name.as_str(), reader.read(name)?));
     }
+    // An `icon.png` beside the manifest goes in too (the Mods page shows it).
+    if let Ok(icon) = std::fs::read(root.join(horizon_mods::manifest::ICON)) {
+        if icon.len() > 1 << 20 {
+            return Err(format!("{} is over 1 MiB", horizon_mods::manifest::ICON));
+        }
+        files.push((horizon_mods::manifest::ICON, icon));
+    }
     let files: Vec<(&str, &[u8])> = files.iter().map(|(n, b)| (*n, b.as_slice())).collect();
     let dir = target_dir.join("horizon-mod");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;

@@ -3527,8 +3527,12 @@ impl OptionsUi {
                     for (i, m) in s.mods.installed.iter().enumerate() {
                         let (name, _) = split_mod_title(&m.title);
                         let mut label = Text::literal(if i == self.mod_sel { "> " } else { "  " });
+                        // A mod with an icon.png shows it (drawn over the button's left).
+                        if !s.mods.icons.contains_key(&m.id) {
+                            label = label
+                                .append(Text::literal(initial_of(name)).with_color(mod_color(&m.id)));
+                        }
                         label = label
-                            .append(Text::literal(initial_of(name)).with_color(mod_color(&m.id)))
                             .append(Text::literal(format!(" {name} ")))
                             .append(mod_state(s, i, m));
                         out.push(button(8.0, y + 2.0, mod_left, label, Act::PickMod(i)));
@@ -3667,13 +3671,17 @@ impl OptionsUi {
         };
         let (name, version) = split_mod_title(&m.title);
         let y = top + 8.0;
-        text(
-            out,
-            Text::literal(initial_of(name)).with_color(mod_color(&m.id)),
-            u32::MAX,
-            y,
-        );
-        text(out, Text::literal(format!("   {name}")), u32::MAX, y);
+        let has_icon = s.mods.icons.contains_key(&m.id);
+        if !has_icon {
+            text(
+                out,
+                Text::literal(initial_of(name)).with_color(mod_color(&m.id)),
+                u32::MAX,
+                y,
+            );
+        }
+        let indent = if has_icon { "       " } else { "   " };
+        text(out, Text::literal(format!("{indent}{name}")), u32::MAX, y);
         let sub = if version.is_empty() {
             m.id.clone()
         } else {
@@ -4080,6 +4088,26 @@ impl OptionsUi {
                         u32::MAX,
                         true,
                     );
+                }
+            }
+            // The Mods page: a mod's icon.png on its list row and beside its name.
+            let icon_at = match &wd.kind {
+                WKind::Button {
+                    act: Act::PickMod(i),
+                    ..
+                } => Some((*i, wd.x + 4.0, wd.y + 2.0)),
+                WKind::Button {
+                    act: Act::ToggleMod(i),
+                    ..
+                } => Some((*i, wd.x, top + 5.0)),
+                _ => None,
+            };
+            if let Some((i, x, y)) = icon_at
+                && let Some(pixels) = s.mods.installed.get(i).and_then(|m| s.mods.icons.get(&m.id))
+            {
+                for (n, p) in pixels.iter().enumerate().filter(|(_, p)| p[3] != 0) {
+                    let (px, py) = (x + (n % 16) as f32, y + (n / 16) as f32);
+                    batch.fill(atlas, px, py, 1.0, 1.0, rgba(p[0], p[1], p[2], p[3]));
                 }
             }
             if wd.list && (wd.y < top || wd.y + wd.h > bottom) {

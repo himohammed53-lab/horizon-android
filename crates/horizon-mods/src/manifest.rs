@@ -314,6 +314,10 @@ impl Manifest {
     }
 }
 
+/// The optional picture of a mod (a PNG, at most 1 MiB) at the root of the `.hmod`: the Mods
+/// page shows it, scaled to 16 × 16.
+pub const ICON: &str = "icon.png";
+
 /// A mod as found on disk: its manifest and component bytes.
 pub struct Package {
     pub manifest: Manifest,
@@ -387,7 +391,10 @@ impl Package {
             put(WASM, wasm)?;
         }
         for (name, bytes) in files {
-            crate::content::check_path(name)?;
+            // The mod's icon sits at the root; everything else is assets/ or data/.
+            if *name != ICON {
+                crate::content::check_path(name)?;
+            }
             put(name, bytes)?;
         }
         Ok(zip.finish().map_err(err)?.into_inner())

@@ -578,8 +578,8 @@ fn classic_navigation_buttons_sound_even_without_a_game_action() {
         (Action::None, false)
     );
     assert_eq!(
-        f.click_with_sound("Minecraft Realms"),
-        (Action::None, false)
+        f.click_with_sound("Mods"),
+        (Action::Mods, true)
     );
     assert_eq!(f.click_with_sound("Singleplayer"), (Action::None, true));
     assert_eq!(

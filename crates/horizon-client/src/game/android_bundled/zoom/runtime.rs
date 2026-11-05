@@ -14,14 +14,22 @@ use std::cell::RefCell;
 pub const ID: &str = "zoom";
 pub const VERSION: &str = "2.0.0";
 pub const DESCRIPTION: &str =
-    "Hold a key to zoom in; the mouse wheel changes the zoom while you hold it. Horizon's own.";
+    "Hold a key to zoom in, up to 100x. The mouse wheel, or the zoom in/out keys you give to touch buttons, change the zoom while you hold it. Horizon's own.";
 /// The key's name, and its default.
 pub const KEY: &str = "zoom";
 pub const DEFAULT_KEY: &str = "key.keyboard.z";
+/// Keys that zoom further in or back out while the zoom key is held. They
+/// default to = and -; a Touch Controls button set to those keys presses them.
+pub const KEY_IN: &str = "zoom_in";
+pub const KEY_OUT: &str = "zoom_out";
+pub const DEFAULT_IN: &str = "key.keyboard.equal";
+pub const DEFAULT_OUT: &str = "key.keyboard.minus";
+/// Each press of the in/out keys is this many wheel steps.
+const BUTTON_STEPS: f32 = 2.0;
 /// The zooms the starting zoom cycles through, and the wheel's limits.
 pub const LEVELS: [u8; 6] = [2, 3, 4, 6, 8, 10];
 const MIN: f32 = 1.25;
-const MAX: f32 = 10.0;
+const MAX: f32 = 100.0;
 /// Each wheel step multiplies the zoom by this.
 const STEP: f32 = 1.25;
 
@@ -42,7 +50,7 @@ impl Settings {
     pub fn read(get: impl Fn(&str) -> Option<String>) -> Self {
         let level = get("level")
             .and_then(|v| v.trim().parse::<u8>().ok())
-            .map_or(4, |v| v.clamp(2, MAX as u8));
+            .map_or(4, |v| v.clamp(2, LEVELS[LEVELS.len() - 1]));
         let flag = |key: &str| get(key).is_none_or(|v| v.trim() != "false");
         Self {
             level,
@@ -125,6 +133,11 @@ pub fn wheel(steps: f32) -> bool {
         *z = (*z * STEP.powf(steps)).clamp(MIN, MAX);
         true
     })
+}
+
+/// The zoom in/out key went down: true when it zoomed (the zoom key is held).
+pub fn step(zoom_in: bool) -> bool {
+    wheel(if zoom_in { BUTTON_STEPS } else { -BUTTON_STEPS })
 }
 
 /// The zoom in effect: (factor, smooth, turning scale), none when the key
@@ -214,7 +227,9 @@ mod tests {
         assert!(wheel(1.0));
         assert_eq!(view().map(|v| v.0), Some(5.0));
         assert!(wheel(40.0));
-        assert_eq!(view().map(|v| v.0), Some(10.0));
+        assert_eq!(view().map(|v| v.0), Some(100.0));
+        assert!(step(false));
+        assert!(view().is_some_and(|v| v.0 < 100.0 && v.0 > 50.0));
         key(false, false, &none);
         assert_eq!(view(), None);
         assert!(!wheel(1.0));

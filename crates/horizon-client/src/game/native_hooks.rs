@@ -4353,12 +4353,12 @@ impl Game<'_> {
         self.native_zoom(&mut zoom);
         // As the WebAssembly runtime clamped a mod's zoom.
         let z = zoom?;
-        let factor = finite(z.factor, 1.0, 10.0);
+        let factor = finite(z.factor, 1.0, 100.0);
         (factor > 1.0).then_some(NativeZoom {
             factor,
             smooth: z.smooth,
             turn: if z.turn.is_finite() {
-                z.turn.clamp(0.05, 1.0)
+                z.turn.clamp(0.005, 1.0)
             } else {
                 1.0
             },

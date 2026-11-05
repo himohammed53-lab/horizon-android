@@ -15,6 +15,8 @@ use horizon_client::{
 };
 use std::{path::PathBuf, time::Duration};
 #[cfg(feature = "mods")]
+use std::{io::Read, path::Path};
+#[cfg(feature = "mods")]
 use {
     super::Screen,
     super::{execution_role::ExecutionRole, lan::LanHost, server_mods::ModEvent},
@@ -456,6 +458,13 @@ impl Game<'_> {
         self.mods.server = self.mods.mods.runs_server();
         self.mods.world = self.mods.mods.wants_world();
         let dev = &self.mods.dev;
+        self.settings.mods.icons = self
+            .mods
+            .mods
+            .entries()
+            .iter()
+            .filter_map(|e| Some((e.manifest.as_ref()?.id.clone(), read_icon(&e.path)?)))
+            .collect();
         self.settings.mods.installed = self
             .mods
             .mods
@@ -1675,5 +1684,121 @@ mod tests {
         // No folder: no rows.
         assert!(not_built(&dir.join("missing"), "", &[]).is_empty());
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+}
+
+/// The mod's `icon.png` (in the `.hmod` or its folder) as 16 × 16 pixels.
+#[cfg(feature = "mods")]
+fn read_icon(path: &Path) -> Option<Vec<[u8; 4]>> {
+    let bytes = if path.is_dir() {
+        std::fs::read(path.join("icon.png")).ok()?
+    } else {
+        let mut zip = zip::ZipArchive::new(std::fs::File::open(path).ok()?).ok()?;
+        let file = zip.by_name("icon.png").ok()?;
+        let mut bytes = Vec::new();
+        file.take(1 << 20).read_to_end(&mut bytes).ok()?;
+        bytes
+    };
+    decode_icon(&bytes)
+}
+
+/// A PNG as 16 × 16 RGBA pixels, each the average of its cell.
+#[cfg(feature = "mods")]
+fn decode_icon(bytes: &[u8]) -> Option<Vec<[u8; 4]>> {
+    let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+    decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
+    let mut reader = decoder.read_info().ok()?;
+    let (width, height) = (reader.info().width as usize, reader.info().height as usize);
+    if width == 0 || height == 0 || width > 1024 || height > 1024 {
+        return None;
+    }
+    let mut buffer = vec![0; reader.output_buffer_size()?];
+    let frame = reader.next_frame(&mut buffer).ok()?;
+    let data = &buffer[..frame.buffer_size()];
+    let channels = match frame.color_type {
+        png::ColorType::Rgba => 4,
+        png::ColorType::Rgb => 3,
+        png::ColorType::GrayscaleAlpha => 2,
+        png::ColorType::Grayscale => 1,
+        png::ColorType::Indexed => return None,
+    };
+    let pixel = |x: usize, y: usize| -> [u32; 4] {
+        let at = (y * width + x) * channels;
+        let d = &data[at..at + channels];
+        match channels {
+            4 => [d[0], d[1], d[2], d[3]].map(u32::from),
+            3 => [u32::from(d[0]), u32::from(d[1]), u32::from(d[2]), 255],
+            2 => [u32::from(d[0]), u32::from(d[0]), u32::from(d[0]), u32::from(d[1])],
+            _ => [u32::from(d[0]), u32::from(d[0]), u32::from(d[0]), 255],
+        }
+    };
+    let mut out = Vec::with_capacity(256);
+    for cy in 0..16 {
+        for cx in 0..16 {
+            let (x0, x1) = (cx * width / 16, ((cx + 1) * width / 16).max(cx * width / 16 + 1));
+            let (y0, y1) = (cy * height / 16, ((cy + 1) * height / 16).max(cy * height / 16 + 1));
+            let (mut sum, mut alpha, mut n) = ([0u32; 3], 0u32, 0u32);
+            for y in y0..y1.min(height) {
+                for x in x0..x1.min(width) {
+                    let p = pixel(x, y);
+                    // Weight colours by alpha so transparent pixels add no colour.
+                    for k in 0..3 {
+                        sum[k] += p[k] * p[3];
+                    }
+                    alpha += p[3];
+                    n += 1;
+                }
+            }
+            out.push(if alpha == 0 || n == 0 {
+                [0, 0, 0, 0]
+            } else {
+                [
+                    (sum[0] / alpha) as u8,
+                    (sum[1] / alpha) as u8,
+                    (sum[2] / alpha) as u8,
+                    (alpha / n) as u8,
+                ]
+            });
+        }
+    }
+    Some(out)
+}
+
+#[cfg(all(test, feature = "mods"))]
+mod icon_tests {
+    use super::decode_icon;
+
+    fn png(width: u32, height: u32, rgba: &[u8]) -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut encoder = png::Encoder::new(&mut out, width, height);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        encoder
+            .write_header()
+            .unwrap()
+            .write_image_data(rgba)
+            .unwrap();
+        out
+    }
+
+    #[test]
+    fn a_32_pixel_icon_shrinks_to_16_by_16_cells() {
+        // Left half red, right half fully transparent.
+        let mut rgba = Vec::new();
+        for _ in 0..32 {
+            for x in 0..32 {
+                rgba.extend(if x < 16 { [255, 0, 0, 255] } else { [0, 0, 0, 0] });
+            }
+        }
+        let pixels = decode_icon(&png(32, 32, &rgba)).unwrap();
+        assert_eq!(pixels.len(), 256);
+        assert_eq!(pixels[0], [255, 0, 0, 255]);
+        assert_eq!(pixels[15][3], 0);
+        assert_eq!(pixels[16 * 8 + 7], [255, 0, 0, 255]);
+    }
+
+    #[test]
+    fn something_that_is_not_a_png_is_no_icon() {
+        assert!(decode_icon(b"not a png").is_none());
     }
 }

@@ -49,6 +49,8 @@ pub struct ModList {
     pub keys: BTreeMap<String, BTreeMap<String, String>>,
     /// What the Mods page shows, filled by the game from the mods it found.
     pub installed: Vec<Installed>,
+    /// Mod id → its icon, 16 × 16 RGBA pixels from the mod's `icon.png`.
+    pub icons: BTreeMap<String, Vec<[u8; 4]>>,
 }
 
 /// One installed mod as the Mods page shows it.

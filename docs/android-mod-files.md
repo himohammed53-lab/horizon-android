@@ -70,3 +70,23 @@ Not yet verified on a device: `break-blocks` and the two server mods.
   Gamma's) opens the system keyboard: a letter, digit, Space or Enter binds
   it; closing the keyboard keeps the old key. A key can also be bound to a
   touch button in the touch layout editor.
+
+## Mod icons
+
+Put an `icon.png` (any square PNG up to 1 MiB) beside a mod's `horizon-mod.toml`.
+`cargo horizon-mod build` packs it into the `.hmod`, and the in-game Mods page
+shows it, scaled to 16 x 16, in the list and beside the mod's name. A mod without
+an icon shows its first letter in a colour instead.
+
+## Mods page
+
+The title screen has a **Mods** button (where vanilla has Minecraft Realms). The
+page lists the mods on the left and shows the chosen mod on the right: name,
+version, id, status, description, the ON/OFF button and Settings.
+
+## Zoom
+
+Zoom goes up to 100x. While the zoom key is held, the `Zoom in key` and
+`Zoom out key` (default `=` and `-`, changeable in the Zoom mod's settings) change
+the zoom. To use them on a phone, add two custom touch buttons set to those keys in
+Settings > Controls > Touch Controls.
