@@ -18,6 +18,11 @@ pub(super) fn run(game: &mut crate::game::Game<'_>, key: &str, pressed: bool) {
                 (zoom::KEY_OUT, zoom::DEFAULT_OUT, false),
             ] {
                 if key == game.native_mod_key(zoom::ID, name, default) {
+                    if !zoom::active() {
+                        let playing = game.native_playing();
+                        let g = &*game;
+                        zoom::latch(playing, |n| g.native_setting(zoom::ID, n));
+                    }
                     zoom::step(zoom_in);
                 }
             }

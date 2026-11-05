@@ -27,7 +27,7 @@ pub const DEFAULT_OUT: &str = "key.keyboard.minus";
 /// Each press of the in/out keys is this many wheel steps.
 const BUTTON_STEPS: f32 = 2.0;
 /// The zooms the starting zoom cycles through, and the wheel's limits.
-pub const LEVELS: [u8; 6] = [2, 3, 4, 6, 8, 10];
+pub const LEVELS: [u8; 13] = [2, 3, 4, 6, 8, 10, 15, 20, 30, 40, 50, 75, 100];
 const MIN: f32 = 1.25;
 const MAX: f32 = 100.0;
 /// Each wheel step multiplies the zoom by this.
@@ -97,6 +97,9 @@ struct State {
     settings: Option<Settings>,
     /// The zoom while the key is held; None when it is up.
     held: Option<f32>,
+    /// The zoom was started by the in/out keys with the zoom key up: it stays
+    /// until the zoom key is pressed.
+    latched: bool,
 }
 
 thread_local! {
@@ -120,6 +123,14 @@ pub fn key(playing: bool, pressed: bool, get: impl Fn(&str) -> Option<String>) {
     }
     let level = settings(get).level;
     STATE.with_borrow_mut(|s| {
+        if s.latched {
+            // A latched zoom ends on the next press; the release after it is ignored.
+            if pressed {
+                s.latched = false;
+                s.held = None;
+            }
+            return;
+        }
         s.held = pressed.then(|| f32::from(level).clamp(MIN, MAX));
     });
 }
@@ -133,6 +144,26 @@ pub fn wheel(steps: f32) -> bool {
         *z = (*z * STEP.powf(steps)).clamp(MIN, MAX);
         true
     })
+}
+
+/// The zoom in/out key went down with the zoom key up: start the zoom at the
+/// starting level and keep it until the zoom key is pressed.
+pub fn latch(playing: bool, get: impl Fn(&str) -> Option<String>) {
+    if !playing {
+        return;
+    }
+    let level = settings(get).level;
+    STATE.with_borrow_mut(|s| {
+        if s.held.is_none() {
+            s.held = Some(f32::from(level).clamp(MIN, MAX));
+            s.latched = true;
+        }
+    });
+}
+
+/// Whether a zoom is in effect (held or latched).
+pub fn active() -> bool {
+    STATE.with_borrow(|s| s.held.is_some())
 }
 
 /// The zoom in/out key went down: true when it zoomed (the zoom key is held).
@@ -186,7 +217,8 @@ mod tests {
                 sensitivity: true
             }
         );
-        assert_eq!(Settings::read(stored(&[("level", "99")])).level, 10);
+        assert_eq!(Settings::read(stored(&[("level", "99")])).level, 99);
+        assert_eq!(Settings::read(stored(&[("level", "200")])).level, 100);
         let round: Vec<(&str, String)> = s.stored().into();
         let back: Vec<(&str, &str)> = round.iter().map(|(k, v)| (*k, v.as_str())).collect();
         assert_eq!(Settings::read(stored(&back)), s);
@@ -199,6 +231,9 @@ mod tests {
             smooth: true,
             sensitivity: false,
         };
+        s.click(0);
+        assert_eq!(s.level, 15);
+        s.level = 100;
         s.click(0);
         assert_eq!(s.level, 2);
         s.level = 5;
