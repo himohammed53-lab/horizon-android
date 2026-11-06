@@ -7,6 +7,7 @@
 //! Waypoints are kept in the mod's storage.
 use horizon_mod_sdk::{
     Mod, Registration, chat, game,
+    input::{self, Event},
     render::{self, FillShape, ItemShape, Point, Rect, Shape, TextShape},
     storage,
     ui::{self, ButtonWidget, ListWidget, TextWidget, Widget},
@@ -65,6 +66,8 @@ const BACK: u32 = 10;
 const OPACITY: u32 = 11;
 const EDIT: u32 = 12;
 /// Text request ids.
+/// The key that opens the waypoints screen.
+const KEY: &str = "open";
 const ASK_NAME: u32 = 1;
 const ASK_NEW: u32 = 2;
 
@@ -102,6 +105,8 @@ struct Waypoints {
     editing: bool,
     /// Changed by a slider and not yet written to the storage.
     dirty: bool,
+    /// The waypoints screen (opened with the key) is showing.
+    screen_open: bool,
 }
 
 /// The storage key of a world's waypoints: keys are 64 characters of
@@ -344,6 +349,17 @@ impl Waypoints {
         self.page();
     }
 
+    /// Pushes the widgets to the settings page, and to the screen when it is open.
+    fn show(&self, widgets: &[Widget]) {
+        ui::set_settings(widgets);
+        if self.screen_open {
+            ui::open_screen(&ui::Screen {
+                title: "Waypoints".into(),
+                widgets: widgets.to_vec(),
+            });
+        }
+    }
+
     fn page(&self) {
         let text = |id: u32, t: &str| {
             Widget::Text(TextWidget {
@@ -354,7 +370,7 @@ impl Waypoints {
         };
         let button = |id: u32, label: String| Widget::Button(ButtonWidget { id, label });
         if self.world.is_none() {
-            ui::set_settings(&[text(100, "Join a world to see its waypoints")]);
+            self.show(&[text(100, "Join a world to see its waypoints")]);
             return;
         }
         if self.picking {
@@ -362,7 +378,7 @@ impl Waypoints {
                 COLOR_LIST,
                 &PALETTE.iter().map(|&(_, c)| lifted(c)).collect::<Vec<_>>(),
             );
-            ui::set_settings(&[
+            self.show(&[
                 text(101, "Pick a colour"),
                 Widget::List(ListWidget {
                     id: COLOR_LIST,
@@ -382,7 +398,7 @@ impl Waypoints {
         {
             ui::set_slider(SIZE, 25, 300, w.size);
             ui::set_slider(OPACITY, 10, 100, w.opacity);
-            ui::set_settings(&[
+            self.show(&[
                 button(RENAME, format!("Name: {}", w.name)),
                 button(COLOR, format!("Colour: {}", color_name(w.color))),
                 button(SIZE, format!("Size: {}%", w.size)),
@@ -433,7 +449,7 @@ impl Waypoints {
         } else {
             widgets.push(text(102, "Tap a waypoint to edit or delete it"));
         }
-        ui::set_settings(&widgets);
+        self.show(&widgets);
     }
 
     /// A rounded square of `half` × 2 on a side centred on (`x`, `y`), in
@@ -619,7 +635,9 @@ impl Mod for Waypoints {
             world: None,
             editing: false,
             dirty: false,
+            screen_open: false,
         };
+        let _ = input::register_key(KEY, "Open waypoints", "key.keyboard.b");
         me.sync_world();
         me.page();
         Ok((
@@ -637,6 +655,15 @@ impl Mod for Waypoints {
         if self.dirty {
             self.save();
             self.dirty = false;
+        }
+        for event in input::poll() {
+            if matches!(event, Event::KeyDown(ref k) if k == KEY) {
+                self.sync_world();
+                self.editing = false;
+                self.picking = false;
+                self.screen_open = true;
+                self.page();
+            }
         }
         self.typed();
         let Some(p) = game::get_player() else {
@@ -862,6 +889,10 @@ impl Mod for Waypoints {
             _ => return,
         }
         self.changed();
+    }
+
+    fn ui_closed(&mut self) {
+        self.screen_open = false;
     }
 
     fn ui_settings_opened(&mut self) {
