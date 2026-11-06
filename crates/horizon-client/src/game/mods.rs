@@ -1187,6 +1187,15 @@ impl Game<'_> {
         let atlas = &self.gui.atlas;
         let in_world = self.player.is_some();
         ui::menu_background(batch, atlas, 0.0, 0.0, batch.width, batch.height, in_world);
+        // A dark glass panel behind the page, with a thin light edge and an accent
+        // line under the title.
+        let cx = (batch.width / 2.0).floor();
+        let x = cx - MOD_UI_COLUMN / 2.0;
+        let rgba = horizon_client::hud::rgba;
+        let (px, pw) = (x - 10.0, MOD_UI_COLUMN + 20.0);
+        batch.fill(atlas, px - 1.0, 5.0, pw + 2.0, batch.height - 8.0, rgba(255, 255, 255, 40));
+        batch.fill(atlas, px, 6.0, pw, batch.height - 10.0, rgba(14, 14, 20, 200));
+        batch.fill(atlas, px, 6.0, pw, 2.0, rgba(120, 190, 255, 255));
         ui::centered_text(
             batch,
             atlas,
@@ -1196,8 +1205,6 @@ impl Game<'_> {
             batch.width,
             u32::MAX,
         );
-        let cx = (batch.width / 2.0).floor();
-        let x = cx - MOD_UI_COLUMN / 2.0;
         // A settings page starts with the mod's keys, as Key Binds rows.
         let keys = Self::mod_page_keys(&self.mods.mods, ms);
         for (i, k) in keys.iter().enumerate() {

@@ -65,6 +65,9 @@ const COLOR_LIST: u32 = 9;
 const BACK: u32 = 10;
 const OPACITY: u32 = 11;
 const EDIT: u32 = 12;
+const TEXT_SIZE: u32 = 13;
+const TEXT_OPACITY: u32 = 14;
+const STYLE_BTN: u32 = 15;
 /// Text request ids.
 /// The key that opens the waypoints screen.
 const KEY: &str = "open";
@@ -87,8 +90,52 @@ struct Waypoint {
     opacity: u32,
 }
 
+/// How every waypoint is drawn (only the colour is a waypoint's own).
+#[derive(Clone, Copy)]
+struct Style {
+    /// Percent of the normal size of the markers.
+    size: u32,
+    /// Percent of full strength of the markers.
+    opacity: u32,
+    /// The same for the distance under a marker.
+    text_size: u32,
+    text_opacity: u32,
+}
+
+impl Style {
+    const NORMAL: Style = Style {
+        size: 100,
+        opacity: 100,
+        text_size: 100,
+        text_opacity: 100,
+    };
+
+    fn encode(self) -> String {
+        format!(
+            "{}|{}|{}|{}",
+            self.size, self.opacity, self.text_size, self.text_opacity
+        )
+    }
+
+    fn decode(text: &str) -> Style {
+        let v: Vec<u32> = text.trim().split('|').filter_map(|p| p.parse().ok()).collect();
+        let pick = |i: usize, lo: u32, hi: u32| {
+            v.get(i).copied().filter(|n| (lo..=hi).contains(n)).unwrap_or(100)
+        };
+        Style {
+            size: pick(0, 25, 300),
+            opacity: pick(1, 10, 100),
+            text_size: pick(2, 25, 300),
+            text_opacity: pick(3, 10, 100),
+        }
+    }
+}
+
 struct Waypoints {
     list: Vec<Waypoint>,
+    style: Style,
+    /// The page of the settings every waypoint shares shows.
+    style_page: bool,
     show: bool,
     selected: Option<usize>,
     /// Where the player stood at the last tick with health left.
@@ -249,6 +296,7 @@ impl Waypoints {
             "show",
             if self.show { &b"true"[..] } else { &b"false"[..] },
         );
+        let _ = storage::set("style", self.style.encode().as_bytes());
         let Some(world) = &self.world else {
             return;
         };
@@ -272,6 +320,7 @@ impl Waypoints {
         self.selected = None;
         self.editing = false;
         self.picking = false;
+        self.style_page = false;
         self.pending = None;
         self.last_alive = None;
         self.alive = false;
@@ -393,20 +442,35 @@ impl Waypoints {
             ]);
             return;
         }
-        if self.editing
-            && let Some(w) = self.selected.and_then(|i| self.list.get(i))
-        {
-            ui::set_slider(SIZE, 25, 300, w.size);
-            ui::set_slider(OPACITY, 10, 100, w.opacity);
+        if self.style_page {
+            let st = self.style;
+            ui::set_slider(SIZE, 25, 300, st.size);
+            ui::set_slider(OPACITY, 10, 100, st.opacity);
+            ui::set_slider(TEXT_SIZE, 25, 300, st.text_size);
+            ui::set_slider(TEXT_OPACITY, 10, 100, st.text_opacity);
             self.show(&[
-                button(RENAME, format!("Name: {}", w.name)),
-                button(COLOR, format!("Colour: {}", color_name(w.color))),
-                button(SIZE, format!("Size: {}%", w.size)),
-                button(OPACITY, format!("Opacity: {}%", w.opacity)),
                 button(
                     SHOW_ALL,
                     format!("All waypoints: {}", if self.show { "ON" } else { "OFF" }),
                 ),
+                button(SIZE, format!("Marker size: {}%", st.size)),
+                button(OPACITY, format!("Marker opacity: {}%", st.opacity)),
+                button(TEXT_SIZE, format!("Distance size: {}%", st.text_size)),
+                button(
+                    TEXT_OPACITY,
+                    format!("Distance opacity: {}%", st.text_opacity),
+                ),
+                button(BACK, "Back".into()),
+            ]);
+            return;
+        }
+        if self.editing
+            && let Some(w) = self.selected.and_then(|i| self.list.get(i))
+        {
+            self.show(&[
+                button(RENAME, format!("Name: {}", w.name)),
+                button(COLOR, format!("Colour: {}", color_name(w.color))),
+                button(STYLE_BTN, "Look of all waypoints".into()),
                 button(BACK, "Back".into()),
             ]);
             return;
@@ -445,41 +509,135 @@ impl Waypoints {
             ));
             widgets.push(button(DELETE, format!("Delete: {}", w.name)));
         } else {
-            widgets.push(button(
-                SHOW_ALL,
-                format!("All waypoints: {}", if self.show { "ON" } else { "OFF" }),
-            ));
+            widgets.push(button(STYLE_BTN, "Look of all waypoints".into()));
             widgets.push(text(102, "Tap a waypoint to edit, hide or delete it"));
         }
         self.show(&widgets);
     }
 
-    /// A rounded square of `half` × 2 on a side centred on (`x`, `y`), in
-    /// non-overlapping pieces so a see-through colour is even.
-    fn rounded(shapes: &mut Vec<Shape>, x: f32, y: f32, half: f32, color: u32) {
-        let w = 2.0 * half;
-        let (left, top) = (x - half, y - half);
-        let mut fill = |dx: f32, dy: f32, ww: f32, hh: f32| {
-            shapes.push(Shape::Fill(FillShape {
-                rect: Rect {
-                    x: left + dx,
-                    y: top + dy,
-                    w: ww,
-                    h: hh,
-                },
-                color,
-            }));
+    /// A rectangle of the HUD.
+    fn fill(shapes: &mut Vec<Shape>, x: f32, y: f32, w: f32, h: f32, color: u32) {
+        shapes.push(Shape::Fill(FillShape {
+            rect: Rect { x, y, w, h },
+            color,
+        }));
+    }
+
+    /// `color` moved `t` of the way to `to` (both 0xRRGGBB).
+    fn mix(color: u32, to: u32, t: f32) -> u32 {
+        let part = |shift: u32| {
+            let a = (color >> shift & 0xFF) as f32;
+            let b = (to >> shift & 0xFF) as f32;
+            ((a + (b - a) * t).round() as u32).min(255) << shift
         };
-        if half >= 10.0 {
-            fill(2.0, 0.0, w - 4.0, 1.0);
-            fill(1.0, 1.0, w - 2.0, 1.0);
-            fill(0.0, 2.0, w, w - 4.0);
-            fill(1.0, w - 2.0, w - 2.0, 1.0);
-            fill(2.0, w - 1.0, w - 4.0, 1.0);
-        } else {
-            fill(1.0, 0.0, w - 2.0, 1.0);
-            fill(0.0, 1.0, w, w - 2.0);
-            fill(1.0, w - 1.0, w - 2.0, 1.0);
+        part(16) | part(8) | part(0)
+    }
+
+    /// Text drawn with a 3 x 5 pixel font in blocks of `unit` GUI pixels (the
+    /// game's own font has no size or see-through), centred on `cx`. The
+    /// characters it has are 0-9, A-Z, `m`, `k` and `.`; false when one is
+    /// missing (nothing is drawn then).
+    fn pixel_text(
+        shapes: &mut Vec<Shape>,
+        text: &str,
+        cx: f32,
+        top: f32,
+        unit: f32,
+        rgb: u32,
+        alpha: u32,
+    ) -> bool {
+        let glyphs: Option<Vec<[&str; 5]>> = text.chars().map(glyph).collect();
+        let Some(glyphs) = glyphs else {
+            return false;
+        };
+        let cols: usize =
+            glyphs.iter().map(|g| g[0].len()).sum::<usize>() + glyphs.len().saturating_sub(1);
+        let left = cx - cols as f32 * unit / 2.0;
+        // A shadow one block down and right, then the text.
+        for (shift, color) in [
+            (unit * 0.7, (alpha * 6 / 10) << 24),
+            (0.0, alpha << 24 | rgb),
+        ] {
+            if shift > 0.0 && shapes.len() > 700 {
+                continue;
+            }
+            let mut col = 0usize;
+            for g in &glyphs {
+                for (r, row) in g.iter().enumerate() {
+                    let bits = row.as_bytes();
+                    let mut c = 0;
+                    while c < bits.len() {
+                        if bits[c] == b'1' {
+                            let start = c;
+                            while c < bits.len() && bits[c] == b'1' {
+                                c += 1;
+                            }
+                            if shapes.len() < 1000 {
+                                Self::fill(
+                                    shapes,
+                                    left + (col + start) as f32 * unit + shift,
+                                    top + r as f32 * unit + shift,
+                                    (c - start) as f32 * unit,
+                                    unit,
+                                    color,
+                                );
+                            }
+                        } else {
+                            c += 1;
+                        }
+                    }
+                }
+                col += g[0].len() + 1;
+            }
+        }
+        true
+    }
+
+    /// A waypoint's marker: a square of blocks with a dark edge and a lit top
+    /// and left, like a Minecraft button, its letter in the middle.
+    fn marker(
+        shapes: &mut Vec<Shape>,
+        cx: f32,
+        cy: f32,
+        side: f32,
+        rgb: u32,
+        alpha: u32,
+        letter: char,
+    ) {
+        let s = side.round().max(8.0);
+        let (x, y) = ((cx - s / 2.0).round(), (cy - s / 2.0).round());
+        let a = alpha << 24;
+        let (light, dark) = (Self::mix(rgb, 0xFFFFFF, 0.4), Self::mix(rgb, 0x000000, 0.4));
+        Self::fill(shapes, x + 1.0, y, s - 2.0, 1.0, a);
+        Self::fill(shapes, x + 1.0, y + s - 1.0, s - 2.0, 1.0, a);
+        Self::fill(shapes, x, y + 1.0, 1.0, s - 2.0, a);
+        Self::fill(shapes, x + s - 1.0, y + 1.0, 1.0, s - 2.0, a);
+        Self::fill(shapes, x + 1.0, y + 1.0, s - 2.0, 1.0, a | light);
+        Self::fill(shapes, x + 1.0, y + 2.0, 1.0, s - 4.0, a | light);
+        Self::fill(shapes, x + 1.0, y + s - 2.0, s - 2.0, 1.0, a | dark);
+        Self::fill(shapes, x + s - 2.0, y + 2.0, 1.0, s - 4.0, a | dark);
+        Self::fill(shapes, x + 2.0, y + 2.0, s - 4.0, s - 4.0, a | rgb);
+        // The letter in white, or black on a light colour.
+        let bright = (rgb >> 16 & 0xFF) * 3 + (rgb >> 8 & 0xFF) * 6 + (rgb & 0xFF);
+        let ink = if bright > 1700 { 0x111111 } else { 0xFFFFFF };
+        let unit = s / 9.0;
+        let drawn = Self::pixel_text(
+            shapes,
+            &letter.to_string(),
+            cx,
+            cy - 2.5 * unit,
+            unit,
+            ink,
+            alpha,
+        );
+        if !drawn {
+            shapes.push(Shape::Text(TextShape {
+                text: letter.to_string(),
+                at: Point { x: cx, y: cy - 4.0 },
+                color: ink,
+                centered: true,
+                shadow: false,
+            }));
         }
     }
 
@@ -527,10 +685,11 @@ impl Waypoints {
             if !inside {
                 continue;
             }
-            let scale = w.size as f32 / 100.0;
-            let side = (30.0 / (1.0 + dist as f32 / 80.0)).clamp(12.0, 26.0) * scale;
-            let half = (side / 2.0).max(5.0);
-            if w.death {
+            let st = self.style;
+            let side = (30.0 / (1.0 + dist as f32 / 80.0)).clamp(12.0, 26.0) * st.size as f32 / 100.0;
+            let side = side.max(8.0);
+            let alpha = (st.opacity * 255 / 100).min(255);
+            let below = if w.death {
                 let sc = side / 12.0;
                 shapes.push(Shape::Item(ItemShape {
                     item: "minecraft:skeleton_skull".into(),
@@ -540,46 +699,36 @@ impl Waypoints {
                     },
                     scale: sc,
                 }));
+                8.0 * sc
             } else {
-                let alpha = (w.opacity * 255 / 100).min(255) << 24;
-                if w.opacity >= 100 {
-                    Self::rounded(&mut shapes, x, y, half + 1.5, 0xE000_0000);
-                }
-                Self::rounded(&mut shapes, x, y, half, alpha | w.color);
-                let letter: String = w
+                let letter = w
                     .name
                     .chars()
                     .next()
-                    .map(|c| c.to_uppercase().collect())
-                    .unwrap_or_default();
-                shapes.push(Shape::Text(TextShape {
-                    text: letter,
-                    at: Point { x, y: y - 4.0 },
-                    color: 0xFFFFFF,
-                    centered: true,
-                    shadow: true,
-                }));
-            }
-            shapes.push(Shape::Text(TextShape {
-                text: w.name.clone(),
-                at: Point {
-                    x,
-                    y: y - half - 13.0,
-                },
-                color: w.color.max(0x333333),
-                centered: true,
-                shadow: true,
-            }));
-            shapes.push(Shape::Text(TextShape {
-                text: format!("{}m", dist.round() as i64),
-                at: Point {
-                    x,
-                    y: y + half + 4.0,
-                },
-                color: 0xDDDDDD,
-                centered: true,
-                shadow: true,
-            }));
+                    .and_then(|c| c.to_uppercase().next())
+                    .unwrap_or('?');
+                Self::marker(&mut shapes, x, y, side, w.color, alpha, letter);
+                side.round().max(8.0) / 2.0
+            };
+            // How far, under the marker: metres, or kilometres from 1000.
+            let text = if dist < 1000.0 {
+                format!("{}m", dist.round() as i64)
+            } else if dist < 100_000.0 {
+                format!("{:.1}km", dist / 1000.0)
+            } else {
+                format!("{}km", (dist / 1000.0).round() as i64)
+            };
+            let unit = 1.4 * st.text_size as f32 / 100.0;
+            let text_alpha = (st.text_opacity * 255 / 100).min(255);
+            Self::pixel_text(
+                &mut shapes,
+                &text,
+                x,
+                y + below + 3.0,
+                unit,
+                0xDDDDDD,
+                text_alpha,
+            );
         }
         render::set_hud(&shapes);
     }
@@ -621,12 +770,14 @@ impl Waypoints {
     }
 }
 
-const HELP: &str = "/wp add [name] | list | del N | name N new name | color N red or #ff8800 | size N 25-300 | opacity N 10-100 | hide N | show N | view on or off";
+const HELP: &str = "/wp add [name] | list | del N | name N new name | color N red or #ff8800 | size N 25-300 | opacity N 10-100 | textsize N | textopacity N | hide N | show N | view on or off";
 
 impl Mod for Waypoints {
     fn init() -> Result<(Self, Registration), String> {
         let show = stored("show").is_none_or(|v| v.trim() != "false");
         let mut me = Waypoints {
+            style: stored("style").map_or(Style::NORMAL, |t| Style::decode(&t)),
+            style_page: false,
             list: Vec::new(),
             show,
             selected: None,
@@ -722,14 +873,13 @@ impl Mod for Waypoints {
                 }
                 for (i, w) in self.list.iter().enumerate() {
                     chat::show(&format!(
-                        "{}. {} ({} {} {}) {} {}%{}",
+                        "{}. {} ({} {} {}) {}{}",
                         i + 1,
                         w.name,
                         w.x,
                         w.y,
                         w.z,
                         color_name(w.color),
-                        w.size,
                         if w.visible { "" } else { ", hidden" }
                     ));
                 }
@@ -762,33 +912,23 @@ impl Mod for Waypoints {
                 self.changed();
                 Ok(Some(format!("Colour is {}", color_name(color))))
             }
-            "size" => {
-                let (n, v) = rest.split_once(' ').unwrap_or((rest, ""));
-                let i = self.index(n)?;
-                let size: u32 = v
+            "size" | "opacity" | "textsize" | "textopacity" => {
+                let (lo, hi) = if sub.ends_with("size") { (25, 300) } else { (10, 100) };
+                let n: u32 = rest
                     .trim()
                     .trim_end_matches('%')
                     .parse()
                     .ok()
-                    .filter(|v| (25..=300).contains(v))
-                    .ok_or("Use /wp size N 25 to 300 (100 is normal)")?;
-                self.list[i].size = size;
+                    .filter(|v| (lo..=hi).contains(v))
+                    .ok_or(format!("Use /wp {sub} {lo} to {hi} (for all waypoints)"))?;
+                match sub {
+                    "size" => self.style.size = n,
+                    "opacity" => self.style.opacity = n,
+                    "textsize" => self.style.text_size = n,
+                    _ => self.style.text_opacity = n,
+                }
                 self.changed();
-                Ok(Some(format!("Size is {size}%")))
-            }
-            "opacity" => {
-                let (n, v) = rest.split_once(' ').unwrap_or((rest, ""));
-                let i = self.index(n)?;
-                let opacity: u32 = v
-                    .trim()
-                    .trim_end_matches('%')
-                    .parse()
-                    .ok()
-                    .filter(|v| (10..=100).contains(v))
-                    .ok_or("Use /wp opacity N 10 to 100")?;
-                self.list[i].opacity = opacity;
-                self.changed();
-                Ok(Some(format!("Opacity is {opacity}%")))
+                Ok(Some(format!("{sub} is {n}%")))
             }
             "hide" | "show" => {
                 let i = self.index(rest)?;
@@ -854,9 +994,16 @@ impl Mod for Waypoints {
                 }
                 self.picking = false;
             }
+            STYLE_BTN => {
+                self.style_page = true;
+                self.page();
+                return;
+            }
             BACK => {
                 if self.picking {
                     self.picking = false;
+                } else if self.style_page {
+                    self.style_page = false;
                 } else {
                     self.editing = false;
                 }
@@ -864,13 +1011,14 @@ impl Mod for Waypoints {
                 return;
             }
             // The sliders: `row` is the value dragged to.
-            SIZE | OPACITY => {
-                if let Some(w) = self.selected.and_then(|i| self.list.get_mut(i)) {
-                    if id == SIZE {
-                        w.size = ((row + 2) / 5 * 5).clamp(25, 300);
-                    } else {
-                        w.opacity = row.clamp(10, 100);
-                    }
+            SIZE | OPACITY | TEXT_SIZE | TEXT_OPACITY => {
+                let stepped = ((row + 2) / 5 * 5).clamp(25, 300);
+                let strength = row.clamp(10, 100);
+                match id {
+                    SIZE => self.style.size = stepped,
+                    OPACITY => self.style.opacity = strength,
+                    TEXT_SIZE => self.style.text_size = stepped,
+                    _ => self.style.text_opacity = strength,
                 }
                 self.dirty = true;
                 self.page();
@@ -901,8 +1049,55 @@ impl Mod for Waypoints {
         self.sync_world();
         self.picking = false;
         self.editing = false;
+        self.style_page = false;
         self.page();
     }
 }
 
 horizon_mod_sdk::export_mod!(Waypoints);
+
+/// The 3 x 5 (or wider) pixel font of the markers: rows of `1` and `0`.
+fn glyph(c: char) -> Option<[&'static str; 5]> {
+    Some(match c {
+        '0' => ["111", "101", "101", "101", "111"],
+        '1' => ["010", "110", "010", "010", "111"],
+        '2' => ["111", "001", "111", "100", "111"],
+        '3' => ["111", "001", "111", "001", "111"],
+        '4' => ["101", "101", "111", "001", "001"],
+        '5' => ["111", "100", "111", "001", "111"],
+        '6' => ["111", "100", "111", "101", "111"],
+        '7' => ["111", "001", "001", "010", "010"],
+        '8' => ["111", "101", "111", "101", "111"],
+        '9' => ["111", "101", "111", "001", "111"],
+        '.' => ["0", "0", "0", "0", "1"],
+        'm' => ["00000", "11010", "10101", "10101", "10101"],
+        'k' => ["101", "101", "110", "101", "101"],
+        'A' => ["010", "101", "111", "101", "101"],
+        'B' => ["110", "101", "110", "101", "110"],
+        'C' => ["011", "100", "100", "100", "011"],
+        'D' => ["110", "101", "101", "101", "110"],
+        'E' => ["111", "100", "110", "100", "111"],
+        'F' => ["111", "100", "110", "100", "100"],
+        'G' => ["011", "100", "101", "101", "011"],
+        'H' => ["101", "101", "111", "101", "101"],
+        'I' => ["111", "010", "010", "010", "111"],
+        'J' => ["001", "001", "001", "101", "010"],
+        'K' => ["101", "101", "110", "101", "101"],
+        'L' => ["100", "100", "100", "100", "111"],
+        'M' => ["10001", "11011", "10101", "10001", "10001"],
+        'N' => ["1001", "1101", "1011", "1001", "1001"],
+        'O' => ["010", "101", "101", "101", "010"],
+        'P' => ["110", "101", "110", "100", "100"],
+        'Q' => ["010", "101", "101", "110", "011"],
+        'R' => ["110", "101", "110", "101", "101"],
+        'S' => ["011", "100", "010", "001", "110"],
+        'T' => ["111", "010", "010", "010", "010"],
+        'U' => ["101", "101", "101", "101", "111"],
+        'V' => ["101", "101", "101", "101", "010"],
+        'W' => ["10001", "10001", "10101", "11011", "10001"],
+        'X' => ["101", "101", "010", "101", "101"],
+        'Y' => ["101", "101", "010", "010", "010"],
+        'Z' => ["111", "001", "010", "100", "111"],
+        _ => return None,
+    })
+}

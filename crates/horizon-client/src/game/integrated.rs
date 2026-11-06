@@ -472,7 +472,7 @@ impl Game<'_> {
             return Ok(());
         };
         handle.world_name = world_name;
-        handle.folder = folder.clone();
+        handle.folder = world_mark(&folder, new_world);
         self.server_packs_world_pack(&folder);
         self.connect_local(pipe, &player)?;
         if let Some(r) = self.remote.as_mut() {
@@ -1268,5 +1268,33 @@ mod tests {
             folder: String::new(),
         };
         assert_eq!(server.stop().unwrap_err().to_string(), "disk write failed");
+    }
+}
+
+/// The id mods see for a single-player world (`game.get-world`): the save's
+/// folder plus a mark kept in the folder, written when the world is created,
+/// so a new world in a folder of the same name (after the old one was
+/// deleted) is not taken for it.
+fn world_mark(folder: &str, new_world: bool) -> String {
+    let Ok(dir) = std::env::current_dir().map(|d| d.join("saves").join(folder)) else {
+        return folder.to_owned();
+    };
+    let file = dir.join("horizon-world-id");
+    if let Ok(text) = std::fs::read_to_string(&file)
+        && !text.trim().is_empty()
+    {
+        return format!("{folder}:{}", text.trim());
+    }
+    if !new_world {
+        return folder.to_owned();
+    }
+    let token = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
+    let token = format!("{token:x}");
+    let _ = std::fs::create_dir_all(&dir);
+    match std::fs::write(&file, &token) {
+        Ok(()) => format!("{folder}:{token}"),
+        Err(_) => folder.to_owned(),
     }
 }
