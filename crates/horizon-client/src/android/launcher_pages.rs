@@ -109,7 +109,7 @@ pub(super) fn button(
         26.0
     } else if w < 80.0 {
         13.0
-    } else if h >= 44.0 {
+    } else if h >= 44.0 && !matches!(action, Action::Account) {
         18.0
     } else {
         16.0
