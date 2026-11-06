@@ -502,7 +502,7 @@ impl Waypoints {
         } else {
             widgets.push(text(102, "Tap a waypoint to edit, hide or delete it"));
         }
-        widgets.push(button(STYLE_BTN, "Waypoint Settings".into()));
+        widgets.push(button(STYLE_BTN, "Waypoints Settings".into()));
         if let Some(w) = chosen {
             let label = if w.visible { "Hide" } else { "Show" };
             widgets.push(button(VISIBLE, label.to_owned()));
