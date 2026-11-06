@@ -639,7 +639,8 @@ impl Scroll {
         bottom: f32,
         content: f32,
     ) -> bool {
-        let over = x >= bar_x && x <= bar_x + 6.0 && y >= top && y < bottom;
+        // A finger is wider than the 6 pixel bar: it is held from a little left of it too.
+        let over = x >= bar_x - 10.0 && x <= bar_x + 8.0 && y >= top && y < bottom;
         self.held = (over && Self::max(top, bottom, content) > 0.0).then_some(y);
         self.held.is_some()
     }

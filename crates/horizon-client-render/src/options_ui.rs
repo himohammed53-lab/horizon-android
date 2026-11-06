@@ -4670,7 +4670,7 @@ impl OptionsUi {
             return events;
         }
         if ui::scrollbar_thumb(top, bottom, content, self.scroll).is_some()
-            && ui::hovered((x, y), self.scrollbar_x(size.0), top, 6.0, bottom - top)
+            && ui::hovered((x, y), self.scrollbar_x(size.0) - 10.0, top, 18.0, bottom - top)
         {
             self.scrollbar_drag_y = Some(y);
             return events;
