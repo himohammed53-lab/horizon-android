@@ -1,0 +1,52 @@
+schema = 1
+id = "calm_light"
+name = "Calm Light"
+version = "0.1.0"
+api = "0.1"
+description = "A light shader for phones: real block shadows, cool calm colours and water with waves. No extra full-screen passes."
+authors = ["Muhamed", "Claude"]
+license = "MIT"
+
+[sky]
+file = "sky.wgsl"
+name = "Cool sky"
+
+[material]
+file = "material.wgsl"
+
+[shadow]
+resolution = 1024
+distance = 48.0
+
+[[options]]
+id = "shadow_strength"
+name = "Shadow strength"
+description = "How dark the shadows of blocks are."
+type = "float"
+default = 0.5
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "waves"
+name = "Water waves"
+description = "How strong the waves and the shine of the water are."
+type = "float"
+default = 1.0
+min = 0.0
+max = 2.0
+step = 0.1
+
+[[options]]
+id = "coolness"
+name = "Cool colours"
+description = "How cool and calm the colours are (0 is vanilla's)."
+type = "float"
+default = 0.5
+min = 0.0
+max = 1.0
+step = 0.05
+
+[budget]
+gpu_ms = 2.5

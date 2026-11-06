@@ -1,0 +1,45 @@
+name: Build a .hshader shader
+run-name: Build .hshader · ${{ inputs.pack_dirs }}
+
+# Checks one or more Horizon shader pack folders and packs each into a .hshader
+# file you can import in the launcher's Shaders page. It never builds the app,
+# and it does not run on push.
+on:
+  workflow_dispatch:
+    inputs:
+      pack_dirs:
+        description: Shader pack folders (each has horizon-shaders.toml), separated by spaces
+        type: string
+        default: packs/calm_light
+
+permissions:
+  contents: read
+
+jobs:
+  hshader:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      HORIZON_TELEMETRY_URL: 'off'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+      - name: Build the shader tool
+        run: cargo build --release -p horizon-shader-api --bin horizon-shader
+      - name: Check and pack
+        env:
+          PACK_DIRS: ${{ inputs.pack_dirs }}
+        run: |
+          mkdir -p out
+          for dir in $PACK_DIRS; do
+            "$GITHUB_WORKSPACE/target/release/horizon-shader" check "$dir"
+            "$GITHUB_WORKSPACE/target/release/horizon-shader" pack "$dir"
+          done
+          cp packs/*/*.hshader out/ 2>/dev/null || true
+          find . -maxdepth 3 -name '*.hshader' -not -path './out/*' -exec cp {} out/ \;
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: hshader
+          path: out/*.hshader
+          if-no-files-found: error
