@@ -404,20 +404,14 @@ impl Waypoints {
                 button(SIZE, format!("Size: {}%", w.size)),
                 button(OPACITY, format!("Opacity: {}%", w.opacity)),
                 button(
-                    VISIBLE,
-                    format!("Shown: {}", if w.visible { "yes" } else { "no" }),
+                    SHOW_ALL,
+                    format!("All waypoints: {}", if self.show { "ON" } else { "OFF" }),
                 ),
                 button(BACK, "Back".into()),
             ]);
             return;
         }
-        let mut widgets = vec![
-            button(
-                SHOW_ALL,
-                format!("Waypoints: {}", if self.show { "ON" } else { "OFF" }),
-            ),
-            button(ADD, "Add waypoint here".into()),
-        ];
+        let mut widgets = vec![button(ADD, "Add waypoint".into())];
         let rows: Vec<String> = self
             .list
             .iter()
@@ -445,9 +439,17 @@ impl Waypoints {
         }));
         if let Some(w) = self.selected.and_then(|i| self.list.get(i)) {
             widgets.push(button(EDIT, format!("Edit: {}", w.name)));
+            widgets.push(button(
+                VISIBLE,
+                format!("{}: {}", if w.visible { "Hide" } else { "Show" }, w.name),
+            ));
             widgets.push(button(DELETE, format!("Delete: {}", w.name)));
         } else {
-            widgets.push(text(102, "Tap a waypoint to edit or delete it"));
+            widgets.push(button(
+                SHOW_ALL,
+                format!("All waypoints: {}", if self.show { "ON" } else { "OFF" }),
+            ));
+            widgets.push(text(102, "Tap a waypoint to edit, hide or delete it"));
         }
         self.show(&widgets);
     }
