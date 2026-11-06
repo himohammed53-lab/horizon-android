@@ -513,10 +513,10 @@ impl Wardrobe {
         };
         if self.capes && self.provider.is_some() {
             for (index, cape) in self.cache.snapshot.capes.iter().enumerate() {
-                if row >= listtop + 80.0 && row + 32.0 <= bottom {
+                if row >= listtop + 80.0 && row + 44.0 <= bottom {
                     let label = ui.fit_text(
                         Face::Medium,
-                        14.0,
+                        17.0,
                         &format!(
                             "{} · cloud{}",
                             cape.title,
@@ -531,13 +531,13 @@ impl Wardrobe {
                     button(
                         ui,
                         targets,
-                        [lx, row, lw, 32.0],
+                        [lx, row, lw, 44.0],
                         &label,
                         Action::WardrobeActivateCape(index),
                         cape.active,
                     );
                 }
-                row += 38.0;
+                row += 50.0;
             }
         }
         for (index, entry) in self
@@ -547,10 +547,10 @@ impl Wardrobe {
             .enumerate()
             .filter(|(_, e)| e.kind == self.kind())
         {
-            if row >= listtop + 80.0 && row + 32.0 <= bottom {
+            if row >= listtop + 80.0 && row + 44.0 <= bottom {
                 let label = ui.fit_text(
                     Face::Medium,
-                    14.0,
+                    17.0,
                     &format!(
                         "{}  · local{}",
                         entry.title,
@@ -565,43 +565,43 @@ impl Wardrobe {
                 button(
                     ui,
                     targets,
-                    [lx, row, lw, 32.0],
+                    [lx, row, lw, 44.0],
                     &label,
                     Action::WardrobeSelect(index),
                     selected == Some(&entry.id),
                 );
             }
-            row += 38.0;
+            row += 50.0;
         }
         if self.provider.is_none() {
-            if row >= listtop + 80.0 && row + 32.0 <= bottom {
+            if row >= listtop + 80.0 && row + 44.0 <= bottom {
                 button(
                     ui,
                     targets,
-                    [lx, row, lw, 32.0],
+                    [lx, row, lw, 44.0],
                     "Reset to default locally",
                     Action::WardrobeUseCloud,
                     false,
                 );
             }
-            row += 38.0;
+            row += 50.0;
         }
         if self.provider.is_some() {
             for (label, action) in [
                 ("Use current cloud appearance", Action::WardrobeUseCloud),
                 ("Refresh cloud profile", Action::WardrobeCloud),
             ] {
-                if row >= listtop + 80.0 && row + 32.0 <= bottom {
-                    button(ui, targets, [lx, row, lw, 32.0], label, action, false);
+                if row >= listtop + 80.0 && row + 44.0 <= bottom {
+                    button(ui, targets, [lx, row, lw, 44.0], label, action, false);
                 }
-                row += 38.0;
+                row += 50.0;
             }
             if !self.capes {
-                if row >= listtop + 80.0 && row + 32.0 <= bottom {
+                if row >= listtop + 80.0 && row + 44.0 <= bottom {
                     button(
                         ui,
                         targets,
-                        [lx, row, lw, 32.0],
+                        [lx, row, lw, 44.0],
                         if self.provider == Some(Provider::Microsoft) {
                             "Upload selected skin to Microsoft"
                         } else {
@@ -611,15 +611,15 @@ impl Wardrobe {
                         false,
                     );
                 }
-                row += 38.0;
+                row += 50.0;
             } else {
             }
         }
-        if self.capes && row >= listtop + 80.0 && row + 32.0 <= bottom {
+        if self.capes && row >= listtop + 80.0 && row + 44.0 <= bottom {
             button(
                 ui,
                 targets,
-                [lx, row, lw, 32.0],
+                [lx, row, lw, 44.0],
                 "Hide / show cape locally",
                 Action::WardrobeHideCape,
                 false,
@@ -628,7 +628,7 @@ impl Wardrobe {
         self.view = [
             listtop + 80.0,
             bottom,
-            (row + scroll + 38.0 - bottom).max(0.0),
+            (row + scroll + 50.0 - bottom).max(0.0),
         ];
         let note = ui.fit_text(Face::Regular, 12.0, &self.note, width - 64.0);
         ui.text(Face::Regular, 12.0, 32.0, ui.h - 60.0, color::MUTED, &note);
