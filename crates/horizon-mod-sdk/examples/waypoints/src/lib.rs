@@ -593,9 +593,9 @@ impl Waypoints {
         true
     }
 
-    /// A waypoint's marker: a square of 13 x 13 blocks with its corners cut a
-    /// block, a dark edge, a lit top and left and a shaded bottom and right,
-    /// like a Minecraft button; its letter in the game's block font in the middle.
+    /// A waypoint's marker: the user's own pixel badge, a 28 x 28 block
+    /// octagon with stepped corners and a darker edge, in the waypoint's
+    /// colour; its letter in the game's block font in the middle.
     fn marker(
         shapes: &mut Vec<Shape>,
         cx: f32,
@@ -605,35 +605,78 @@ impl Waypoints {
         alpha: u32,
         letter: char,
     ) {
-        const N: f32 = 13.0;
-        let c = (side / N).max(0.7);
+        // Per row: where the badge starts and stops (in blocks).
+        const SPANS: [(u8, u8); 28] = [
+            (6, 22),
+            (4, 24),
+            (3, 25),
+            (2, 26),
+            (1, 27),
+            (1, 27),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (0, 28),
+            (1, 27),
+            (1, 27),
+            (2, 26),
+            (3, 25),
+            (4, 24),
+            (6, 22),
+        ];
+        const N: f32 = 28.0;
+        let c = (side / N).max(0.35);
         let s = c * N;
         let (x, y) = (cx - s / 2.0, cy - s / 2.0);
-        let a = alpha << 24;
-        let (light, dark) = (Self::mix(rgb, 0xFFFFFF, 0.4), Self::mix(rgb, 0x000000, 0.4));
-        let mut cell = |col: f32, row: f32, w: f32, h: f32, color: u32| {
-            Self::fill(shapes, x + col * c, y + row * c, w * c, h * c, color);
-        };
-        // The edge, without its corner blocks.
-        cell(1.0, 0.0, N - 2.0, 1.0, a);
-        cell(1.0, N - 1.0, N - 2.0, 1.0, a);
-        cell(0.0, 1.0, 1.0, N - 2.0, a);
-        cell(N - 1.0, 1.0, 1.0, N - 2.0, a);
-        // The lit top and left, the shaded bottom and right, the body.
-        cell(1.0, 1.0, N - 2.0, 1.0, a | light);
-        cell(1.0, 2.0, 1.0, N - 4.0, a | light);
-        cell(1.0, N - 2.0, N - 2.0, 1.0, a | dark);
-        cell(N - 2.0, 2.0, 1.0, N - 4.0, a | dark);
-        cell(2.0, 2.0, N - 4.0, N - 4.0, a | rgb);
-        // The letter in white, or black on a light colour.
+        let edge = alpha << 24 | Self::mix(rgb, 0x000000, 0.3);
+        let body = alpha << 24 | rgb;
+        for (row, &(a, b)) in SPANS.iter().enumerate() {
+            let (a, b) = (a as f32, b as f32);
+            let top = y + row as f32 * c;
+            // The very first and last rows are all edge; the next ones have
+            // two blocks of edge at each end, the rest one. No block is
+            // drawn twice, so the see-through stays even.
+            let inset = if row == 0 || row == 27 {
+                Self::fill(shapes, x + a * c, top, (b - a) * c, c, edge);
+                continue;
+            } else if row == 1 || row == 26 {
+                2.0
+            } else {
+                1.0
+            };
+            Self::fill(shapes, x + a * c, top, inset * c, c, edge);
+            Self::fill(shapes, x + (b - inset) * c, top, inset * c, c, edge);
+            Self::fill(
+                shapes,
+                x + (a + inset) * c,
+                top,
+                (b - a - 2.0 * inset) * c,
+                c,
+                body,
+            );
+        }
+        // The letter in white, or black on a light colour; blocks twice the
+        // badge's, so it is 10 x 14 of them.
         let bright = (rgb >> 16 & 0xFF) * 3 + (rgb >> 8 & 0xFF) * 6 + (rgb & 0xFF);
         let ink = if bright > 1700 { 0x111111 } else { 0xFFFFFF };
         let drawn = Self::pixel_text(
             shapes,
             &letter.to_string(),
             cx,
-            cy - 3.5 * c,
-            c,
+            cy - 7.0 * c,
+            2.0 * c,
             ink,
             alpha,
         );
