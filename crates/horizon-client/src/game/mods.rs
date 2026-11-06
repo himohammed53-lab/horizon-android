@@ -1617,10 +1617,14 @@ fn draw_list_rows(
             &Text::literal(rows[ri].clone()),
             x + 6.0,
             ry + 2.0,
+            // The mod's 0xRRGGBB, in the batch's own channel order.
             colors
                 .get(ri)
                 .filter(|&&c| c != 0)
-                .map_or(u32::MAX, |&c| c | 0xFF00_0000),
+                .map_or(u32::MAX, |&c| {
+                    let [_, r, g, b] = c.to_be_bytes();
+                    horizon_client::hud::rgba(r, g, b, 255)
+                }),
             true,
         );
     }

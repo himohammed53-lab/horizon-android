@@ -495,18 +495,19 @@ impl Waypoints {
             rows,
             selected: self.selected.map(|i| i as u32),
         }));
-        if let Some(w) = self.selected.and_then(|i| self.list.get(i)) {
-            widgets.push(button(EDIT, format!("Edit: {}", w.name)));
-            widgets.push(button(
-                VISIBLE,
-                format!("{}: {}", if w.visible { "Hide" } else { "Show" }, w.name),
-            ));
-            widgets.push(button(DELETE, format!("Delete: {}", w.name)));
+        // From the top: Edit, Waypoint Settings, Hide or Show, Delete.
+        let chosen = self.selected.and_then(|i| self.list.get(i));
+        if chosen.is_some() {
+            widgets.push(button(EDIT, "Edit".into()));
         } else {
             widgets.push(text(102, "Tap a waypoint to edit, hide or delete it"));
         }
-        // Always there: the size and opacity of every waypoint.
         widgets.push(button(STYLE_BTN, "Waypoint Settings".into()));
+        if let Some(w) = chosen {
+            let label = if w.visible { "Hide" } else { "Show" };
+            widgets.push(button(VISIBLE, label.to_owned()));
+            widgets.push(button(DELETE, "Delete".into()));
+        }
         self.show(&widgets);
     }
 
