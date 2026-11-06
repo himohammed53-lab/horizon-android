@@ -279,9 +279,10 @@ fn project(
     }
     nx = nx.clamp(-1.0, 1.0);
     ny = ny.clamp(-1.0, 1.0);
-    let (mx, top, bottom) = (16.0, 30.0, 30.0);
-    let sx = mx + (w - 2.0 * mx) * (0.5 + 0.5 * nx as f32);
-    let sy = top + (h - top - bottom) * (0.5 - 0.5 * ny as f32);
+    // The whole screen, not a shrunk box: a waypoint must move exactly as
+    // the world does, or it seems to follow the player.
+    let sx = w * (0.5 + 0.5 * nx as f32);
+    let sy = h * (0.5 - 0.5 * ny as f32);
     ([sx, sy], inside, dist)
 }
 
@@ -464,7 +465,6 @@ impl Waypoints {
             self.show(&[
                 button(RENAME, format!("Name: {}", w.name)),
                 button(COLOR, format!("Colour: {}", color_name(w.color))),
-                button(STYLE_BTN, "Waypoint Settings".into()),
                 button(BACK, "Back".into()),
             ]);
             return;
@@ -503,9 +503,10 @@ impl Waypoints {
             ));
             widgets.push(button(DELETE, format!("Delete: {}", w.name)));
         } else {
-            widgets.push(button(STYLE_BTN, "Waypoint Settings".into()));
             widgets.push(text(102, "Tap a waypoint to edit, hide or delete it"));
         }
+        // Always there: the size and opacity of every waypoint.
+        widgets.push(button(STYLE_BTN, "Waypoint Settings".into()));
         self.show(&widgets);
     }
 
