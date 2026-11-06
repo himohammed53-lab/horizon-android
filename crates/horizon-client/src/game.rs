@@ -16825,6 +16825,7 @@ impl Game<'_> {
                     if let Some(r) = &self.renderer {
                         let b = HudBatch::new([r.config.width, r.config.height]);
                         self.cursor = (position.x as f32 / b.scale, position.y as f32 / b.scale);
+                        self.mod_slider_move();
                         if self.dialog_open() {
                             self.dialog_drag();
                         }
@@ -17028,6 +17029,8 @@ impl Game<'_> {
                 {
                     if state == ElementState::Pressed {
                         self.mod_screen_click(button);
+                    } else if button == MouseButton::Left {
+                        self.mod_slider_release();
                     }
                 }
                 WindowEvent::MouseInput { state, button, .. } if self.screen == Screen::Options => {
@@ -17238,6 +17241,7 @@ impl Game<'_> {
                         }
                         Screen::Stats if button == MouseButton::Left => self.stats_release(),
                         Screen::Mod if pressed => self.mod_screen_click(button),
+                        Screen::Mod if button == MouseButton::Left => self.mod_slider_release(),
                         _ => {}
                     }
                 }

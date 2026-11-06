@@ -61,6 +61,10 @@ interface game {
     }
     /// None on the title screen.
     get-view: func() -> option<view>;
+    /// A short id of the world the player is in, the same every time they
+    /// come back to it: a single-player world's save folder, a server's
+    /// address. For keeping a mod's data per world. None on the title screen.
+    get-world: func() -> option<string>;
     /// A block along the player's view.
     record hit {
         /// The block hit.
@@ -218,6 +222,11 @@ interface ui {
     request-text: func(id: u32, title: string, initial: string);
     /// The lines the player confirmed since the last call, as (id, text).
     poll-text: func() -> list<tuple<u32, string>>;
+    /// Draws the button `id` as a slider from `min` to `max` standing at
+    /// `value` (its label is the button's): dragging it is
+    /// `ui-events::select(id, value)` with the new value, as often as it
+    /// changes. Kept until the next call for that id.
+    set-slider: func(id: u32, min: u32, max: u32, value: u32);
 }
 
 /// What the game calls on a mod that shows widgets (capability `ui`):

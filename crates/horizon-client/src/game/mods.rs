@@ -42,6 +42,9 @@ use {
 pub(super) struct ModsState {
     #[cfg(feature = "mods")]
     pub(super) text_edit: Option<TextEdit>,
+    /// A slider being dragged: the mod's index and its button id.
+    #[cfg(feature = "mods")]
+    pub(super) slider_drag: Option<(usize, u32)>,
     /// The mods the options had turned on when the mods were last started.
     #[cfg(feature = "mods")]
     pub(super) started: Vec<String>,
@@ -361,6 +364,8 @@ impl Game<'_> {
     pub(super) fn close_mod_screen(&mut self, _tell: bool) {}
     pub(super) fn draw_mod_screen(&mut self, _batch: &mut HudBatch) {}
     pub(super) fn mod_screen_click(&mut self, _button: winit::event::MouseButton) {}
+    pub(super) fn mod_slider_move(&mut self) {}
+    pub(super) fn mod_slider_release(&mut self) {}
     pub(super) fn mod_screen_key(&mut self, _key: winit::keyboard::KeyCode) -> bool {
         false
     }
@@ -568,6 +573,16 @@ impl Game<'_> {
         };
         self.mod_snapshot_with(players)
     }
+    /// The id of the world the player is in (`game.get-world`): a single-player
+    /// world's save folder, a server's address.
+    fn mod_world_id(&self) -> Option<String> {
+        self.player.as_ref()?;
+        if let Some(i) = self.integrated.as_ref().filter(|i| !i.folder.is_empty()) {
+            return Some(format!("world:{}", i.folder));
+        }
+        let address = self.settings.file.string("lastServer");
+        Some(format!("server:{address}"))
+    }
     /// What mods read, with these players on the server.
     pub(super) fn mod_snapshot_with(&mut self, players: Vec<ServerPlayer>) -> Snapshot {
         let player = self.player.as_ref().map(|p| Player {
@@ -616,6 +631,7 @@ impl Game<'_> {
                 pitch,
                 fov,
             }),
+            world: self.mod_world_id(),
             gui_size: self.gui_size(),
             held: self.mod_held(),
             frame: self.frame_reading(),
@@ -1064,18 +1080,38 @@ impl Game<'_> {
     fn mod_ui_layout(h: f32, top: f32, widgets: &[UiWidget]) -> Vec<(f32, f32)> {
         let mut out = Vec::with_capacity(widgets.len());
         let mut y = top;
+        // A list takes the height the other widgets leave, 3 to 6 rows, so a
+        // crowded page on a small screen keeps its buttons.
+        let lists = widgets
+            .iter()
+            .filter(|w| matches!(w, UiWidget::List(_)))
+            .count();
+        let fixed: f32 = widgets
+            .iter()
+            .map(|w| match w {
+                UiWidget::Text(_) => 12.0,
+                UiWidget::Item(_) | UiWidget::Button(_) => 20.0,
+                UiWidget::List(_) => 8.0,
+            })
+            .sum::<f32>()
+            + widgets.len().saturating_sub(1) as f32 * MOD_UI_GAP;
+        let list_rows = if lists == 0 {
+            6
+        } else {
+            (((h - 34.0 - top - fixed) / lists as f32) / 12.0).floor().clamp(3.0, 6.0) as usize
+        };
         for w in widgets {
             let wh = match w {
                 UiWidget::Text(_) => 12.0,
                 UiWidget::Item(_) | UiWidget::Button(_) => 20.0,
-                UiWidget::List(l) => (l.rows.len().min(6) as f32 * 12.0) + 8.0,
+                UiWidget::List(l) => (l.rows.len().min(list_rows) as f32 * 12.0) + 8.0,
             };
             // Nothing may cover Done; a crowded mod loses what won't fit.
             if y + wh > h - 34.0 {
                 break;
             }
             out.push((y, wh));
-            y += wh + 6.0;
+            y += wh + MOD_UI_GAP;
         }
         out
     }
@@ -1186,6 +1222,28 @@ impl Game<'_> {
         let mut list_i = 0usize;
         for (w, &(wy, wh)) in widgets.iter().zip(&layout) {
             match w {
+                UiWidget::Button(b) if self.mods.mods.slider_of(ms.owner, b.id).is_some() => {
+                    let (lo, hi, value) = self.mods.mods.slider_of(ms.owner, b.id).unwrap_or_default();
+                    let hover = ui::hovered(self.cursor, x, wy, MOD_UI_COLUMN, 20.0);
+                    let dragging = self.mods.slider_drag == Some((ms.owner, b.id));
+                    let fraction = if hi > lo {
+                        (value - lo) as f32 / (hi - lo) as f32
+                    } else {
+                        0.0
+                    };
+                    ui::slider(
+                        batch,
+                        atlas,
+                        x,
+                        wy,
+                        MOD_UI_COLUMN,
+                        &Text::literal(b.label.clone()),
+                        fraction,
+                        hover,
+                        true,
+                        dragging,
+                    );
+                }
                 UiWidget::Button(b) => {
                     let hover = ui::hovered(self.cursor, x, wy, MOD_UI_COLUMN, 20.0);
                     let label = Text::literal(b.label.clone());
@@ -1385,6 +1443,15 @@ impl Game<'_> {
         // The `ui_select` call needs `&mut`: find the pick first.
         let mut hit = None;
         for (w, &(wy, wh)) in widgets.iter().zip(&layout) {
+            // A slider starts a drag.
+            if let UiWidget::Button(b) = w
+                && ui::hovered(cursor, x, wy, MOD_UI_COLUMN, 20.0)
+                && self.mods.mods.slider_of(owner, b.id).is_some()
+            {
+                self.mods.slider_drag = Some((owner, b.id));
+                self.mod_slider_move();
+                return;
+            }
             // A button is `select(id, 0)`.
             if let UiWidget::Button(b) = w
                 && ui::hovered(cursor, x, wy, MOD_UI_COLUMN, 20.0)
@@ -1414,6 +1481,28 @@ impl Game<'_> {
             self.mod_text_request(owner);
             self.show_mod_output();
         }
+    }
+    /// A slider being dragged follows the cursor: the mod hears the new
+    /// value when it changes (`ui-events::select(id, value)`).
+    pub(super) fn mod_slider_move(&mut self) {
+        let Some((owner, id)) = self.mods.slider_drag else {
+            return;
+        };
+        let Some((lo, hi, now)) = self.mods.mods.slider_of(owner, id) else {
+            self.mods.slider_drag = None;
+            return;
+        };
+        let (w, _) = self.gui_size();
+        let x = (w / 2.0).floor() - MOD_UI_COLUMN / 2.0;
+        let fraction = ui::slider_value(x, MOD_UI_COLUMN, self.cursor.0);
+        let value = lo + (fraction * (hi - lo) as f32).round() as u32;
+        if value != now {
+            self.mods.mods.ui_select(owner, id, value);
+        }
+    }
+    /// The finger or button came up: the drag ends.
+    pub(super) fn mod_slider_release(&mut self) {
+        self.mods.slider_drag = None;
     }
     /// The mod asked for a line of text (`ui.request-text`): the system
     /// keyboard opens on it.
@@ -1539,6 +1628,8 @@ fn draw_list_rows(
 
 #[cfg(feature = "mods")]
 const MOD_UI_TOP: f32 = 40.0;
+/// The space between a mod page's widgets.
+const MOD_UI_GAP: f32 = 4.0;
 #[cfg(feature = "mods")]
 const MOD_UI_COLUMN: f32 = 200.0;
 /// A key row's height with its gap, as the widgets below it space out.

@@ -87,6 +87,8 @@ pub(super) struct Integrated {
     tasks: Sender<Task>,
     /// The world's name (`level.dat`'s `LevelName`), for the pause menu.
     pub world_name: String,
+    /// The save's folder in `saves/`, once the world is joined (a mod's world id).
+    pub folder: String,
 }
 impl Integrated {
     /// The generator of the server's level in `dimension`, once it has run.
@@ -417,6 +419,7 @@ impl Game<'_> {
             thread: Some(thread),
             tasks,
             world_name: String::new(),
+            folder: String::new(),
         };
         self.integrated_starting = Some(Starting {
             handle,
@@ -469,6 +472,7 @@ impl Game<'_> {
             return Ok(());
         };
         handle.world_name = world_name;
+        handle.folder = folder.clone();
         self.server_packs_world_pack(&folder);
         self.connect_local(pipe, &player)?;
         if let Some(r) = self.remote.as_mut() {
@@ -1240,6 +1244,7 @@ mod tests {
             thread: Some(std::thread::spawn(move || wait.recv().unwrap())),
             tasks,
             world_name: String::new(),
+            folder: String::new(),
         };
         server.request_stop();
         assert!(flags.stop.load(Ordering::Relaxed));
@@ -1260,6 +1265,7 @@ mod tests {
             })),
             tasks,
             world_name: String::new(),
+            folder: String::new(),
         };
         assert_eq!(server.stop().unwrap_err().to_string(), "disk write failed");
     }

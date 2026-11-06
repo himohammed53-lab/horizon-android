@@ -13,7 +13,7 @@ use horizon_mod_sdk::{
 };
 
 const MAX: usize = 64;
-const PALETTE: [(&str, u32); 9] = [
+const PALETTE: [(&str, u32); 29] = [
     ("Red", 0xFF5555),
     ("Orange", 0xFFAA00),
     ("Yellow", 0xFFFF55),
@@ -23,9 +23,34 @@ const PALETTE: [(&str, u32); 9] = [
     ("Purple", 0xAA55FF),
     ("Pink", 0xFF55FF),
     ("White", 0xFFFFFF),
+    ("Black", 0x111111),
+    ("Dark Gray", 0x555555),
+    ("Gray", 0xAAAAAA),
+    ("Light Gray", 0xD0D0D0),
+    ("Dark Red", 0xAA0000),
+    ("Maroon", 0x800000),
+    ("Gold", 0xFFD700),
+    ("Lime", 0xAAFF00),
+    ("Dark Green", 0x00AA00),
+    ("Mint", 0x55FFAA),
+    ("Teal", 0x00AAAA),
+    ("Sky Blue", 0x55AAFF),
+    ("Navy", 0x0000AA),
+    ("Indigo", 0x5500AA),
+    ("Violet", 0xAA00AA),
+    ("Magenta", 0xFF00FF),
+    ("Hot Pink", 0xFF55AA),
+    ("Brown", 0x8B5A2B),
+    ("Tan", 0xD2B48C),
+    ("Peach", 0xFFB07C),
 ];
 
-const SIZES: [u32; 5] = [50, 75, 100, 150, 200];
+/// A colour as the picker's rows show it: dark ones are lifted so the name
+/// can be read on the menu's dark background.
+fn lifted(color: u32) -> u32 {
+    let lift = |c: u32| c.max(0x77);
+    (lift(color >> 16 & 0xFF) << 16) | (lift(color >> 8 & 0xFF) << 8) | lift(color & 0xFF)
+}
 
 const SHOW_ALL: u32 = 1;
 const LIST: u32 = 2;
@@ -37,6 +62,8 @@ const RENAME: u32 = 7;
 const SIZE: u32 = 8;
 const COLOR_LIST: u32 = 9;
 const BACK: u32 = 10;
+const OPACITY: u32 = 11;
+const EDIT: u32 = 12;
 /// Text request ids.
 const ASK_NAME: u32 = 1;
 const ASK_NEW: u32 = 2;
@@ -53,6 +80,8 @@ struct Waypoint {
     death: bool,
     /// Percent of the normal size.
     size: u32,
+    /// Percent of full strength (how solid the square is).
+    opacity: u32,
 }
 
 struct Waypoints {
@@ -66,6 +95,24 @@ struct Waypoints {
     picking: bool,
     /// Where "Add waypoint here" was pressed, while its name is typed.
     pending: Option<(i32, i32, i32, String)>,
+    /// The world the list belongs to (`game.get-world`); each world keeps
+    /// its own waypoints.
+    world: Option<String>,
+    /// The selected waypoint's page (name, colour, size, opacity) shows.
+    editing: bool,
+    /// Changed by a slider and not yet written to the storage.
+    dirty: bool,
+}
+
+/// The storage key of a world's waypoints: keys are 64 characters of
+/// `[a-z0-9_.-]`, a world's id is not, so it is hashed (FNV-1a).
+fn world_key(world: &str) -> String {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in world.bytes() {
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x0100_0000_01b3);
+    }
+    format!("w_{h:016x}")
 }
 
 fn clean(name: &str) -> String {
@@ -80,8 +127,17 @@ fn encode(list: &[Waypoint]) -> String {
     list.iter()
         .map(|w| {
             format!(
-                "{}|{}|{}|{}|{}|{:06x}|{}|{}|{}",
-                w.name, w.x, w.y, w.z, w.dim, w.color, w.visible as u8, w.death as u8, w.size
+                "{}|{}|{}|{}|{}|{:06x}|{}|{}|{}|{}",
+                w.name,
+                w.x,
+                w.y,
+                w.z,
+                w.dim,
+                w.color,
+                w.visible as u8,
+                w.death as u8,
+                w.size,
+                w.opacity
             )
         })
         .collect::<Vec<_>>()
@@ -92,7 +148,7 @@ fn decode(text: &str) -> Vec<Waypoint> {
     text.lines()
         .filter_map(|line| {
             let p: Vec<&str> = line.split('|').collect();
-            if p.len() != 8 && p.len() != 9 {
+            if !(8..=10).contains(&p.len()) {
                 return None;
             }
             Some(Waypoint {
@@ -108,6 +164,11 @@ fn decode(text: &str) -> Vec<Waypoint> {
                     .get(8)
                     .and_then(|v| v.parse().ok())
                     .filter(|v| (25..=300).contains(v))
+                    .unwrap_or(100),
+                opacity: p
+                    .get(9)
+                    .and_then(|v| v.parse().ok())
+                    .filter(|v| (10..=100).contains(v))
                     .unwrap_or(100),
             })
         })
@@ -179,11 +240,55 @@ fn stored(key: &str) -> Option<String> {
 
 impl Waypoints {
     fn save(&self) {
-        let _ = storage::set("points", encode(&self.list).as_bytes());
         let _ = storage::set(
             "show",
             if self.show { &b"true"[..] } else { &b"false"[..] },
         );
+        let Some(world) = &self.world else {
+            return;
+        };
+        if storage::set(&world_key(world), encode(&self.list).as_bytes()).is_err() {
+            chat::show("Waypoints could not be saved (too many worlds, or no room)");
+        }
+    }
+
+    /// Loads the list of the world the player is in when it changed: each
+    /// world has its own waypoints, a new world starts with none.
+    fn sync_world(&mut self) {
+        let now = game::get_world();
+        if now == self.world {
+            return;
+        }
+        if self.dirty {
+            self.save();
+            self.dirty = false;
+        }
+        self.world = now;
+        self.selected = None;
+        self.editing = false;
+        self.picking = false;
+        self.pending = None;
+        self.last_alive = None;
+        self.alive = false;
+        self.list = match &self.world {
+            Some(world) => match stored(&world_key(world)) {
+                Some(text) => decode(&text),
+                None => {
+                    // Waypoints from before each world had its own go to the
+                    // first world opened, once.
+                    let old = stored("points").map(|t| decode(&t)).unwrap_or_default();
+                    if !old.is_empty() {
+                        storage::delete("points");
+                    }
+                    old
+                }
+            },
+            None => Vec::new(),
+        };
+        if !self.list.is_empty() {
+            self.save();
+        }
+        self.page();
     }
 
     fn here(&self) -> Option<(i32, i32, i32, String)> {
@@ -223,6 +328,7 @@ impl Waypoints {
             visible: true,
             death: false,
             size: 100,
+            opacity: 100,
         });
         self.selected = Some(self.list.len() - 1);
         self.changed();
@@ -239,17 +345,25 @@ impl Waypoints {
     }
 
     fn page(&self) {
+        let text = |id: u32, t: &str| {
+            Widget::Text(TextWidget {
+                id,
+                text: t.into(),
+                color: 0,
+            })
+        };
+        let button = |id: u32, label: String| Widget::Button(ButtonWidget { id, label });
+        if self.world.is_none() {
+            ui::set_settings(&[text(100, "Join a world to see its waypoints")]);
+            return;
+        }
         if self.picking {
             ui::set_list_colors(
                 COLOR_LIST,
-                &PALETTE.iter().map(|&(_, c)| c).collect::<Vec<_>>(),
+                &PALETTE.iter().map(|&(_, c)| lifted(c)).collect::<Vec<_>>(),
             );
             ui::set_settings(&[
-                Widget::Text(TextWidget {
-                    id: 101,
-                    text: "Pick a colour".into(),
-                    color: 0,
-                }),
+                text(101, "Pick a colour"),
                 Widget::List(ListWidget {
                     id: COLOR_LIST,
                     rows: PALETTE.iter().map(|&(n, _)| n.to_owned()).collect(),
@@ -259,22 +373,34 @@ impl Waypoints {
                         .and_then(|w| PALETTE.iter().position(|&(_, c)| c == w.color))
                         .map(|i| i as u32),
                 }),
-                Widget::Button(ButtonWidget {
-                    id: BACK,
-                    label: "Back".into(),
-                }),
+                button(BACK, "Back".into()),
+            ]);
+            return;
+        }
+        if self.editing
+            && let Some(w) = self.selected.and_then(|i| self.list.get(i))
+        {
+            ui::set_slider(SIZE, 25, 300, w.size);
+            ui::set_slider(OPACITY, 10, 100, w.opacity);
+            ui::set_settings(&[
+                button(RENAME, format!("Name: {}", w.name)),
+                button(COLOR, format!("Colour: {}", color_name(w.color))),
+                button(SIZE, format!("Size: {}%", w.size)),
+                button(OPACITY, format!("Opacity: {}%", w.opacity)),
+                button(
+                    VISIBLE,
+                    format!("Shown: {}", if w.visible { "yes" } else { "no" }),
+                ),
+                button(BACK, "Back".into()),
             ]);
             return;
         }
         let mut widgets = vec![
-            Widget::Button(ButtonWidget {
-                id: SHOW_ALL,
-                label: format!("Waypoints: {}", if self.show { "ON" } else { "OFF" }),
-            }),
-            Widget::Button(ButtonWidget {
-                id: ADD,
-                label: "Add waypoint here".into(),
-            }),
+            button(
+                SHOW_ALL,
+                format!("Waypoints: {}", if self.show { "ON" } else { "OFF" }),
+            ),
+            button(ADD, "Add waypoint here".into()),
         ];
         let rows: Vec<String> = self
             .list
@@ -294,7 +420,7 @@ impl Waypoints {
             .collect();
         ui::set_list_colors(
             LIST,
-            &self.list.iter().map(|w| w.color).collect::<Vec<_>>(),
+            &self.list.iter().map(|w| lifted(w.color)).collect::<Vec<_>>(),
         );
         widgets.push(Widget::List(ListWidget {
             id: LIST,
@@ -302,53 +428,62 @@ impl Waypoints {
             selected: self.selected.map(|i| i as u32),
         }));
         if let Some(w) = self.selected.and_then(|i| self.list.get(i)) {
-            widgets.push(Widget::Button(ButtonWidget {
-                id: RENAME,
-                label: format!("Rename: {}", w.name),
-            }));
-            widgets.push(Widget::Button(ButtonWidget {
-                id: COLOR,
-                label: format!("Colour: {}", color_name(w.color)),
-            }));
-            widgets.push(Widget::Button(ButtonWidget {
-                id: SIZE,
-                label: format!("Size: {}%", w.size),
-            }));
-            widgets.push(Widget::Button(ButtonWidget {
-                id: VISIBLE,
-                label: format!("Shown: {}", if w.visible { "yes" } else { "no" }),
-            }));
-            widgets.push(Widget::Button(ButtonWidget {
-                id: DELETE,
-                label: "Delete this waypoint".into(),
-            }));
+            widgets.push(button(EDIT, format!("Edit: {}", w.name)));
+            widgets.push(button(DELETE, format!("Delete: {}", w.name)));
+        } else {
+            widgets.push(text(102, "Tap a waypoint to edit or delete it"));
         }
         ui::set_settings(&widgets);
     }
 
-    /// A rounded square of `half` × 2 on a side centred on (`x`, `y`).
+    /// A rounded square of `half` × 2 on a side centred on (`x`, `y`), in
+    /// non-overlapping pieces so a see-through colour is even.
     fn rounded(shapes: &mut Vec<Shape>, x: f32, y: f32, half: f32, color: u32) {
-        let r = if half >= 10.0 { 2.0 } else { 1.0 };
-        let mut fill = |rx: f32, ry: f32, w: f32, h: f32| {
+        let w = 2.0 * half;
+        let (left, top) = (x - half, y - half);
+        let mut fill = |dx: f32, dy: f32, ww: f32, hh: f32| {
             shapes.push(Shape::Fill(FillShape {
-                rect: Rect { x: rx, y: ry, w, h },
+                rect: Rect {
+                    x: left + dx,
+                    y: top + dy,
+                    w: ww,
+                    h: hh,
+                },
                 color,
             }));
         };
-        fill(x - half + r, y - half, 2.0 * half - 2.0 * r, 2.0 * half);
-        fill(x - half, y - half + r, 2.0 * half, 2.0 * half - 2.0 * r);
-        if r > 1.0 {
-            fill(
-                x - half + 1.0,
-                y - half + 1.0,
-                2.0 * half - 2.0,
-                2.0 * half - 2.0,
-            );
+        if half >= 10.0 {
+            fill(2.0, 0.0, w - 4.0, 1.0);
+            fill(1.0, 1.0, w - 2.0, 1.0);
+            fill(0.0, 2.0, w, w - 4.0);
+            fill(1.0, w - 2.0, w - 2.0, 1.0);
+            fill(2.0, w - 1.0, w - 4.0, 1.0);
+        } else {
+            fill(1.0, 0.0, w - 2.0, 1.0);
+            fill(0.0, 1.0, w, w - 2.0);
+            fill(1.0, w - 1.0, w - 2.0, 1.0);
+        }
+    }
+
+    /// Where `w` is as seen from the dimension `dim`: the Nether's blocks are
+    /// 8 Overworld blocks, so a waypoint of one shows in the other too.
+    fn place(w: &Waypoint, dim: &str) -> Option<[f64; 3]> {
+        const OVERWORLD: &str = "minecraft:overworld";
+        const NETHER: &str = "minecraft:the_nether";
+        let (x, y, z) = (f64::from(w.x) + 0.5, f64::from(w.y) + 0.5, f64::from(w.z) + 0.5);
+        if w.dim == dim {
+            Some([x, y, z])
+        } else if w.dim == OVERWORLD && dim == NETHER {
+            Some([x / 8.0, y, z / 8.0])
+        } else if w.dim == NETHER && dim == OVERWORLD {
+            Some([x * 8.0, y, z * 8.0])
+        } else {
+            None
         }
     }
 
     fn draw(&self) {
-        if !self.show {
+        if !self.show || self.world.is_none() {
             render::set_hud(&[]);
             return;
         }
@@ -358,16 +493,10 @@ impl Waypoints {
         };
         let size = render::gui_size();
         let mut shapes = Vec::new();
-        for w in self
-            .list
-            .iter()
-            .filter(|w| w.visible && w.dim == player.dimension)
-        {
-            let at = [
-                f64::from(w.x) + 0.5,
-                f64::from(w.y) + 0.5,
-                f64::from(w.z) + 0.5,
-            ];
+        for w in self.list.iter().filter(|w| w.visible) {
+            let Some(at) = Self::place(w, &player.dimension) else {
+                continue;
+            };
             let ([x, y], inside, dist) = project(
                 [view.x, view.y, view.z],
                 view.yaw,
@@ -394,8 +523,11 @@ impl Waypoints {
                     scale: sc,
                 }));
             } else {
-                Self::rounded(&mut shapes, x, y, half + 1.5, 0xE000_0000);
-                Self::rounded(&mut shapes, x, y, half, 0xFF00_0000 | w.color);
+                let alpha = (w.opacity * 255 / 100).min(255) << 24;
+                if w.opacity >= 100 {
+                    Self::rounded(&mut shapes, x, y, half + 1.5, 0xE000_0000);
+                }
+                Self::rounded(&mut shapes, x, y, half, alpha | w.color);
                 let letter: String = w
                     .name
                     .chars()
@@ -416,7 +548,7 @@ impl Waypoints {
                     x,
                     y: y - half - 13.0,
                 },
-                color: w.color,
+                color: w.color.max(0x333333),
                 centered: true,
                 shadow: true,
             }));
@@ -471,21 +603,24 @@ impl Waypoints {
     }
 }
 
-const HELP: &str = "/wp add [name] | list | del N | name N new name | color N red or #ff8800 | size N 50-300 | hide N | show N | view on or off";
+const HELP: &str = "/wp add [name] | list | del N | name N new name | color N red or #ff8800 | size N 25-300 | opacity N 10-100 | hide N | show N | view on or off";
 
 impl Mod for Waypoints {
     fn init() -> Result<(Self, Registration), String> {
-        let list = stored("points").map(|t| decode(&t)).unwrap_or_default();
         let show = stored("show").is_none_or(|v| v.trim() != "false");
-        let me = Waypoints {
-            list,
+        let mut me = Waypoints {
+            list: Vec::new(),
             show,
             selected: None,
             last_alive: None,
             alive: false,
             picking: false,
             pending: None,
+            world: None,
+            editing: false,
+            dirty: false,
         };
+        me.sync_world();
         me.page();
         Ok((
             me,
@@ -498,6 +633,11 @@ impl Mod for Waypoints {
     }
 
     fn tick(&mut self, _tick: u64) {
+        self.sync_world();
+        if self.dirty {
+            self.save();
+            self.dirty = false;
+        }
         self.typed();
         let Some(p) = game::get_player() else {
             return;
@@ -524,6 +664,7 @@ impl Mod for Waypoints {
                     visible: true,
                     death: true,
                     size: 100,
+                    opacity: 100,
                 });
                 self.list.truncate(MAX);
                 self.selected = None;
@@ -534,6 +675,7 @@ impl Mod for Waypoints {
     }
 
     fn frame(&mut self, _seconds: f32) {
+        self.sync_world();
         self.typed();
         self.draw();
     }
@@ -605,6 +747,20 @@ impl Mod for Waypoints {
                 self.changed();
                 Ok(Some(format!("Size is {size}%")))
             }
+            "opacity" => {
+                let (n, v) = rest.split_once(' ').unwrap_or((rest, ""));
+                let i = self.index(n)?;
+                let opacity: u32 = v
+                    .trim()
+                    .trim_end_matches('%')
+                    .parse()
+                    .ok()
+                    .filter(|v| (10..=100).contains(v))
+                    .ok_or("Use /wp opacity N 10 to 100")?;
+                self.list[i].opacity = opacity;
+                self.changed();
+                Ok(Some(format!("Opacity is {opacity}%")))
+            }
             "hide" | "show" => {
                 let i = self.index(rest)?;
                 self.list[i].visible = sub == "show";
@@ -655,6 +811,11 @@ impl Mod for Waypoints {
                 self.page();
                 return;
             }
+            EDIT => {
+                self.editing = self.selected.is_some();
+                self.page();
+                return;
+            }
             COLOR_LIST => {
                 if let (Some(w), Some(&(_, c))) = (
                     self.selected.and_then(|i| self.list.get_mut(i)),
@@ -665,17 +826,26 @@ impl Mod for Waypoints {
                 self.picking = false;
             }
             BACK => {
-                self.picking = false;
+                if self.picking {
+                    self.picking = false;
+                } else {
+                    self.editing = false;
+                }
                 self.page();
                 return;
             }
-            SIZE => {
+            // The sliders: `row` is the value dragged to.
+            SIZE | OPACITY => {
                 if let Some(w) = self.selected.and_then(|i| self.list.get_mut(i)) {
-                    let next = SIZES.iter().position(|&s| s == w.size).map_or(0, |i| {
-                        (i + 1) % SIZES.len()
-                    });
-                    w.size = SIZES[next];
+                    if id == SIZE {
+                        w.size = ((row + 2) / 5 * 5).clamp(25, 300);
+                    } else {
+                        w.opacity = row.clamp(10, 100);
+                    }
                 }
+                self.dirty = true;
+                self.page();
+                return;
             }
             VISIBLE => {
                 if let Some(w) = self.selected.and_then(|i| self.list.get_mut(i)) {
@@ -687,6 +857,7 @@ impl Mod for Waypoints {
                     self.list.remove(i);
                 }
                 self.selected = None;
+                self.editing = false;
             }
             _ => return,
         }
@@ -694,7 +865,9 @@ impl Mod for Waypoints {
     }
 
     fn ui_settings_opened(&mut self) {
+        self.sync_world();
         self.picking = false;
+        self.editing = false;
         self.page();
     }
 }

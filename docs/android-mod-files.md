@@ -13,6 +13,16 @@ is started by hand from the Actions tab. It builds the mod folders named in
 checks them with `cargo horizon-mod check` and uploads the `.hmod` files as the
 `hmod` artifact. It does not build the app.
 
+## API level 11
+
+Level 11 adds `game.get-world()` (a short id of the world the player is in: a
+single-player world's save folder, or a server's address; a mod keeps its data
+per world with it) and `ui.set-slider(id, min, max, value)` (the button `id` is
+drawn as a slider, and dragging it calls `select(id, value)`). A mod that
+imports them is refused by a build below level 11 with the "update Horizon"
+message. Mod settings pages also keep their buttons on a small screen: a
+`list` takes the height the other widgets leave (3 to 6 rows).
+
 ## API level 10
 
 Level 10 adds three `ui` functions: `set-list-colors(id, colors)` (each row of a

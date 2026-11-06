@@ -140,6 +140,8 @@ pub struct Snapshot {
     pub clock: Option<Clock>,
     /// The camera the last frame drew from (`game.get-view`).
     pub view: Option<View>,
+    /// The world's id (`game.get-world`).
+    pub world: Option<String>,
     /// The screen in GUI pixels (capability `render`'s `gui-size`).
     pub gui_size: (f32, f32),
     /// The main hand's stack (capability `input`'s `held`).
@@ -365,6 +367,8 @@ struct UiState {
     settings: Vec<UiWidget>,
     /// `ui.set-list-colors`: row colours by list widget id.
     list_colors: std::collections::HashMap<u32, Vec<u32>>,
+    /// `ui.set-slider`: (min, max, value) by button id.
+    sliders: std::collections::HashMap<u32, (u32, u32, u32)>,
     /// `ui.request-text`, until the game takes it: (id, title, initial).
     text_request: Option<(u32, String, String)>,
     /// Lines the player confirmed, for `ui.poll-text`.
@@ -1255,6 +1259,13 @@ impl Mods {
             .and_then(|r| r.store.data().ui.list_colors.get(&id))
             .map_or(&[], |v| v.as_slice())
     }
+    /// The slider mod `i` set on button `id`: (min, max, value).
+    pub fn slider_of(&self, i: usize, id: u32) -> Option<(u32, u32, u32)> {
+        self.entries
+            .get(i)
+            .and_then(|e| e.run.as_ref())
+            .and_then(|r| r.store.data().ui.sliders.get(&id).copied())
+    }
     /// The text request mod `i` made, if any: (id, title, initial).
     pub fn take_text_request(&mut self, i: usize) -> Option<(u32, String, String)> {
         self.entries
@@ -1459,6 +1470,9 @@ impl game::Host for State {
     }
     fn get_view(&mut self) -> Option<View> {
         self.snapshot.view
+    }
+    fn get_world(&mut self) -> Option<String> {
+        self.snapshot.world.clone()
     }
     fn raycast(&mut self, distance: f32) -> Option<Hit> {
         let (at, hit) = self.snapshot.view_hit.as_ref()?;
@@ -2023,6 +2037,12 @@ impl ui::Host for State {
             self.ui
                 .list_colors
                 .insert(id, colors.into_iter().take(LIST_ROWS).collect());
+        }
+    }
+    fn set_slider(&mut self, id: u32, min: u32, max: u32, value: u32) {
+        if self.ui.sliders.len() < 16 || self.ui.sliders.contains_key(&id) {
+            let max = max.max(min);
+            self.ui.sliders.insert(id, (min, max, value.clamp(min, max)));
         }
     }
     fn request_text(&mut self, id: u32, title: String, initial: String) {
