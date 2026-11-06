@@ -6,4 +6,4 @@ authors = ["Horizon Android fork"]
 api = "0.1"
 side = "client"
 capabilities = ["game-read", "render", "ui", "input", "storage", "chat"]
-experimental = ["render", "ui"]
+experimental = ["render", "ui", "input"]
