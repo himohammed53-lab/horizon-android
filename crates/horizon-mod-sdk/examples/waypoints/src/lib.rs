@@ -470,7 +470,7 @@ impl Waypoints {
             self.show(&[
                 button(RENAME, format!("Name: {}", w.name)),
                 button(COLOR, format!("Colour: {}", color_name(w.color))),
-                button(STYLE_BTN, "Look of all waypoints".into()),
+                button(STYLE_BTN, "Waypoint Settings".into()),
                 button(BACK, "Back".into()),
             ]);
             return;
@@ -509,7 +509,7 @@ impl Waypoints {
             ));
             widgets.push(button(DELETE, format!("Delete: {}", w.name)));
         } else {
-            widgets.push(button(STYLE_BTN, "Look of all waypoints".into()));
+            widgets.push(button(STYLE_BTN, "Waypoint Settings".into()));
             widgets.push(text(102, "Tap a waypoint to edit, hide or delete it"));
         }
         self.show(&widgets);
@@ -533,10 +533,10 @@ impl Waypoints {
         part(16) | part(8) | part(0)
     }
 
-    /// Text drawn with a 3 x 5 pixel font in blocks of `unit` GUI pixels (the
-    /// game's own font has no size or see-through), centred on `cx`. The
-    /// characters it has are 0-9, A-Z, `m`, `k` and `.`; false when one is
-    /// missing (nothing is drawn then).
+    /// Text drawn with a 5 x 7 block font like the game's own, in blocks of
+    /// `unit` GUI pixels (the game's font has no size or see-through),
+    /// centred on `cx`. The characters it has are 0-9 and A-Z; false when one
+    /// is missing (nothing is drawn then).
     fn pixel_text(
         shapes: &mut Vec<Shape>,
         text: &str,
@@ -546,7 +546,7 @@ impl Waypoints {
         rgb: u32,
         alpha: u32,
     ) -> bool {
-        let glyphs: Option<Vec<[&str; 5]>> = text.chars().map(glyph).collect();
+        let glyphs: Option<Vec<[&str; 7]>> = text.chars().map(glyph).collect();
         let Some(glyphs) = glyphs else {
             return false;
         };
@@ -593,8 +593,9 @@ impl Waypoints {
         true
     }
 
-    /// A waypoint's marker: a square of blocks with a dark edge and a lit top
-    /// and left, like a Minecraft button, its letter in the middle.
+    /// A waypoint's marker: a square of 13 x 13 blocks with its corners cut a
+    /// block, a dark edge, a lit top and left and a shaded bottom and right,
+    /// like a Minecraft button; its letter in the game's block font in the middle.
     fn marker(
         shapes: &mut Vec<Shape>,
         cx: f32,
@@ -604,29 +605,35 @@ impl Waypoints {
         alpha: u32,
         letter: char,
     ) {
-        let s = side.round().max(8.0);
-        let (x, y) = ((cx - s / 2.0).round(), (cy - s / 2.0).round());
+        const N: f32 = 13.0;
+        let c = (side / N).max(0.7);
+        let s = c * N;
+        let (x, y) = (cx - s / 2.0, cy - s / 2.0);
         let a = alpha << 24;
         let (light, dark) = (Self::mix(rgb, 0xFFFFFF, 0.4), Self::mix(rgb, 0x000000, 0.4));
-        Self::fill(shapes, x + 1.0, y, s - 2.0, 1.0, a);
-        Self::fill(shapes, x + 1.0, y + s - 1.0, s - 2.0, 1.0, a);
-        Self::fill(shapes, x, y + 1.0, 1.0, s - 2.0, a);
-        Self::fill(shapes, x + s - 1.0, y + 1.0, 1.0, s - 2.0, a);
-        Self::fill(shapes, x + 1.0, y + 1.0, s - 2.0, 1.0, a | light);
-        Self::fill(shapes, x + 1.0, y + 2.0, 1.0, s - 4.0, a | light);
-        Self::fill(shapes, x + 1.0, y + s - 2.0, s - 2.0, 1.0, a | dark);
-        Self::fill(shapes, x + s - 2.0, y + 2.0, 1.0, s - 4.0, a | dark);
-        Self::fill(shapes, x + 2.0, y + 2.0, s - 4.0, s - 4.0, a | rgb);
+        let mut cell = |col: f32, row: f32, w: f32, h: f32, color: u32| {
+            Self::fill(shapes, x + col * c, y + row * c, w * c, h * c, color);
+        };
+        // The edge, without its corner blocks.
+        cell(1.0, 0.0, N - 2.0, 1.0, a);
+        cell(1.0, N - 1.0, N - 2.0, 1.0, a);
+        cell(0.0, 1.0, 1.0, N - 2.0, a);
+        cell(N - 1.0, 1.0, 1.0, N - 2.0, a);
+        // The lit top and left, the shaded bottom and right, the body.
+        cell(1.0, 1.0, N - 2.0, 1.0, a | light);
+        cell(1.0, 2.0, 1.0, N - 4.0, a | light);
+        cell(1.0, N - 2.0, N - 2.0, 1.0, a | dark);
+        cell(N - 2.0, 2.0, 1.0, N - 4.0, a | dark);
+        cell(2.0, 2.0, N - 4.0, N - 4.0, a | rgb);
         // The letter in white, or black on a light colour.
         let bright = (rgb >> 16 & 0xFF) * 3 + (rgb >> 8 & 0xFF) * 6 + (rgb & 0xFF);
         let ink = if bright > 1700 { 0x111111 } else { 0xFFFFFF };
-        let unit = s / 9.0;
         let drawn = Self::pixel_text(
             shapes,
             &letter.to_string(),
             cx,
-            cy - 2.5 * unit,
-            unit,
+            cy - 3.5 * c,
+            c,
             ink,
             alpha,
         );
@@ -710,15 +717,9 @@ impl Waypoints {
                 Self::marker(&mut shapes, x, y, side, w.color, alpha, letter);
                 side.round().max(8.0) / 2.0
             };
-            // How far, under the marker: metres, or kilometres from 1000.
-            let text = if dist < 1000.0 {
-                format!("{}m", dist.round() as i64)
-            } else if dist < 100_000.0 {
-                format!("{:.1}km", dist / 1000.0)
-            } else {
-                format!("{}km", (dist / 1000.0).round() as i64)
-            };
-            let unit = 1.4 * st.text_size as f32 / 100.0;
+            // How far in blocks, under the marker, as Xaero's Minimap writes it.
+            let text = format!("{}", dist.round() as i64);
+            let unit = 1.1 * st.text_size as f32 / 100.0;
             let text_alpha = (st.text_opacity * 255 / 100).min(255);
             Self::pixel_text(
                 &mut shapes,
@@ -1056,48 +1057,45 @@ impl Mod for Waypoints {
 
 horizon_mod_sdk::export_mod!(Waypoints);
 
-/// The 3 x 5 (or wider) pixel font of the markers: rows of `1` and `0`.
-fn glyph(c: char) -> Option<[&'static str; 5]> {
+/// The block font of the markers: 5 blocks wide, 7 tall, like the game's own.
+fn glyph(c: char) -> Option<[&'static str; 7]> {
     Some(match c {
-        '0' => ["111", "101", "101", "101", "111"],
-        '1' => ["010", "110", "010", "010", "111"],
-        '2' => ["111", "001", "111", "100", "111"],
-        '3' => ["111", "001", "111", "001", "111"],
-        '4' => ["101", "101", "111", "001", "001"],
-        '5' => ["111", "100", "111", "001", "111"],
-        '6' => ["111", "100", "111", "101", "111"],
-        '7' => ["111", "001", "001", "010", "010"],
-        '8' => ["111", "101", "111", "101", "111"],
-        '9' => ["111", "101", "111", "001", "111"],
-        '.' => ["0", "0", "0", "0", "1"],
-        'm' => ["00000", "11010", "10101", "10101", "10101"],
-        'k' => ["101", "101", "110", "101", "101"],
-        'A' => ["010", "101", "111", "101", "101"],
-        'B' => ["110", "101", "110", "101", "110"],
-        'C' => ["011", "100", "100", "100", "011"],
-        'D' => ["110", "101", "101", "101", "110"],
-        'E' => ["111", "100", "110", "100", "111"],
-        'F' => ["111", "100", "110", "100", "100"],
-        'G' => ["011", "100", "101", "101", "011"],
-        'H' => ["101", "101", "111", "101", "101"],
-        'I' => ["111", "010", "010", "010", "111"],
-        'J' => ["001", "001", "001", "101", "010"],
-        'K' => ["101", "101", "110", "101", "101"],
-        'L' => ["100", "100", "100", "100", "111"],
-        'M' => ["10001", "11011", "10101", "10001", "10001"],
-        'N' => ["1001", "1101", "1011", "1001", "1001"],
-        'O' => ["010", "101", "101", "101", "010"],
-        'P' => ["110", "101", "110", "100", "100"],
-        'Q' => ["010", "101", "101", "110", "011"],
-        'R' => ["110", "101", "110", "101", "101"],
-        'S' => ["011", "100", "010", "001", "110"],
-        'T' => ["111", "010", "010", "010", "010"],
-        'U' => ["101", "101", "101", "101", "111"],
-        'V' => ["101", "101", "101", "101", "010"],
-        'W' => ["10001", "10001", "10101", "11011", "10001"],
-        'X' => ["101", "101", "010", "101", "101"],
-        'Y' => ["101", "101", "010", "010", "010"],
-        'Z' => ["111", "001", "010", "100", "111"],
+        'A' => ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
+        'B' => ["11110", "10001", "10001", "11110", "10001", "10001", "11110"],
+        'C' => ["01110", "10001", "10000", "10000", "10000", "10001", "01110"],
+        'D' => ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
+        'E' => ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+        'F' => ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
+        'G' => ["01110", "10001", "10000", "10111", "10001", "10001", "01111"],
+        'H' => ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
+        'I' => ["01110", "00100", "00100", "00100", "00100", "00100", "01110"],
+        'J' => ["00111", "00010", "00010", "00010", "00010", "10010", "01100"],
+        'K' => ["10001", "10010", "10100", "11000", "10100", "10010", "10001"],
+        'L' => ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+        'M' => ["10001", "11011", "10101", "10101", "10001", "10001", "10001"],
+        'N' => ["10001", "11001", "10101", "10011", "10001", "10001", "10001"],
+        'O' => ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
+        'P' => ["11110", "10001", "10001", "11110", "10000", "10000", "10000"],
+        'Q' => ["01110", "10001", "10001", "10001", "10101", "10010", "01101"],
+        'R' => ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
+        'S' => ["01111", "10000", "10000", "01110", "00001", "00001", "11110"],
+        'T' => ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
+        'U' => ["10001", "10001", "10001", "10001", "10001", "10001", "01110"],
+        'V' => ["10001", "10001", "10001", "10001", "10001", "01010", "00100"],
+        'W' => ["10001", "10001", "10001", "10101", "10101", "11011", "10001"],
+        'X' => ["10001", "10001", "01010", "00100", "01010", "10001", "10001"],
+        'Y' => ["10001", "10001", "01010", "00100", "00100", "00100", "00100"],
+        'Z' => ["11111", "00001", "00010", "00100", "01000", "10000", "11111"],
+        '0' => ["01110", "10001", "10011", "10101", "11001", "10001", "01110"],
+        '1' => ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+        '2' => ["01110", "10001", "00001", "00010", "00100", "01000", "11111"],
+        '3' => ["11110", "00001", "00001", "01110", "00001", "00001", "11110"],
+        '4' => ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
+        '5' => ["11111", "10000", "11110", "00001", "00001", "10001", "01110"],
+        '6' => ["00110", "01000", "10000", "11110", "10001", "10001", "01110"],
+        '7' => ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
+        '8' => ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
+        '9' => ["01110", "10001", "10001", "01111", "00001", "00010", "01100"],
         _ => return None,
     })
 }
