@@ -67,6 +67,9 @@ const OPACITY: u32 = 11;
 const EDIT: u32 = 12;
 const TEXT_SIZE: u32 = 13;
 const STYLE_BTN: u32 = 15;
+const COLOR_SCROLL: u32 = 16;
+/// How many colours the picker shows at once; a slider moves along the rest.
+const COLOR_ROWS: usize = 5;
 /// Text request ids.
 /// The key that opens the waypoints screen.
 const KEY: &str = "open";
@@ -142,6 +145,8 @@ struct Waypoints {
     alive: bool,
     /// The colour list shows instead of the main page.
     picking: bool,
+    /// The first colour the picker shows.
+    color_scroll: usize,
     /// Where "Add waypoint here" was pressed, while its name is typed.
     pending: Option<(i32, i32, i32, String)>,
     /// The world the list belongs to (`game.get-world`); each world keeps
@@ -423,21 +428,34 @@ impl Waypoints {
             return;
         }
         if self.picking {
+            let most = PALETTE.len() - COLOR_ROWS;
+            let first = self.color_scroll.min(most);
+            let shown = &PALETTE[first..first + COLOR_ROWS];
             ui::set_list_colors(
                 COLOR_LIST,
-                &PALETTE.iter().map(|&(_, c)| lifted(c)).collect::<Vec<_>>(),
+                &shown.iter().map(|&(_, c)| lifted(c)).collect::<Vec<_>>(),
             );
+            ui::set_slider(COLOR_SCROLL, 0, most as u32, first as u32);
             self.show(&[
                 text(101, "Pick a colour"),
                 Widget::List(ListWidget {
                     id: COLOR_LIST,
-                    rows: PALETTE.iter().map(|&(n, _)| n.to_owned()).collect(),
+                    rows: shown.iter().map(|&(n, _)| n.to_owned()).collect(),
                     selected: self
                         .selected
                         .and_then(|i| self.list.get(i))
-                        .and_then(|w| PALETTE.iter().position(|&(_, c)| c == w.color))
+                        .and_then(|w| shown.iter().position(|&(_, c)| c == w.color))
                         .map(|i| i as u32),
                 }),
+                button(
+                    COLOR_SCROLL,
+                    format!(
+                        "Slide for more colours: {}-{} of {}",
+                        first + 1,
+                        first + COLOR_ROWS,
+                        PALETTE.len()
+                    ),
+                ),
                 button(BACK, "Back".into()),
             ]);
             return;
@@ -824,6 +842,7 @@ impl Mod for Waypoints {
             last_alive: None,
             alive: false,
             picking: false,
+            color_scroll: 0,
             pending: None,
             world: None,
             editing: false,
@@ -1016,6 +1035,13 @@ impl Mod for Waypoints {
             }
             COLOR => {
                 self.picking = true;
+                // Start where the waypoint's own colour is on show.
+                let at = self
+                    .selected
+                    .and_then(|i| self.list.get(i))
+                    .and_then(|w| PALETTE.iter().position(|&(_, c)| c == w.color))
+                    .unwrap_or(0);
+                self.color_scroll = at.saturating_sub(2).min(PALETTE.len() - COLOR_ROWS);
                 self.page();
                 return;
             }
@@ -1025,13 +1051,20 @@ impl Mod for Waypoints {
                 return;
             }
             COLOR_LIST => {
+                let first = self.color_scroll.min(PALETTE.len() - COLOR_ROWS);
                 if let (Some(w), Some(&(_, c))) = (
                     self.selected.and_then(|i| self.list.get_mut(i)),
-                    PALETTE.get(row as usize),
+                    PALETTE.get(first + row as usize),
                 ) {
                     w.color = c;
                 }
                 self.picking = false;
+            }
+            COLOR_SCROLL => {
+                // The slider: `row` is the first colour to show.
+                self.color_scroll = (row as usize).min(PALETTE.len() - COLOR_ROWS);
+                self.page();
+                return;
             }
             STYLE_BTN => {
                 self.style_page = true;

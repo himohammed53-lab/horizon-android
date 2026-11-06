@@ -1,6 +1,6 @@
 id = "waypoints_file"
 name = "Waypoints"
-version = "0.1.1"
+version = "0.1.2"
 description = "Waypoints on the screen: a coloured rounded square with the name's first letter, the name and the distance; bigger as you come near, shown only while you look towards them. Each world keeps its own waypoints; they show in the Nether and the End too (Overworld and Nether ones convert by 8). Needs Horizon API level 11. A skull marks where you last died. Manage them (name, 29 colours, size and opacity sliders, delete) in Options > Mods > Waypoints, press B (or the key you pick in Options > Mods) to open the list in the game, or use /wp (try /wp help)."
 authors = ["Horizon Android fork"]
 api = "0.1"
