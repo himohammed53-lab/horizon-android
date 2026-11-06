@@ -9,7 +9,7 @@ on:
       mod_dirs:
         description: Folders of the mod crates (each has horizon-mod.toml), separated by spaces
         type: string
-        default: crates/horizon-mod-sdk/examples/falling-trees crates/horizon-mod-sdk/examples/vein-miner crates/horizon-mod-sdk/examples/gamma
+        default: crates/horizon-mod-sdk/examples/waypoints
 
 permissions:
   contents: read
