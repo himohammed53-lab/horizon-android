@@ -1419,6 +1419,10 @@ impl Game<'_> {
             self.close_mod_screen(true);
             return;
         }
+        // The white thumb of a list's scroll bar is held and dragged.
+        if self.mod_scrollbar_press() {
+            return;
+        }
         let Some(ms) = self.mods.screen.as_ref() else {
             return;
         };
@@ -1492,6 +1496,7 @@ impl Game<'_> {
     /// A slider being dragged follows the cursor: the mod hears the new
     /// value when it changes (`ui-events::select(id, value)`).
     pub(super) fn mod_slider_move(&mut self) {
+        self.mod_scrollbar_drag();
         let Some((owner, id)) = self.mods.slider_drag else {
             return;
         };
@@ -1510,6 +1515,11 @@ impl Game<'_> {
     /// The finger or button came up: the drag ends.
     pub(super) fn mod_slider_release(&mut self) {
         self.mods.slider_drag = None;
+        if let Some(ms) = self.mods.screen.as_mut() {
+            for scroll in &mut ms.scrolls {
+                scroll.release();
+            }
+        }
     }
     /// The mod asked for a line of text (`ui.request-text`): the system
     /// keyboard opens on it.
@@ -1553,6 +1563,64 @@ impl Game<'_> {
                 self.finish_mod_text();
                 Some(true)
             }
+        }
+    }
+    /// A press on a `list`'s scroll bar (a finger's width of it, at the list's
+    /// right edge) holds it: true when one is held.
+    fn mod_scrollbar_press(&mut self) -> bool {
+        let (w, h) = self.gui_size();
+        let cursor = self.cursor;
+        let Some(ms) = self.mods.screen.as_mut() else {
+            return false;
+        };
+        let Some((_, widgets)) = Self::mod_ui_view(&self.mods.mods, ms) else {
+            return false;
+        };
+        let x = (w / 2.0).floor() - MOD_UI_COLUMN / 2.0;
+        let top =
+            MOD_UI_TOP + Self::mod_page_keys(&self.mods.mods, ms).len() as f32 * MOD_UI_KEY_ROW;
+        let layout = Self::mod_ui_layout(h, top, widgets);
+        let bar_x = x + MOD_UI_COLUMN - 5.0;
+        let near = cursor.0 >= x + MOD_UI_COLUMN - 18.0 && cursor.0 <= x + MOD_UI_COLUMN;
+        let mut list_i = 0usize;
+        for (w, &(wy, wh)) in widgets.iter().zip(&layout) {
+            let UiWidget::List(l) = w else { continue };
+            ms.scrolls.resize_with(list_i + 1, ui::Scroll::default);
+            let content = l.rows.len() as f32 * 12.0;
+            let at = (if near { bar_x + 1.0 } else { cursor.0 }, cursor.1);
+            if ms.scrolls[list_i].press(at, bar_x, wy + 4.0, wy + wh - 4.0, content) {
+                return true;
+            }
+            list_i += 1;
+        }
+        false
+    }
+    /// The held scroll bar follows the pointer.
+    fn mod_scrollbar_drag(&mut self) {
+        let (_, h) = self.gui_size();
+        let cursor = self.cursor;
+        let Some(ms) = self.mods.screen.as_mut() else {
+            return;
+        };
+        if !ms.scrolls.iter().any(|s| s.held()) {
+            return;
+        }
+        let Some((_, widgets)) = Self::mod_ui_view(&self.mods.mods, ms) else {
+            return;
+        };
+        let top =
+            MOD_UI_TOP + Self::mod_page_keys(&self.mods.mods, ms).len() as f32 * MOD_UI_KEY_ROW;
+        let layout = Self::mod_ui_layout(h, top, widgets);
+        let mut list_i = 0usize;
+        for (w, &(wy, wh)) in widgets.iter().zip(&layout) {
+            let UiWidget::List(l) = w else { continue };
+            if let Some(scroll) = ms.scrolls.get_mut(list_i)
+                && scroll.held()
+            {
+                let content = l.rows.len() as f32 * 12.0;
+                scroll.drag(cursor.1, wy + 4.0, wy + wh - 4.0, content);
+            }
+            list_i += 1;
         }
     }
     /// The wheel over a `list` scrolls it.
