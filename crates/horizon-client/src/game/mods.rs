@@ -45,6 +45,10 @@ pub(super) struct ModsState {
     /// A slider being dragged: the mod's index and its button id.
     #[cfg(feature = "mods")]
     pub(super) slider_drag: Option<(usize, u32)>,
+    /// A list being scrolled by dragging with the right button: its index
+    /// among the page's lists and the pointer's last y.
+    #[cfg(feature = "mods")]
+    pub(super) pan: Option<(usize, f32)>,
     /// The mods the options had turned on when the mods were last started.
     #[cfg(feature = "mods")]
     pub(super) started: Vec<String>,
@@ -1402,6 +1406,11 @@ impl Game<'_> {
             self.bind_mod_key(keybinds::mouse_name(button));
             return;
         }
+        // The right button held over a list and dragged scrolls it.
+        if button == MouseButton::Right {
+            self.mod_pan_press();
+            return;
+        }
         if button != MouseButton::Left {
             return;
         }
@@ -1497,6 +1506,7 @@ impl Game<'_> {
     /// value when it changes (`ui-events::select(id, value)`).
     pub(super) fn mod_slider_move(&mut self) {
         self.mod_scrollbar_drag();
+        self.mod_pan_move();
         let Some((owner, id)) = self.mods.slider_drag else {
             return;
         };
@@ -1515,6 +1525,7 @@ impl Game<'_> {
     /// The finger or button came up: the drag ends.
     pub(super) fn mod_slider_release(&mut self) {
         self.mods.slider_drag = None;
+        self.mods.pan = None;
         if let Some(ms) = self.mods.screen.as_mut() {
             for scroll in &mut ms.scrolls {
                 scroll.release();
@@ -1594,6 +1605,65 @@ impl Game<'_> {
             list_i += 1;
         }
         false
+    }
+    /// The right button goes down over a list: dragging now scrolls it.
+    fn mod_pan_press(&mut self) {
+        let (w, h) = self.gui_size();
+        let cursor = self.cursor;
+        let Some(ms) = self.mods.screen.as_ref() else {
+            return;
+        };
+        let Some((_, widgets)) = Self::mod_ui_view(&self.mods.mods, ms) else {
+            return;
+        };
+        let x = (w / 2.0).floor() - MOD_UI_COLUMN / 2.0;
+        let top =
+            MOD_UI_TOP + Self::mod_page_keys(&self.mods.mods, ms).len() as f32 * MOD_UI_KEY_ROW;
+        let layout = Self::mod_ui_layout(h, top, widgets);
+        let mut list_i = 0usize;
+        let mut found = None;
+        for (w, &(wy, wh)) in widgets.iter().zip(&layout) {
+            if !matches!(w, UiWidget::List(_)) {
+                continue;
+            }
+            if ui::hovered(cursor, x, wy, MOD_UI_COLUMN, wh) {
+                found = Some((list_i, cursor.1));
+                break;
+            }
+            list_i += 1;
+        }
+        self.mods.pan = found;
+    }
+    /// The list held with the right button follows the pointer down or up.
+    fn mod_pan_move(&mut self) {
+        let Some((index, last)) = self.mods.pan else {
+            return;
+        };
+        let (_, h) = self.gui_size();
+        let y = self.cursor.1;
+        let Some(ms) = self.mods.screen.as_mut() else {
+            self.mods.pan = None;
+            return;
+        };
+        let Some((_, widgets)) = Self::mod_ui_view(&self.mods.mods, ms) else {
+            return;
+        };
+        let top =
+            MOD_UI_TOP + Self::mod_page_keys(&self.mods.mods, ms).len() as f32 * MOD_UI_KEY_ROW;
+        let layout = Self::mod_ui_layout(h, top, widgets);
+        let mut list_i = 0usize;
+        for (w, &(wy, wh)) in widgets.iter().zip(&layout) {
+            let UiWidget::List(l) = w else { continue };
+            if list_i == index {
+                ms.scrolls.resize_with(index + 1, ui::Scroll::default);
+                let scroll = &mut ms.scrolls[index];
+                scroll.amount += y - last;
+                scroll.clamp(wy + 4.0, wy + wh - 4.0, l.rows.len() as f32 * 12.0);
+                self.mods.pan = Some((index, y));
+                return;
+            }
+            list_i += 1;
+        }
     }
     /// The held scroll bar follows the pointer.
     fn mod_scrollbar_drag(&mut self) {

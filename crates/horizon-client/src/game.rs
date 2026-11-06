@@ -17029,7 +17029,7 @@ impl Game<'_> {
                 {
                     if state == ElementState::Pressed {
                         self.mod_screen_click(button);
-                    } else if button == MouseButton::Left {
+                    } else {
                         self.mod_slider_release();
                     }
                 }
@@ -17241,7 +17241,7 @@ impl Game<'_> {
                         }
                         Screen::Stats if button == MouseButton::Left => self.stats_release(),
                         Screen::Mod if pressed => self.mod_screen_click(button),
-                        Screen::Mod if button == MouseButton::Left => self.mod_slider_release(),
+                        Screen::Mod => self.mod_slider_release(),
                         _ => {}
                     }
                 }
