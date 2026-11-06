@@ -66,7 +66,6 @@ const BACK: u32 = 10;
 const OPACITY: u32 = 11;
 const EDIT: u32 = 12;
 const TEXT_SIZE: u32 = 13;
-const TEXT_OPACITY: u32 = 14;
 const STYLE_BTN: u32 = 15;
 /// Text request ids.
 /// The key that opens the waypoints screen.
@@ -447,19 +446,14 @@ impl Waypoints {
             ui::set_slider(SIZE, 25, 300, st.size);
             ui::set_slider(OPACITY, 10, 100, st.opacity);
             ui::set_slider(TEXT_SIZE, 25, 300, st.text_size);
-            ui::set_slider(TEXT_OPACITY, 10, 100, st.text_opacity);
             self.show(&[
                 button(
                     SHOW_ALL,
                     format!("All waypoints: {}", if self.show { "ON" } else { "OFF" }),
                 ),
                 button(SIZE, format!("Marker size: {}%", st.size)),
-                button(OPACITY, format!("Marker opacity: {}%", st.opacity)),
+                button(OPACITY, format!("Opacity: {}%", st.opacity)),
                 button(TEXT_SIZE, format!("Distance size: {}%", st.text_size)),
-                button(
-                    TEXT_OPACITY,
-                    format!("Distance opacity: {}%", st.text_opacity),
-                ),
                 button(BACK, "Back".into()),
             ]);
             return;
@@ -763,7 +757,7 @@ impl Waypoints {
             // How far in blocks, under the marker, as Xaero's Minimap writes it.
             let text = format!("{}", dist.round() as i64);
             let unit = 1.1 * st.text_size as f32 / 100.0;
-            let text_alpha = (st.text_opacity * 255 / 100).min(255);
+            let text_alpha = alpha;
             Self::pixel_text(
                 &mut shapes,
                 &text,
@@ -814,7 +808,7 @@ impl Waypoints {
     }
 }
 
-const HELP: &str = "/wp add [name] | list | del N | name N new name | color N red or #ff8800 | size N 25-300 | opacity N 10-100 | textsize N | textopacity N | hide N | show N | view on or off";
+const HELP: &str = "/wp add [name] | list | del N | name N new name | color N red or #ff8800 | size N 25-300 | opacity N 10-100 | textsize N | hide N | show N | view on or off";
 
 impl Mod for Waypoints {
     fn init() -> Result<(Self, Registration), String> {
@@ -956,7 +950,7 @@ impl Mod for Waypoints {
                 self.changed();
                 Ok(Some(format!("Colour is {}", color_name(color))))
             }
-            "size" | "opacity" | "textsize" | "textopacity" => {
+            "size" | "opacity" | "textsize" => {
                 let (lo, hi) = if sub.ends_with("size") { (25, 300) } else { (10, 100) };
                 let n: u32 = rest
                     .trim()
@@ -968,8 +962,7 @@ impl Mod for Waypoints {
                 match sub {
                     "size" => self.style.size = n,
                     "opacity" => self.style.opacity = n,
-                    "textsize" => self.style.text_size = n,
-                    _ => self.style.text_opacity = n,
+                    _ => self.style.text_size = n,
                 }
                 self.changed();
                 Ok(Some(format!("{sub} is {n}%")))
@@ -1055,14 +1048,13 @@ impl Mod for Waypoints {
                 return;
             }
             // The sliders: `row` is the value dragged to.
-            SIZE | OPACITY | TEXT_SIZE | TEXT_OPACITY => {
+            SIZE | OPACITY | TEXT_SIZE => {
                 let stepped = ((row + 2) / 5 * 5).clamp(25, 300);
                 let strength = row.clamp(10, 100);
                 match id {
                     SIZE => self.style.size = stepped,
                     OPACITY => self.style.opacity = strength,
-                    TEXT_SIZE => self.style.text_size = stepped,
-                    _ => self.style.text_opacity = strength,
+                    _ => self.style.text_size = stepped,
                 }
                 self.dirty = true;
                 self.page();
