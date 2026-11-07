@@ -20,6 +20,14 @@ are in that folder (`LICENSE.MIT`, `LICENSE.APACHE`).
 by The Pixelify Sans Project Authors, licensed under the SIL Open Font License 1.1
 (`crates/horizon-theme/fonts/OFL-PixelifySans.txt`).
 
+## Minecraft (block lettering font)
+
+`crates/horizon-theme/fonts/CraftronGaming-Minecraft.ttf` is the font "Minecraft" by Craftron Gaming,
+a fan-made pixel font that dafont.com lists as "100% free". It sets the Android launcher's text.
+Its author published no licence text, so this file can be replaced by another font at any time. It
+is not Mojang's font file. The same file is bundled in the open-source
+[Cubiq Launcher](https://github.com/VivxKumar07/Cubiq-Launcher).
+
 ## Pixelarticons
 
 `crates/horizon-theme/icons/pixel/*.svg` are icons from

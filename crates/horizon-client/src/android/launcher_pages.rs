@@ -430,6 +430,8 @@ impl Launcher {
         if r.suspended {
             return Ok(());
         }
+        // The launcher is set in block lettering; the game keeps its own fonts.
+        horizon_client::ui_theme::set_block_letters(true);
         self.targets.clear();
         self.list_targets.clear();
         self.list_view = None;

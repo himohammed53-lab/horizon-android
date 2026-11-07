@@ -88,7 +88,16 @@ pub enum Face {
     Mono,
 }
 struct Fonts {
-    faces: [FontRef<'static>; 4],
+    faces: [FontRef<'static>; 5],
+}
+/// Whether every face is drawn in the block lettering (the Android launcher sets it; the game
+/// itself keeps the design system's fonts).
+static BLOCK_LETTERS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// Use (or stop using) the block lettering for all launcher text.
+pub fn set_block_letters(on: bool) {
+    if BLOCK_LETTERS.swap(on, std::sync::atomic::Ordering::Relaxed) != on {
+        reset_atlas();
+    }
 }
 impl Fonts {
     fn load() -> Self {
@@ -99,11 +108,16 @@ impl Fonts {
                 f(horizon_theme::fonts::GEIST_MEDIUM),
                 f(horizon_theme::fonts::GEIST_SEMIBOLD),
                 f(horizon_theme::fonts::GEIST_MONO),
+                f(horizon_theme::fonts::MINECRAFT),
             ],
         }
     }
     fn face(&self, f: Face) -> &FontRef<'static> {
-        &self.faces[f as usize]
+        if BLOCK_LETTERS.load(std::sync::atomic::Ordering::Relaxed) {
+            &self.faces[4]
+        } else {
+            &self.faces[f as usize]
+        }
     }
     /// The ab_glyph scale for an em size in pixels.
     fn scale(&self, f: Face, px: f32) -> PxScale {

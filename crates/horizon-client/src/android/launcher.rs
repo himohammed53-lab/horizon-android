@@ -416,6 +416,7 @@ impl Launcher {
             self.renderer = None;
             self.window = None;
             self.gui = None;
+            horizon_client::ui_theme::set_block_letters(false);
             horizon_client::ui_theme::reset_atlas();
             self.game = Some(game);
             self.game.as_mut().unwrap().resumed(events);
