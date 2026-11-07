@@ -3,7 +3,7 @@ id = "soft_light"
 name = "Soft Light"
 version = "0.2.0"
 api = "0.1"
-description = "A light shader for phones: bright sun light on every face, soft shade under cover, warm sunsets and torches, a clear sky, water with waves, moving grass, leaves and water, a purple End with a galaxy and a warm Nether. No shadow map; its one full-screen pass only draws the End."
+description = "A light shader for phones: bright sun light on every face, soft shade under cover, warm sunsets and torches, a clear sky, water with waves, moving grass, leaves and water, a purple End with a galaxy and a warm Nether. Shadows come from one 1024 shadow map; there is no full-screen pass."
 authors = ["Muhamed", "Claude"]
 license = "MIT"
 shared = ["common.wgsl"]
@@ -14,6 +14,11 @@ name = "Clear sky"
 
 [material]
 file = "material.wgsl"
+
+[shadow]
+resolution = 1024
+distance = 48.0
+solid_materials = [23]
 
 [[materials]]
 id = 20
@@ -34,10 +39,6 @@ sprites = ["block/*_leaves"]
 [[materials]]
 id = 24
 sprites = ["block/water_still", "block/water_flow"]
-
-[[post]]
-file = "post/end.wgsl"
-name = "End sky"
 
 [[options]]
 id = "nether_end"
@@ -71,7 +72,7 @@ id = "saturation"
 name = "Saturation"
 description = "How colourful the picture is."
 type = "float"
-default = 1.1
+default = 1.12
 min = 0.8
 max = 1.5
 step = 0.05
@@ -81,7 +82,7 @@ id = "contrast"
 name = "Contrast"
 description = "Lower is brighter and flatter, 1 leaves the brightness as it is."
 type = "float"
-default = 0.85
+default = 0.93
 min = 0.6
 max = 1.0
 step = 0.05
@@ -91,7 +92,7 @@ id = "sun_strength"
 name = "Sunlight"
 description = "How strong and bright the sun's light is (0 is flat light)."
 type = "float"
-default = 0.95
+default = 1.0
 min = 0.0
 max = 1.5
 step = 0.05
@@ -187,4 +188,4 @@ max = 1.0
 step = 0.05
 
 [budget]
-gpu_ms = 0.8
+gpu_ms = 2.0

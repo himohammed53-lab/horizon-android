@@ -2,10 +2,10 @@
 // from a shadow map, and the open sky lights the shade a cool blue. Torches, sunsets and water
 // are added on top, and the result goes through a soft tone mapping.
 override tone: f32 = 0.6;
-override saturation: f32 = 1.1;
-override contrast: f32 = 0.85;
+override saturation: f32 = 1.12;
+override contrast: f32 = 0.93;
 override shade: f32 = 0.5;
-override sun_strength: f32 = 0.95;
+override sun_strength: f32 = 1.0;
 override warmth: f32 = 0.35;
 override torch: f32 = 0.6;
 override waves: f32 = 1.0;
@@ -83,17 +83,14 @@ fn material(input: MaterialInput) -> Surface {
     let sun_col = mix(vec3<f32>(1.0, 0.97, 0.92), golden, sun_low_amount() * warmth);
     let source = mix(vec3<f32>(0.16, 0.2, 0.34), sun_col, day);
     let ndl = max(dot(input.normal, frame.light_direction), 0.0);
-    // No shadow map (it costs the phone too much): a face is lit where the sky's light reaches it.
     let visible = lit_amount(input.position, input.normal);
     let strength = mix(0.35, 1.0, day) * (1.0 - 0.75 * rain) * sun_strength;
     let direct = source * (ndl * visible * sky_vis * strength);
 
     // The shade is vanilla's light, a little darker and cooler where the sky is open.
     let openness = sky_vis * mix(0.35, 1.0, day) * sun_strength;
-    let shade_tint = mix(vec3<f32>(1.0), vec3<f32>(0.8, 0.88, 1.0), openness * 0.7);
-    var rgb = vanilla * shade_tint + base * direct * 1.1;
-    // A bright open day: the air itself glows a little, so places in the open feel lit.
-    rgb += base * source * (0.05 * openness * (1.0 - rain));
+    let shade_tint = mix(vec3<f32>(1.0), vec3<f32>(0.86, 0.92, 1.0), openness * 0.7);
+    var rgb = vanilla * shade_tint + base * direct * 0.8;
 
     // Extra soft shade under trees, roofs and overhangs, by day only.
     rgb *= 1.0 - shade * 0.3 * covered * day * (1.0 - input.light.x * 0.5);

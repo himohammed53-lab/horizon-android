@@ -1,7 +1,7 @@
 # Soft Light
 
-A light shader pack for phones. The sun lights every face by its angle and the open air glows,
-without a shadow map; one full-screen pass draws the End's sky and does nothing elsewhere.
+A light shader pack for phones. The sun lights every face by its angle, leaves and blocks cast
+shadows (one 1024 shadow map), and there is no full-screen pass.
 
 - Bright sunlight and moonlight that light each face by its angle, and a cool blue shade.
 - Soft extra shade under trees, roofs and overhangs by day.
