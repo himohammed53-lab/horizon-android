@@ -10,7 +10,9 @@ pub(super) enum Action {
     Page(Page),
     Play,
     Search,
+    #[allow(dead_code)]
     ShaderSource(crate::shader_catalog::Origin),
+    #[allow(dead_code)]
     ModSource(crate::shader_catalog::Origin),
     Field(&'static str),
     FinishNameEdit,
@@ -263,7 +265,10 @@ pub(super) fn button(
 const GRAY: u32 = 0x5a5a5a;
 
 /// Colours of the section buttons (under the top bar): the same grey, and a light violet when chosen.
-const SECTION: (u32, u32) = (GRAY, 0xa855e8);
+const SECTION: (u32, u32) = (GRAY, 0x7b4fe0);
+
+/// The light pink-violet of a switch that is ON.
+const SWITCH_ON: u32 = 0xa855e8;
 
 /// `button` with its own plate colours (idle, chosen) in place of the top bar's grey and purple.
 pub(super) fn button_as(
@@ -341,7 +346,7 @@ fn switch_button(
     action: Action,
 ) {
     let (x, y, w, h) = plate_rect(rect, false);
-    let (fill, label) = if on { (SECTION.1, "ON") } else { (GRAY, "OFF") };
+    let (fill, label) = if on { (SWITCH_ON, "ON") } else { (GRAY, "OFF") };
     block_plate(ui, x, y, w, h, fill, false);
     let size = 20.0;
     let width = ui.measure(Face::Medium, size, label);
@@ -659,19 +664,7 @@ impl Launcher {
             self.list_view = Some(self.wardrobe.view);
             self.catalog.scroll = self.catalog.scroll.min(self.wardrobe.view[2]);
         } else if page.is_catalog() {
-            let source_width = ((w - 185.0) / 2.0).clamp(58.0, 120.0);
-            section_chips(
-                &mut ui,
-                &mut self.targets,
-                w,
-                h,
-                if matches!(page, Page::Shaders | Page::Mods) && w >= 700.0 {
-                    2.0 * source_width
-                } else {
-                    0.0
-                },
-                page,
-            );
+            section_chips(&mut ui, &mut self.targets, w, h, 0.0, page);
             // The search field: a plain outlined box (white rim, the dark page inside).
             {
                 let rect = [32.0, 174.0, w - 240.0, 44.0];
@@ -724,62 +717,6 @@ impl Launcher {
                 true,
                 Some(SECTION),
             );
-            if matches!(page, Page::Shaders | Page::Mods) {
-                use crate::shader_catalog::Origin;
-                let width = ((w - 185.0) / 2.0).clamp(58.0, 120.0);
-                for (i, origin) in [Origin::Horizon, Origin::Modrinth].into_iter().enumerate() {
-                    let source_y = if w < 700.0 { 262.0 } else { 134.0 };
-                    let rect = [
-                        w - 32.0 - (2 - i) as f32 * width,
-                        source_y,
-                        width - 5.0,
-                        32.0,
-                    ];
-                    let chosen = (if page == Page::Mods {
-                        self.catalog.config.mod_source
-                    } else {
-                        self.catalog.config.shader_source
-                    }) == origin;
-                    button_as(
-                        &mut ui,
-                        &mut self.targets,
-                        rect,
-                        origin.source().label(),
-                        if page == Page::Mods {
-                            Action::ModSource(origin)
-                        } else {
-                            Action::ShaderSource(origin)
-                        },
-                        chosen,
-                        Some(SECTION),
-                    );
-                }
-            }
-            let hint = match page {
-                Page::Mods
-                    if self.catalog.config.mod_source
-                        == crate::shader_catalog::Origin::Modrinth =>
-                {
-                    "Modrinth Java mods are browse-only; Fabric/Forge/NeoForge cannot run here"
-                }
-                Page::Mods => "Search Horizon mods or paste an HTTPS .hmod link",
-                Page::Shaders
-                    if self.catalog.config.shader_source
-                        == crate::shader_catalog::Origin::Modrinth =>
-                {
-                    "Modrinth shader ZIPs / experimental compatibility; some packs may not work"
-                }
-                Page::Shaders => "Horizon native .hshader packs",
-                _ => "Verified downloads / enable in Files",
-            };
-            // On a narrow screen the two source buttons share the hint's row.
-            let hint_room = if w < 700.0 && matches!(page, Page::Shaders | Page::Mods) {
-                w - 64.0 - 2.0 * ((w - 185.0) / 2.0).clamp(58.0, 120.0) - 8.0
-            } else {
-                w - 64.0
-            };
-            let hint = ui.fit_text(Face::Regular, 14.0, hint, hint_room.max(60.0));
-            ui.text(Face::Regular, 14.0, 32.0, 270.0, color::MUTED, &hint);
             let kind = match page {
                 Page::Mods => horizon_client::content_files::Kind::Mods,
                 Page::Shaders => horizon_client::content_files::Kind::Shaders,
@@ -835,7 +772,7 @@ impl Launcher {
                 Vec::new()
             };
             let row_count = bundled.len() + local_mods.len() + catalog_rows.len();
-            let top = 296.0;
+            let top = 270.0;
             let bottom = h - 112.0;
             self.catalog.scroll = self
                 .catalog
