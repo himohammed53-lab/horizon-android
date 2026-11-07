@@ -5,9 +5,34 @@ Rust engine for Minecraft Java 26.3. Unofficial and in active development.
 
 **Android 9+ · Vulkan · Four touch schemes · Sandboxed `.hmod` mods**
 
-[Download APK](https://github.com/Vasysik/horizon-android/releases) · [Build & play](docs/android.md) · [Contribute](CONTRIBUTING_ANDROID.md) ·
-[Report an Android bug](https://github.com/Vasysik/horizon-android/issues/new?template=android-bug.yml) ·
-[Discord community](https://discord.gg/PG79z2PhjG)
+[Download APK](https://github.com/himohammed53-lab/horizon-android/releases) · [Build & play](docs/android.md) · [Contribute](CONTRIBUTING_ANDROID.md) ·
+[Report an Android bug](https://github.com/himohammed53-lab/horizon-android/issues)
+
+> **About this fork.** This is a fork maintained by Muhamed and Claude. It is based on the
+> Android port by [Vasysik](https://github.com/Vasysik/horizon-android), which is in turn based on
+> [Horizon](https://github.com/ludovic111/horizon) by Ludovic Marie and the Horizon contributors
+> (MIT). Upstream changes are merged from time to time. The changes made here are listed in
+> [Changes in this fork](#changes-in-this-fork). Releases of this fork are tested by the maintainer
+> on one phone (Realme GT Neo 5 SE); other devices have not been verified.
+
+## Changes in this fork
+
+Version 0.1.1:
+
+- **Launcher:** dark theme with an Enderman-eyes background, purple glass buttons, larger rows in
+  the Mods, Packs, Shaders, Files and Skins lists.
+- **In game:** a Mods button (M) in the pause menu; the camera no longer moves while the attack
+  button is held; zoom up to 100x; a 60 FPS cap by default.
+- **Mod screens:** list scroll bars can be dragged by touch or mouse, and a list can be scrolled
+  with the right button held; list colours use the correct channel order.
+- **Mod API level 11:** `game.get-world` and `ui.set-slider`.
+- **Waypoints mod (0.1.4, separate `.hmod` file):** per-world waypoints, Nether/End scaling, 29
+  colours, size and opacity settings, Hide/Show and Delete, a key (B) for the waypoint screen,
+  pixel markers, and death points (the last 5 are kept and removed when you return to them).
+  Source: `crates/horizon-mod-sdk/examples/waypoints`.
+
+Not verified: other phones, other Android versions, multiplayer skin display for players who
+are not signed in to a Mojang account.
 
 ## What works
 
