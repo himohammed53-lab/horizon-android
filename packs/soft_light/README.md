@@ -1,9 +1,9 @@
 # Soft Light
 
-A light shader pack for phones. The sun lights every face by its angle, blocks cast shadows
-(one 1024 shadow map), and one full-screen pass draws the End's sky and does nothing elsewhere.
+A light shader pack for phones. The sun lights every face by its angle and the open air glows,
+without a shadow map; one full-screen pass draws the End's sky and does nothing elsewhere.
 
-- Real sunlight and moonlight with block shadows, and a cool blue shade in the open.
+- Bright sunlight and moonlight that light each face by its angle, and a cool blue shade.
 - Soft extra shade under trees, roofs and overhangs by day.
 - Golden sunlight at sunrise and sunset, cool moonlight at night.
 - Warm torch light with a gentle flicker.
@@ -11,7 +11,7 @@ A light shader pack for phones. The sun lights every face by its angle, blocks c
 - Water with waves, a mirrored sky and a sun glint.
 - A soft tone mapping, saturation and contrast you can set or turn off.
 
-The End has a purple sky with a slowly turning galaxy and purple light everywhere; the Nether is warmer, with glowing torch light.
+The End has a black sky with white stars and a slowly turning purple galaxy, and soft purple light; the Nether is warmer, with glowing torch light.
 
 Not included: plants and leaves that sway, and waves that move the water's shape (a pack cannot move
 vertices yet; the waves here change only how the surface is lit).
