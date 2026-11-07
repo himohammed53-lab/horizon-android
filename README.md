@@ -55,29 +55,17 @@ compiled client and are not supported on Android yet. Fabric/Forge Java code
 does not run in this client. Server and anticheat
 compatibility requires testing on the actual server.
 
-## Screenshots from the upstream Android port
+## Screenshots
 
-These were taken by the upstream author (Vasysik) on other devices, not on this fork's test phone.
+Taken on the maintainer's phone (Realme GT Neo 5 SE) with this fork's build.
 
-POCO M8 Pro · 16 chunks · Fancy graphics
-
-| **Joystick and crosshair** | **D-pad and touch aiming** |
+| **Main menu with the Mods button and on-screen controls** | **In game with the on-screen controls** |
 | --- | --- |
-| ![Fox in a forest with joystick controls](docs/media/android/joystick-fox.png) | ![River and forest with D-pad controls](docs/media/android/dpad-river.png) |
+| ![Main menu with the Mods button, BT OFF and Mouse ON buttons and the touch controls](docs/media/fork/menu.jpg) | ![A forested hill with the touch controls and hotbar](docs/media/fork/mountain.jpg) |
 
-| **Snowy biome** | **Hypixel Arcade · Java multiplayer** |
+| **Zoomed in** | **Looking down at a lake** |
 | --- | --- |
-| ![Snowy landscape on Android](docs/media/android/snow-landscape.png) | ![Hypixel Arcade lobby on Android](docs/media/android/hypixel-arcade.png) |
-
-| **Third-person view** | **Desert terrain** |
-| --- | --- |
-| ![Steve on Android with third-person camera, touch controls and FPS overlay](docs/media/android/third-person-desert.png) | ![Desert terrain on Android with touch controls and FPS overlay](docs/media/android/desert-panorama.png) |
-
-Fujitsu F-03L · Portrait mode
-
-| **Main menu** | **In-game** |
-| --- | --- |
-| <img src="docs/media/android/fujitsu-f03l-menu.png" alt="Horizon main menu on a Fujitsu F-03L flip phone in portrait mode" width="220"> | <img src="docs/media/android/fujitsu-f03l-gameplay.png" alt="Minecraft world running on a Fujitsu F-03L flip phone in portrait mode" width="220"> |
+| ![A zoomed-in view of grass and flowers with the touch controls](docs/media/fork/zoom.jpg) | ![A lake and forest seen from above with the touch controls](docs/media/fork/lake.jpg) |
 
 ## Help build it
 
