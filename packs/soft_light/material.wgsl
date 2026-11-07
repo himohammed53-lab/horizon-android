@@ -1,11 +1,11 @@
 // Real directional light: the sun (or the moon) lights each face by its angle, block shadows come
 // from a shadow map, and the open sky lights the shade a cool blue. Torches, sunsets and water
 // are added on top, and the result goes through a soft tone mapping.
-override tone: f32 = 0.7;
+override tone: f32 = 0.6;
 override saturation: f32 = 1.1;
 override contrast: f32 = 0.85;
 override shade: f32 = 0.5;
-override sun_strength: f32 = 1.15;
+override sun_strength: f32 = 0.95;
 override warmth: f32 = 0.35;
 override torch: f32 = 0.6;
 override waves: f32 = 1.0;
@@ -90,7 +90,7 @@ fn material(input: MaterialInput) -> Surface {
     let shade_tint = mix(vec3<f32>(1.0), vec3<f32>(0.8, 0.88, 1.0), openness * 0.7);
     var rgb = vanilla * shade_tint + base * direct * 1.1;
     // A bright open day: the air itself glows a little, so places in the open feel lit.
-    rgb += base * source * (0.12 * openness * (1.0 - rain));
+    rgb += base * source * (0.05 * openness * (1.0 - rain));
 
     // Extra soft shade under trees, roofs and overhangs, by day only.
     rgb *= 1.0 - shade * 0.3 * covered * day * (1.0 - input.light.x * 0.5);
