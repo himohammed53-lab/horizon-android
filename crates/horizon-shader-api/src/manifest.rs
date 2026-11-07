@@ -221,6 +221,10 @@ pub struct Stage {
     /// false for a pack whose sky draws its own.
     #[serde(default)]
     pub stars: Option<bool>,
+    /// The sky stage only: whether the pack's sky also draws the End's sky, in place of
+    /// Minecraft's (false when absent, so the End stays vanilla).
+    #[serde(default)]
+    pub end: Option<bool>,
     /// A post pass only: its target's size against the world's, 1, 0.5 or 0.25 (1 when
     /// absent); below 1 the pass writes an `output`.
     #[serde(default)]
@@ -498,10 +502,10 @@ impl Manifest {
                 return Err(err(format!("{file:?} is not a plain path to a .wgsl file")));
             }
         }
-        let sky_only = |s: &Stage| s.clouds.is_some() || s.sun.is_some() || s.stars.is_some();
+        let sky_only = |s: &Stage| s.clouds.is_some() || s.sun.is_some() || s.stars.is_some() || s.end.is_some();
         if raw.material.iter().chain(&raw.post).any(sky_only) {
             return Err(err(
-                "`clouds`, `sun` and `stars` are keys of [sky] only".into()
+                "`clouds`, `sun`, `stars` and `end` are keys of [sky] only".into()
             ));
         }
         if raw.options.len() > MAX_OPTIONS {

@@ -7043,11 +7043,11 @@ impl Renderer {
                 && self.pack_post.is_none()
                 && mirror.is_none()
                 && cull.is_none();
-            // A pack with a sky stage also draws the End's sky (its own code, in place of the
+            // A pack whose `[sky]` sets `end = true` also draws the End's sky (its own code, in place of the
             // tiled end_sky.png box), so that sky turns with the view like the Overworld's.
             let end_pack_sky = frame.end_sky
                 && !frame.title
-                && self.native.as_ref().is_some_and(|n| n.sky.is_some());
+                && self.native.as_ref().is_some_and(|n| n.sky.is_some() && n.end_sky);
             if !late_sky && (frame.title || (sky_visible && (frame.skybox || frame.end_sky))) {
                 if !frame.title
                     && (frame.skybox || end_pack_sky)

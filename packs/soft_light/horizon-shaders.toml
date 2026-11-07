@@ -11,6 +11,7 @@ shared = ["common.wgsl"]
 [sky]
 file = "sky.wgsl"
 name = "Clear sky"
+end = true
 
 [material]
 file = "material.wgsl"
