@@ -20,6 +20,8 @@ pub(super) enum Action {
     ToggleSection(usize),
     ToggleLocal(usize),
     DeleteLocal(usize),
+    /// The dots of a built-in mod: it cannot be removed.
+    BuiltInInfo,
     ConfirmDeleteLocal,
     ConfirmExit,
     Next,
@@ -158,6 +160,28 @@ fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: b
     );
 }
 
+/// Three small white dots, with no plate: the "more" button of a mod row.
+fn more_dots(ui: &mut Ui, targets: &mut Vec<([f32; 4], Action)>, rect: [f32; 4], action: Action) {
+    let [x, y, w, h] = rect;
+    let dot = 5.0;
+    let gap = 5.0;
+    let left = x + (w - (3.0 * dot + 2.0 * gap)) / 2.0;
+    let top = y + (h - dot) / 2.0;
+    for i in 0..3 {
+        let dx = left + i as f32 * (dot + gap);
+        ui.rounded(
+            dx + 1.0,
+            top + 1.0,
+            dot,
+            dot,
+            0.0,
+            color::hex(0x252525, 255),
+        );
+        ui.rounded(dx, top, dot, dot, 0.0, color::hex(0xffffff, 255));
+    }
+    targets.push((rect, action));
+}
+
 /// The drawn plate inside a button's touch rectangle: a little smaller, centred up and down,
 /// so the buttons do not crowd the screen (the whole rectangle still takes the touch).
 fn plate_rect(rect: [f32; 4], full: bool) -> (f32, f32, f32, f32) {
@@ -213,13 +237,14 @@ fn section_chips(
     .into_iter()
     .enumerate()
     {
-        button(
+        button_as(
             ui,
             targets,
             [32.0 + i as f32 * (width + 6.0), 134.0, width, 34.0],
             label,
             Action::Page(page),
             page == current,
+            Some(SECTION),
         );
     }
 }
@@ -232,6 +257,22 @@ pub(super) fn button(
     action: Action,
     accent: bool,
 ) {
+    button_as(ui, targets, rect, label, action, accent, None);
+}
+
+/// Colours of the section buttons (under the top bar): a muted indigo, and a light violet when chosen.
+const SECTION: (u32, u32) = (0x45427a, 0xa855e8);
+
+/// `button` with its own plate colours (idle, chosen) in place of the top bar's grey and purple.
+pub(super) fn button_as(
+    ui: &mut Ui,
+    targets: &mut Vec<([f32; 4], Action)>,
+    rect: [f32; 4],
+    label: &str,
+    action: Action,
+    accent: bool,
+    tint: Option<(u32, u32)>,
+) {
     let main = matches!(action, Action::Play);
     let (x, y, w, h) = plate_rect(rect, main);
     // Grey stone; the chosen button is purple; Play is the big purple main block, cracked.
@@ -241,7 +282,22 @@ pub(super) fn button(
         y,
         w,
         h,
-        if main || accent { 0x7b4fe0 } else { 0x707070 },
+        match tint {
+            Some((idle, chosen)) => {
+                if accent {
+                    chosen
+                } else {
+                    idle
+                }
+            }
+            None => {
+                if main || accent {
+                    0x7b4fe0
+                } else {
+                    0x707070
+                }
+            }
+        },
         main,
     );
     let padding = (w * 0.12).clamp(4.0, 12.0);
@@ -263,12 +319,7 @@ pub(super) fn button(
         base
     };
     let label = ui.fit_text(Face::Medium, font, label, w - 2.0 * padding);
-    // The three dots of a "more" button sit in the middle.
-    let text_x = if label == "..." {
-        x + (w - ui.measure(Face::Medium, font, &label)) / 2.0
-    } else {
-        x + padding
-    };
+    let text_x = x + padding;
     shadow_text(
         ui,
         Face::Medium,
@@ -660,7 +711,12 @@ impl Launcher {
                         width - 5.0,
                         32.0,
                     ];
-                    button(
+                    let chosen = (if page == Page::Mods {
+                        self.catalog.config.mod_source
+                    } else {
+                        self.catalog.config.shader_source
+                    }) == origin;
+                    button_as(
                         &mut ui,
                         &mut self.targets,
                         rect,
@@ -670,16 +726,9 @@ impl Launcher {
                         } else {
                             Action::ShaderSource(origin)
                         },
-                        false,
+                        chosen,
+                        Some(SECTION),
                     );
-                    if (if page == Page::Mods {
-                        self.catalog.config.mod_source
-                    } else {
-                        self.catalog.config.shader_source
-                    }) == origin
-                    {
-                        ui.border(rect[0], rect[1], rect[2], rect[3], 1.0, color::TEXT);
-                    }
                 }
             }
             let hint = match page {
@@ -797,6 +846,12 @@ impl Launcher {
                     self.catalog.bundled_enabled.contains(*id),
                     Action::ToggleBundled(id),
                 );
+                let dots = if w < 700.0 {
+                    [w - 150.0, y + 50.0, 56.0, 30.0]
+                } else {
+                    [w - 216.0, y, 56.0, 46.0]
+                };
+                more_dots(&mut ui, &mut self.targets, dots, Action::BuiltInInfo);
             }
             for (row, i) in local_mods.iter().copied().enumerate() {
                 let y = top + (row + bundled.len()) as f32 * 86.0 - self.catalog.scroll;
@@ -842,14 +897,7 @@ impl Launcher {
                         "64-bit required",
                     );
                 }
-                button(
-                    &mut ui,
-                    &mut self.targets,
-                    remove,
-                    "...",
-                    Action::DeleteLocal(i),
-                    false,
-                );
+                more_dots(&mut ui, &mut self.targets, remove, Action::DeleteLocal(i));
             }
             for (row, (i, p)) in catalog_rows.into_iter().enumerate() {
                 let y = top + (row + bundled.len() + local_mods.len()) as f32 * 86.0
@@ -1670,6 +1718,10 @@ impl Launcher {
                 if let Some(item) = &self.catalog.pending_delete {
                     self.chooser = Some(super::chooser::Chooser::confirm_delete(item.file.clone()));
                 }
+            }
+            Some(Action::BuiltInInfo) => {
+                self.catalog.status =
+                    "Built into the app: it can be switched ON or OFF, not removed.".into();
             }
             Some(Action::ConfirmDeleteLocal) => {
                 self.catalog.remove_local(&self.home);
