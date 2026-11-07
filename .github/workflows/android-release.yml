@@ -1,7 +1,8 @@
 name: Publish a release
 run-name: Publish release ${{ inputs.tag }}
 
-# Publishes a GitHub release of this fork: the latest successful app build's APK. It never builds anything, and runs only when started by hand.
+# Publishes a GitHub release of this fork (the latest successful app build's APK), or, when the
+# tag already has a release, updates its title and notes from docs/releases/<tag>.md. It never builds anything, and runs only when started by hand.
 on:
   workflow_dispatch:
     inputs:
@@ -30,23 +31,17 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           persist-credentials: false
-      - name: Download the latest successful app build
+      - name: Publish or update the release
         run: |
-          app=$(gh run list --workflow android-dev.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
-          mkdir -p dl/app out
-          gh run download "$app" --dir dl/app
-          find dl -name '*.apk' -exec cp {} out/ \;
-          ls -l out
-      - name: Publish
-        run: |
-          cat > notes.md <<'NOTES'
-          Unofficial Horizon Android fork by Muhamed and Claude, based on Vasysik's Android port of
-          Horizon (Ludovic Marie and the Horizon contributors, MIT).
-
-          Changes: dark launcher with a new background and larger lists, a Mods button in the pause
-          menu, no camera movement while the attack button is held, zoom up to 100x, draggable list
-          scroll bars in mod screens and mod API level 11. The full list is in the README.
-
-          Tested by the maintainer on one phone (Realme GT Neo 5 SE). Other devices are not verified.
-          NOTES
-          gh release create "$TAG" out/* --title "$TITLE" --notes-file notes.md --target "$GITHUB_SHA"
+          notes="docs/releases/$TAG.md"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # The release exists: only its title and notes change.
+            gh release edit "$TAG" --title "$TITLE" --notes-file "$notes"
+          else
+            app=$(gh run list --workflow android-dev.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+            mkdir -p dl/app out
+            gh run download "$app" --dir dl/app
+            find dl -name '*.apk' -exec cp {} out/ \;
+            ls -l out
+            gh release create "$TAG" out/* --title "$TITLE" --notes-file "$notes" --target "$GITHUB_SHA"
+          fi
