@@ -14,6 +14,8 @@ use horizon_mod_sdk::{
 };
 
 const MAX: usize = 64;
+/// How many death points are kept: the newest ones.
+const DEATHS: usize = 5;
 const PALETTE: [(&str, u32); 29] = [
     ("Red", 0xFF5555),
     ("Orange", 0xFFAA00),
@@ -735,27 +737,21 @@ impl Waypoints {
             let side = (30.0 / (1.0 + dist as f32 / 80.0)).clamp(12.0, 26.0) * st.size as f32 / 100.0;
             let side = side.max(8.0);
             let alpha = (st.opacity * 255 / 100).min(255);
-            let below = if w.death {
-                let sc = side / 12.0;
-                shapes.push(Shape::Item(ItemShape {
-                    item: "minecraft:skeleton_skull".into(),
-                    at: Point {
-                        x: x - 8.0 * sc,
-                        y: y - 8.0 * sc,
-                    },
-                    scale: sc,
-                }));
-                8.0 * sc
+            // A death point goes quiet once you are back at it (it stays in the list).
+            if w.death && dist < 6.0 {
+                continue;
+            }
+            let letter = if w.death {
+                '\u{2620}'
             } else {
-                let letter = w
-                    .name
+                w.name
                     .chars()
                     .next()
                     .and_then(|c| c.to_uppercase().next())
-                    .unwrap_or('?');
-                Self::marker(&mut shapes, x, y, side, w.color, alpha, letter);
-                side.round().max(8.0) / 2.0
+                    .unwrap_or('?')
             };
+            Self::marker(&mut shapes, x, y, side, w.color, alpha, letter);
+            let below = side.round().max(8.0) / 2.0;
             // How far in blocks, under the marker, as Xaero's Minimap writes it.
             let text = format!("{}", dist.round() as i64);
             let unit = 1.1 * st.text_size as f32 / 100.0;
@@ -873,7 +869,17 @@ impl Mod for Waypoints {
         } else if self.alive {
             self.alive = false;
             if let Some((x, y, z, dim)) = self.last_alive.clone() {
-                self.list.retain(|w| !w.death);
+                // Every death keeps its point; only the oldest ones go.
+                while self.list.iter().filter(|w| w.death).count() >= DEATHS
+                    || self.list.len() >= MAX
+                {
+                    match self.list.iter().position(|w| w.death) {
+                        Some(i) => {
+                            self.list.remove(i);
+                        }
+                        None => break,
+                    }
+                }
                 self.list.push(Waypoint {
                     name: "Death".into(),
                     x,
@@ -1133,6 +1139,7 @@ fn glyph(c: char) -> Option<[&'static str; 7]> {
         '7' => ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
         '8' => ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
         '9' => ["01110", "10001", "10001", "01111", "00001", "00010", "01100"],
+        '\u{2620}' => ["01110", "11111", "10101", "11111", "01110", "01010", "00000"],
         _ => return None,
     })
 }
