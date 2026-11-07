@@ -173,9 +173,23 @@ fn draw_logo(ui: &mut Ui, x: f32, y: f32, cell: f32) {
                         let n = cell_hash(col, row as i32, letter as i32);
                         let face = [0x9c9c9c, 0xa6a6a6, 0x929292][(n % 3) as usize];
                         ui.rounded(bx, by, cell, cell, 0.0, color::hex(face, 255));
-                        ui.rounded(bx, by, cell, 1.0, 0.0, color::hex(0xffffff, 90));
-                        ui.rounded(bx, by + cell - 1.0, cell, 1.0, 0.0, color::hex(0x000000, 110));
-                        ui.rounded(bx + cell - 1.0, by, 1.0, cell, 0.0, color::hex(0x000000, 70));
+                        // Light and dark edges only on the letter's outline, so it reads as one block.
+                        let lit = |r: i32, c: i32| {
+                            (0..7).contains(&r) && (0..5).contains(&c) && rows[r as usize] >> (4 - c) & 1 == 1
+                        };
+                        let (r, c) = (row as i32, col);
+                        if !lit(r - 1, c) {
+                            ui.rounded(bx, by, cell, 1.0, 0.0, color::hex(0xffffff, 110));
+                        }
+                        if !lit(r, c - 1) {
+                            ui.rounded(bx, by, 1.0, cell, 0.0, color::hex(0xffffff, 70));
+                        }
+                        if !lit(r + 1, c) {
+                            ui.rounded(bx, by + cell - 1.0, cell, 1.0, 0.0, color::hex(0x000000, 120));
+                        }
+                        if !lit(r, c + 1) {
+                            ui.rounded(bx + cell - 1.0, by, 1.0, cell, 0.0, color::hex(0x000000, 90));
+                        }
                     }
                 }
             }
