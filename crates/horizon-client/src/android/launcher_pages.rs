@@ -263,11 +263,17 @@ pub(super) fn button(
         base
     };
     let label = ui.fit_text(Face::Medium, font, label, w - 2.0 * padding);
+    // The three dots of a "more" button sit in the middle.
+    let text_x = if label == "..." {
+        x + (w - ui.measure(Face::Medium, font, &label)) / 2.0
+    } else {
+        x + padding
+    };
     shadow_text(
         ui,
         Face::Medium,
         font,
-        x + padding,
+        text_x,
         y + ((h - base * 1.45) / 2.0).max(5.0),
         &label,
     );
@@ -794,13 +800,13 @@ impl Launcher {
             }
             for (row, i) in local_mods.iter().copied().enumerate() {
                 let y = top + (row + bundled.len()) as f32 * 86.0 - self.catalog.scroll;
-                // On a narrow screen Remove sits under the switch, not beside it.
+                // The three dots open the "Remove add-on?" question; on a narrow screen they sit under the switch.
                 let remove = if w < 700.0 {
-                    [w - 150.0, y + 50.0, 118.0, 30.0]
+                    [w - 150.0, y + 50.0, 56.0, 30.0]
                 } else {
-                    [w - 290.0, y, 130.0, 46.0]
+                    [w - 216.0, y, 56.0, 46.0]
                 };
-                let title_room = if w < 700.0 { w - 214.0 } else { w - 354.0 };
+                let title_room = if w < 700.0 { w - 214.0 } else { w - 240.0 };
                 self.list_targets
                     .push(([w - 150.0, y, 118.0, 46.0], Action::ToggleLocal(i)));
                 self.list_targets.push((remove, Action::DeleteLocal(i)));
@@ -840,7 +846,7 @@ impl Launcher {
                     &mut ui,
                     &mut self.targets,
                     remove,
-                    "Remove",
+                    "...",
                     Action::DeleteLocal(i),
                     false,
                 );
