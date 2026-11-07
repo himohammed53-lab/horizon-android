@@ -185,9 +185,20 @@ fn section_chips(
     ui: &mut Ui,
     targets: &mut Vec<([f32; 4], Action)>,
     w: f32,
+    h: f32,
     right_reserved: f32,
     current: Page,
 ) {
+    // Under the sections: a thin white rule, and a slightly darker ground for what belongs to them.
+    ui.rounded(
+        0.0,
+        171.0,
+        w,
+        (h - 171.0).max(0.0),
+        0.0,
+        color::hex(0x0f1013, 255),
+    );
+    ui.rounded(16.0, 171.0, w - 32.0, 1.0, 0.0, color::hex(0xffffff, 215));
     let space = (w - 64.0 - right_reserved - 8.0).max(120.0);
     let width = (space / 4.0).clamp(52.0, 96.0);
     for (i, (label, page)) in [
@@ -590,6 +601,7 @@ impl Launcher {
                 &mut ui,
                 &mut self.targets,
                 w,
+                h,
                 if matches!(page, Page::Shaders | Page::Mods) && w >= 700.0 {
                     2.0 * source_width
                 } else {
@@ -907,7 +919,7 @@ impl Launcher {
             );
         } else if page == Page::Installed {
             use horizon_client::content_files::Kind;
-            section_chips(&mut ui, &mut self.targets, w, 0.0, page);
+            section_chips(&mut ui, &mut self.targets, w, h, 0.0, page);
             let top = 176.0;
             let bottom = h - 100.0;
             let row_height = if compact { 124.0 } else { 80.0 };
