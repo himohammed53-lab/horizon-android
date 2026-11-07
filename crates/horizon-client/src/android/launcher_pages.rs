@@ -259,8 +259,11 @@ pub(super) fn button(
     button_as(ui, targets, rect, label, action, accent, None);
 }
 
-/// Colours of the section buttons (under the top bar): a muted indigo, and a light violet when chosen.
-const SECTION: (u32, u32) = (0x45427a, 0xa855e8);
+/// The stone grey of every button that is not chosen.
+const GRAY: u32 = 0x5a5a5a;
+
+/// Colours of the section buttons (under the top bar): the same grey, and a light violet when chosen.
+const SECTION: (u32, u32) = (GRAY, 0xa855e8);
 
 /// `button` with its own plate colours (idle, chosen) in place of the top bar's grey and purple.
 pub(super) fn button_as(
@@ -293,7 +296,7 @@ pub(super) fn button_as(
                 if main || accent {
                     0x7b4fe0
                 } else {
-                    0x707070
+                    GRAY
                 }
             }
         },
@@ -338,11 +341,7 @@ fn switch_button(
     action: Action,
 ) {
     let (x, y, w, h) = plate_rect(rect, false);
-    let (fill, label) = if on {
-        (SECTION.1, "ON")
-    } else {
-        (0x707070, "OFF")
-    };
+    let (fill, label) = if on { (SECTION.1, "ON") } else { (GRAY, "OFF") };
     block_plate(ui, x, y, w, h, fill, false);
     let size = 20.0;
     let width = ui.measure(Face::Medium, size, label);
