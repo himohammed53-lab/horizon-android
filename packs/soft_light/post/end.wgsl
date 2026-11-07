@@ -11,17 +11,17 @@ fn post(input: PostInput) -> vec4<f32> {
         return input.color;
     }
     let d = normalize(view_position(input.uv, 0.5));
-    let horizon_col = grade(vec3<f32>(0.16, 0.06, 0.2), 1.0, saturation, contrast);
+    let end_glow = grade(vec3<f32>(0.16, 0.06, 0.2), 1.0, saturation, contrast);
 
     // Gradient from the horizon up, then the stars of vanilla's own End sky texture.
     var grad = 1.0 - max(d.y, 0.0);
     grad = grad * grad;
-    var col = horizon_col * smoothstep(0.0, 1.0, grad);
+    var col = end_glow * smoothstep(0.0, 1.0, grad);
     col += input.color.rgb * 5.0 * (1.0 - grad * grad);
 
     // The void's glow below the horizon.
     let glow = max((-d.y - 0.5) * 2.0, 0.0);
-    col += horizon_col * glow * glow * glow;
+    col += end_glow * glow * glow * glow;
 
     // The galaxy: two spiral arms around the point straight overhead, with a bright core.
     if (d.y > 0.0) {

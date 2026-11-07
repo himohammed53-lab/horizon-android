@@ -20,7 +20,7 @@ fn zenith_colour(fog: vec3<f32>, rain: f32) -> vec3<f32> {
     return mix(c * (1.0 + 0.5 * rain), grey, rain);
 }
 
-fn horizon_colour(fog: vec3<f32>, rain: f32) -> vec3<f32> {
+fn sky_horizon_colour(fog: vec3<f32>, rain: f32) -> vec3<f32> {
     let val = max(fog.r * 0.65, max(fog.g * 1.1, fog.b));
     let sun = max(fog.r - fog.b, 0.0);
     var c = HORIZON_BASE * ((0.7 * val * val + 0.4 * val + sun) * 2.4);
@@ -38,7 +38,7 @@ fn sky(input: SkyInput) -> vec4<f32> {
     let fog = frame.fog_color;
     let rain = frame.rain;
     let zenith = zenith_colour(fog, rain);
-    var horizon = horizon_colour(fog, rain);
+    var horizon = sky_horizon_colour(fog, rain);
 
     let edge_amount = (1.1 - fog.b) * fog.g * 2.1 * (1.0 - rain);
     let edge = horizon * (vec3<f32>(1.0) - edge_amount * (vec3<f32>(1.0) - HORIZON_EDGE));
