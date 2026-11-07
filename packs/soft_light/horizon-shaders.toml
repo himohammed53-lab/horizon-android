@@ -3,7 +3,7 @@ id = "soft_light"
 name = "Soft Light"
 version = "0.1.0"
 api = "0.1"
-description = "A very light shader for phones: soft shade under cover, warm sunsets and torches, a clear sky, water with waves, a purple End with a galaxy and a warm Nether. No shadow map and no extra full-screen pass."
+description = "A light shader for phones: real sun light and block shadows, soft shade under cover, warm sunsets and torches, a clear sky, water with waves, a purple End with a galaxy and a warm Nether. No shadow map and no extra full-screen pass."
 authors = ["Muhamed", "Claude"]
 license = "MIT"
 shared = ["common.wgsl"]
@@ -14,6 +14,10 @@ name = "Clear sky"
 
 [material]
 file = "material.wgsl"
+
+[shadow]
+resolution = 1024
+distance = 64.0
 
 [[post]]
 file = "post/end.wgsl"
@@ -41,7 +45,7 @@ id = "tone"
 name = "Colour grade"
 description = "How much the soft tone mapping and colour boost are applied (0 is vanilla's)."
 type = "float"
-default = 0.5
+default = 0.7
 min = 0.0
 max = 1.0
 step = 0.05
@@ -67,6 +71,26 @@ max = 1.0
 step = 0.05
 
 [[options]]
+id = "sun_strength"
+name = "Sunlight"
+description = "How strong the sun's light and the block shadows are (0 is flat light)."
+type = "float"
+default = 1.0
+min = 0.0
+max = 1.5
+step = 0.05
+
+[[options]]
+id = "end_stars"
+name = "End stars"
+description = "How bright the stars of the End's sky are (0 hides them)."
+type = "float"
+default = 1.0
+min = 0.0
+max = 2.0
+step = 0.1
+
+[[options]]
 id = "shade"
 name = "Soft shade"
 description = "How dark places under trees, roofs and overhangs get in daylight."
@@ -81,7 +105,7 @@ id = "warmth"
 name = "Warm sunlight"
 description = "How golden the light turns at sunrise and sunset."
 type = "float"
-default = 0.6
+default = 0.35
 min = 0.0
 max = 1.0
 step = 0.05
@@ -117,4 +141,4 @@ max = 1.0
 step = 0.05
 
 [budget]
-gpu_ms = 0.8
+gpu_ms = 2.5

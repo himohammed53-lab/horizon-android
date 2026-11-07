@@ -5,6 +5,7 @@
 override saturation: f32 = 1.1;
 override contrast: f32 = 0.85;
 override nether_end: bool = true;
+override end_stars: f32 = 1.0;
 
 fn post(input: PostInput) -> vec4<f32> {
     if (!nether_end || frame.dimension != 1 || input.depth > 0.0) {
@@ -16,8 +17,10 @@ fn post(input: PostInput) -> vec4<f32> {
     // Gradient from the horizon up, then the stars of vanilla's own End sky texture.
     var grad = 1.0 - max(d.y, 0.0);
     grad = grad * grad;
-    var col = end_glow * smoothstep(0.0, 1.0, grad);
-    col += input.color.rgb * 5.0 * (1.0 - grad * grad);
+    var col = end_glow * smoothstep(0.0, 1.0, grad) * 0.7;
+    // Only the brightest points of vanilla's End sky texture, as stars: the rest is grain.
+    let star = smoothstep(0.1, 0.16, luma(input.color.rgb));
+    col += vec3<f32>(1.0, 0.92, 1.0) * star * 0.9 * end_stars * (1.0 - grad * grad);
 
     // The void's glow below the horizon.
     let glow = max((-d.y - 0.5) * 2.0, 0.0);

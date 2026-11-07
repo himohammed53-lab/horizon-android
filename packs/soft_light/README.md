@@ -1,9 +1,10 @@
 # Soft Light
 
-A very light shader pack for phones. It changes colours only: no shadow map, and its one
-full-screen pass (the End's sky) does nothing outside the End.
+A light shader pack for phones. The sun lights every face by its angle, blocks cast shadows
+(one 1024 shadow map), and one full-screen pass draws the End's sky and does nothing elsewhere.
 
-- Soft shade under trees, roofs and overhangs by day.
+- Real sunlight and moonlight with block shadows, and a cool blue shade in the open.
+- Soft extra shade under trees, roofs and overhangs by day.
 - Golden sunlight at sunrise and sunset, cool moonlight at night.
 - Warm torch light with a gentle flicker.
 - A clear sky gradient, blended with vanilla's sky so it meets the fog.

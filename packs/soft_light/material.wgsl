@@ -1,14 +1,38 @@
-// Soft shade under cover, warm sunsets and torches, and water with waves. It starts from
-// vanilla's own colour (`albedo * tint * lightmap`) and changes it a little, so it is cheap.
-override tone: f32 = 0.5;
+// Real directional light: the sun (or the moon) lights each face by its angle, block shadows come
+// from a shadow map, and the open sky lights the shade a cool blue. Torches, sunsets and water
+// are added on top, and the result goes through a soft tone mapping.
+override tone: f32 = 0.7;
 override saturation: f32 = 1.1;
 override contrast: f32 = 0.85;
 override shade: f32 = 0.5;
-override warmth: f32 = 0.6;
+override sun_strength: f32 = 1.0;
+override warmth: f32 = 0.35;
 override torch: f32 = 0.6;
 override waves: f32 = 1.0;
 override water_opacity: f32 = 0.6;
 override nether_end: bool = true;
+
+// 1 where the point is in the light, 0 in the shadow of a block (4 taps, softened).
+fn lit_amount(position: vec3<f32>, normal: vec3<f32>) -> f32 {
+    if (frame.has_shadow == 0u) {
+        return 1.0;
+    }
+    let texel = max(frame.shadow_center_texel, 0.05);
+    // Move the point off the surface a little, so a face does not shadow itself.
+    let moved = position + normal * (texel * 1.5);
+    let p = shadow_position(moved);
+    if (p.x < 0.0 || p.x > 1.0 || p.y < 0.0 || p.y > 1.0 || p.z > 1.0) {
+        return 1.0;
+    }
+    let d = 1.0 / max(frame.shadow_resolution, 1.0);
+    let z = p.z - 0.0015;
+    var sum = 0.0;
+    sum += textureSampleCompareLevel(shadow_map, shadow_sampler, p.xy + vec2<f32>(-d, -d), z);
+    sum += textureSampleCompareLevel(shadow_map, shadow_sampler, p.xy + vec2<f32>(d, -d), z);
+    sum += textureSampleCompareLevel(shadow_map, shadow_sampler, p.xy + vec2<f32>(-d, d), z);
+    sum += textureSampleCompareLevel(shadow_map, shadow_sampler, p.xy + vec2<f32>(d, d), z);
+    return sum * 0.25;
+}
 
 // The height of the water at a point of the world: three slow waves crossing.
 fn wave_height(xz: vec2<f32>, t: f32) -> f32 {
@@ -41,32 +65,38 @@ fn material(input: MaterialInput) -> Surface {
     if (nether_end && frame.dimension != 0) {
         return other_dimension(input);
     }
-    var rgb = input.albedo.rgb * input.tint.rgb * input.lightmap;
+    let base = input.albedo.rgb * input.tint.rgb;
+    let vanilla = base * input.lightmap;
     var alpha = input.albedo.a * input.tint.a;
 
     let day = day_amount();
     let rain = frame.rain;
-    // 1 where the sky's light reaches the point fully, 0 under cover.
-    let open_sky = smoothstep(0.78, 0.92, input.light.y);
-    let covered = (1.0 - open_sky) * smoothstep(0.1, 0.5, input.light.y);
+    // 1 where the sky's light reaches the point, 0 under cover.
+    let sky_vis = smoothstep(0.7, 0.95, input.light.y);
+    let covered = (1.0 - sky_vis) * smoothstep(0.1, 0.5, input.light.y);
 
-    // Soft shade under trees, roofs and overhangs, by day only.
-    rgb *= 1.0 - shade * 0.45 * covered * day * (1.0 - input.light.x * 0.5);
+    // The light's own colour: white-gold sun (golden when low), pale blue moon.
+    let golden = vec3<f32>(1.0, 0.72, 0.45);
+    let sun_col = mix(vec3<f32>(1.0, 0.97, 0.92), golden, sun_low_amount() * warmth);
+    let source = mix(vec3<f32>(0.16, 0.2, 0.34), sun_col, day);
+    let ndl = max(dot(input.normal, frame.light_direction), 0.0);
+    let visible = lit_amount(input.position, input.normal);
+    let strength = mix(0.35, 1.0, day) * (1.0 - 0.75 * rain) * sun_strength;
+    let direct = source * (ndl * visible * sky_vis * strength);
 
-    // Golden sunlight at sunrise and sunset, only where the sun reaches.
-    let golden = vec3<f32>(1.0, 0.76, 0.52);
-    let sun_tint = mix(vec3<f32>(1.0), golden, sun_low_amount() * warmth);
-    rgb *= mix(vec3<f32>(1.0), sun_tint, open_sky * day * (1.0 - rain));
+    // The shade is vanilla's light, a little darker and cooler where the sky is open.
+    let openness = sky_vis * mix(0.35, 1.0, day) * sun_strength;
+    let shade_tint = mix(vec3<f32>(1.0), vec3<f32>(0.62, 0.72, 0.9), openness * 0.8);
+    var rgb = vanilla * shade_tint + base * direct * 0.9;
 
-    // Cool moonlight: the open night sky is a little blue.
-    let night = select(0.0, 1.0 - day, frame.dimension == 0);
-    rgb *= mix(vec3<f32>(1.0), vec3<f32>(0.86, 0.93, 1.1), night * open_sky);
+    // Extra soft shade under trees, roofs and overhangs, by day only.
+    rgb *= 1.0 - shade * 0.3 * covered * day * (1.0 - input.light.x * 0.5);
 
     // Warm torch light that flickers a little, strongest away from the sun.
     let world = input.position + frame.camera_position;
     let flicker = 0.92 + 0.08 * sin(frame.time * 7.0 + world.x * 3.1 + world.z * 2.3);
-    let glow = pow(clamp(input.light.x, 0.0, 1.0), 3.0) * (1.0 - open_sky * day);
-    rgb += input.albedo.rgb * vec3<f32>(1.0, 0.62, 0.3) * glow * torch * 0.6 * flicker;
+    let glow = pow(clamp(input.light.x, 0.0, 1.0), 3.0) * (1.0 - sky_vis * day);
+    rgb += base * vec3<f32>(1.0, 0.62, 0.3) * glow * torch * 0.6 * flicker;
 
     // Water: waves tilt the surface, the sky is mirrored in it and the sun glints on it.
     if (input.fluid == 1u && waves > 0.0) {
