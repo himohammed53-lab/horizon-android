@@ -173,19 +173,20 @@ pub enum Page {
     Skins,
 }
 impl Page {
-    pub const ALL: [Self; 7] = [
-        Self::Play,
-        Self::Mods,
-        Self::Packs,
-        Self::Shaders,
-        Self::Installed,
-        Self::Settings,
-        Self::Skins,
-    ];
+    /// The tabs: Mods, Packs, Shaders and the installed files are all under "Add-ons" (the
+    /// first of them, Mods, opens it) and Settings has its own button beside the account.
+    pub const ALL: [Self; 3] = [Self::Play, Self::Mods, Self::Skins];
+    /// Whether the page is one of the Add-ons sections.
+    pub fn is_add_on(self) -> bool {
+        matches!(
+            self,
+            Self::Mods | Self::Packs | Self::Shaders | Self::Installed
+        )
+    }
     pub fn name(self) -> &'static str {
         match self {
             Self::Play => "Play",
-            Self::Mods => "Mods",
+            Self::Mods => "Add-ons",
             Self::Packs => "Packs",
             Self::Shaders => "Shaders",
             Self::Installed => "Installed",
@@ -259,7 +260,12 @@ impl Catalog {
     }
     pub fn show_installed(&mut self, kind: Option<horizon_client::content_files::Kind>) {
         self.searches.cancel_interest();
-        self.page = Page::Installed;
+        // A mod that was just added shows in the Mods list beside the built-in ones.
+        self.page = if kind == Some(horizon_client::content_files::Kind::Mods) {
+            Page::Mods
+        } else {
+            Page::Installed
+        };
         self.scroll = 0.0;
         self.editing = None;
         self.sections = [false; 3];

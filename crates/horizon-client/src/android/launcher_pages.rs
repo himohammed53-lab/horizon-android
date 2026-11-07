@@ -87,7 +87,9 @@ pub(super) enum Action {
 
 /// A cheap, stable number from a cell's place, for the stone texture and the cracks.
 fn cell_hash(x: i32, y: i32, seed: i32) -> u32 {
-    let mut n = (x.wrapping_mul(73_856_093) ^ y.wrapping_mul(19_349_663) ^ seed.wrapping_mul(83_492_791)) as u32;
+    let mut n = (x.wrapping_mul(73_856_093)
+        ^ y.wrapping_mul(19_349_663)
+        ^ seed.wrapping_mul(83_492_791)) as u32;
     n ^= n >> 13;
     n = n.wrapping_mul(0x5bd1_e995);
     n ^ (n >> 15)
@@ -111,7 +113,11 @@ fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: b
             }
             let (px, py) = (ix + cx as f32 * cell, iy + cy as f32 * cell);
             let (pw, ph) = (cell.min(ix + iw - px), cell.min(iy + ih - py));
-            let tint = if n % 2 == 0 { color::hex(0xffffff, 16) } else { color::hex(0x000000, 28) };
+            let tint = if n % 2 == 0 {
+                color::hex(0xffffff, 16)
+            } else {
+                color::hex(0x000000, 28)
+            };
             ui.rounded(px, py, pw, ph, 0.0, tint);
         }
     }
@@ -134,76 +140,73 @@ fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: b
     let bevel = 3.0;
     ui.rounded(ix, iy, iw, bevel, 0.0, color::hex(0xffffff, 70));
     ui.rounded(ix, iy, bevel, ih, 0.0, color::hex(0xffffff, 50));
-    ui.rounded(ix, iy + ih - bevel, iw, bevel, 0.0, color::hex(0x000000, 95));
-    ui.rounded(ix + iw - bevel, iy, bevel, ih, 0.0, color::hex(0x000000, 80));
+    ui.rounded(
+        ix,
+        iy + ih - bevel,
+        iw,
+        bevel,
+        0.0,
+        color::hex(0x000000, 95),
+    );
+    ui.rounded(
+        ix + iw - bevel,
+        iy,
+        bevel,
+        ih,
+        0.0,
+        color::hex(0x000000, 80),
+    );
 }
 
 /// The drawn plate inside a button's touch rectangle: a little smaller, centred up and down,
 /// so the buttons do not crowd the screen (the whole rectangle still takes the touch).
 fn plate_rect(rect: [f32; 4]) -> (f32, f32, f32, f32) {
     let [x, y, w, h] = rect;
-    let ph = (h * 0.8).clamp(28.0_f32.min(h), h);
-    let pw = if w > 200.0 { w * 0.92 } else { w };
+    let ph = (h * 0.72).clamp(26.0_f32.min(h), h);
+    let pw = if w > 200.0 { w * 0.85 } else { w };
     (x, y + (h - ph) / 2.0, pw, ph)
 }
 
 /// White text with the game's dark drop shadow.
 fn shadow_text(ui: &mut Ui, face: Face, size: f32, x: f32, y: f32, text: &str) {
-    ui.text(face, size, x + 1.5, y + 1.5, color::hex(0x252525, 255), text);
+    ui.text(
+        face,
+        size,
+        x + 1.5,
+        y + 1.5,
+        color::hex(0x252525, 255),
+        text,
+    );
     ui.text(face, size, x, y, color::hex(0xffffff, 255), text);
 }
 
-/// The title: "HORIZON" in stone blocks (5x7 cells a letter), drawn here from scratch.
-fn draw_logo(ui: &mut Ui, x: f32, y: f32, cell: f32) {
-    const LETTERS: [(char, [u8; 7]); 6] = [
-        ('H', [0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001]),
-        ('O', [0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110]),
-        ('R', [0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001]),
-        ('I', [0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b11111]),
-        ('Z', [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b11111]),
-        ('N', [0b10001, 0b11001, 0b10101, 0b10101, 0b10011, 0b10001, 0b10001]),
-    ];
-    let mut left = x;
-    for letter in "HORIZON".chars() {
-        let Some((_, rows)) = LETTERS.iter().find(|(c, _)| *c == letter) else {
-            continue;
-        };
-        // The shadow first, so every block sits over its neighbour's shade.
-        for pass in 0..2 {
-            for (row, bits) in rows.iter().enumerate() {
-                for col in 0..5 {
-                    if bits >> (4 - col) & 1 == 0 {
-                        continue;
-                    }
-                    let (bx, by) = (left + col as f32 * cell, y + row as f32 * cell);
-                    if pass == 0 {
-                        ui.rounded(bx + cell * 0.3, by + cell * 0.3, cell, cell, 0.0, color::hex(0x000000, 110));
-                    } else {
-                        let n = cell_hash(col, row as i32, letter as i32);
-                        let face = [0x9c9c9c, 0xa6a6a6, 0x929292][(n % 3) as usize];
-                        ui.rounded(bx, by, cell, cell, 0.0, color::hex(face, 255));
-                        // Light and dark edges only on the letter's outline, so it reads as one block.
-                        let lit = |r: i32, c: i32| {
-                            (0..7).contains(&r) && (0..5).contains(&c) && rows[r as usize] >> (4 - c) & 1 == 1
-                        };
-                        let (r, c) = (row as i32, col);
-                        if !lit(r - 1, c) {
-                            ui.rounded(bx, by, cell, 1.0, 0.0, color::hex(0xffffff, 110));
-                        }
-                        if !lit(r, c - 1) {
-                            ui.rounded(bx, by, 1.0, cell, 0.0, color::hex(0xffffff, 70));
-                        }
-                        if !lit(r + 1, c) {
-                            ui.rounded(bx, by + cell - 1.0, cell, 1.0, 0.0, color::hex(0x000000, 120));
-                        }
-                        if !lit(r, c + 1) {
-                            ui.rounded(bx + cell - 1.0, by, 1.0, cell, 0.0, color::hex(0x000000, 90));
-                        }
-                    }
-                }
-            }
-        }
-        left += 7.0 * cell;
+/// The Add-ons sections as small block buttons, drawn in the row under the tabs.
+fn section_chips(
+    ui: &mut Ui,
+    targets: &mut Vec<([f32; 4], Action)>,
+    w: f32,
+    right_reserved: f32,
+    current: Page,
+) {
+    let space = (w - 64.0 - right_reserved - 8.0).max(120.0);
+    let width = (space / 4.0).clamp(52.0, 96.0);
+    for (i, (label, page)) in [
+        ("Mods", Page::Mods),
+        ("Shaders", Page::Shaders),
+        ("Packs", Page::Packs),
+        ("Files", Page::Installed),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        button(
+            ui,
+            targets,
+            [32.0 + i as f32 * width, 134.0, width - 4.0, 34.0],
+            label,
+            Action::Page(page),
+            page == current,
+        );
     }
 }
 
@@ -262,11 +265,22 @@ fn switch_button(
     action: Action,
 ) {
     let (x, y, w, h) = plate_rect(rect);
-    let (fill, label) = if on { (0x3f9a45, "ON") } else { (0x707070, "OFF") };
+    let (fill, label) = if on {
+        (0x3f9a45, "ON")
+    } else {
+        (0x707070, "OFF")
+    };
     block_plate(ui, x, y, w, h, fill, false);
     let size = 20.0;
     let width = ui.measure(Face::Medium, size, label);
-    shadow_text(ui, Face::Medium, size, x + (w - width) / 2.0, y + ((h - size * 1.45) / 2.0).max(6.0), label);
+    shadow_text(
+        ui,
+        Face::Medium,
+        size,
+        x + (w - width) / 2.0,
+        y + ((h - size * 1.45) / 2.0).max(6.0),
+        label,
+    );
     targets.push((rect, action));
 }
 fn toggle(
@@ -376,45 +390,67 @@ impl Launcher {
             color::MUTED,
             "Horizon Android  -  developed by Muhamed and Claude",
         );
-        draw_logo(
+        shadow_text(
             &mut ui,
+            Face::Medium,
+            if w < 400.0 {
+                18.0
+            } else if w < 700.0 {
+                22.0
+            } else {
+                28.0
+            },
             32.0,
-            if w < 700.0 { 10.0 } else { 20.0 },
-            if w < 400.0 { 2.5 } else if w < 700.0 { 3.0 } else { 5.0 },
+            if w < 700.0 { 12.0 } else { 20.0 },
+            "Horizon Rust Edition",
         );
+        let settings_width = 96.0;
         button(
             &mut ui,
             &mut self.targets,
             [
                 if w < 700.0 { 32.0 } else { w - 320.0 },
                 if w < 700.0 { 47.0 } else { 24.0 },
-                if w < 700.0 { w - 64.0 } else { 288.0 },
+                if w < 700.0 {
+                    w - 64.0 - settings_width - 6.0
+                } else {
+                    288.0 - settings_width - 6.0
+                },
                 if w < 700.0 { 34.0 } else { 46.0 },
             ],
             &self.login.status(&self.catalog.config.name),
             Action::Account,
             self.login.signed_in,
         );
+        button(
+            &mut ui,
+            &mut self.targets,
+            [
+                w - 32.0 - settings_width,
+                if w < 700.0 { 47.0 } else { 24.0 },
+                settings_width,
+                if w < 700.0 { 34.0 } else { 46.0 },
+            ],
+            "Settings",
+            Action::Page(Page::Settings),
+            self.catalog.page == Page::Settings,
+        );
         let tabs = Page::ALL.len() as f32;
         let tab_margin = if w < 700.0 { 16.0 } else { 32.0 };
-        let tab_width = (w - 2.0 * tab_margin) / tabs;
+        let tab_width = ((w - 2.0 * tab_margin) / tabs).min(190.0);
         for (i, page) in Page::ALL.iter().enumerate() {
             let x = tab_margin + i as f32 * tab_width;
             button(
                 &mut ui,
                 &mut self.targets,
-                [x, 88.0, tab_width - 4.0, 62.0],
-                if w < 700.0 {
-                    match page {
-                        Page::Installed => "Files",
-                        Page::Settings => "Setup",
-                        _ => page.name(),
-                    }
-                } else {
-                    page.name()
-                },
+                [x, 84.0, tab_width - 4.0, 46.0],
+                page.name(),
                 Action::Page(*page),
-                *page == self.catalog.page,
+                if *page == Page::Mods {
+                    self.catalog.page.is_add_on()
+                } else {
+                    *page == self.catalog.page
+                },
             );
         }
         let compact = w < 700.0;
@@ -549,19 +585,17 @@ impl Launcher {
             self.list_view = Some(self.wardrobe.view);
             self.catalog.scroll = self.catalog.scroll.min(self.wardrobe.view[2]);
         } else if page.is_catalog() {
-            ui.text(
-                Face::Medium,
-                18.0,
-                32.0,
-                142.0,
-                color::TEXT,
-                if page == Page::Mods {
-                    "Horizon Mods"
-                } else if page == Page::Shaders {
-                    if w < 360.0 { "Shaders" } else { "Shader Packs" }
+            let source_width = ((w - 185.0) / 2.0).clamp(58.0, 120.0);
+            section_chips(
+                &mut ui,
+                &mut self.targets,
+                w,
+                if matches!(page, Page::Shaders | Page::Mods) && w >= 700.0 {
+                    2.0 * source_width
                 } else {
-                    "Resource Packs"
+                    0.0
                 },
+                page,
             );
             button(
                 &mut ui,
@@ -595,7 +629,13 @@ impl Launcher {
                 use crate::shader_catalog::Origin;
                 let width = ((w - 185.0) / 2.0).clamp(58.0, 120.0);
                 for (i, origin) in [Origin::Horizon, Origin::Modrinth].into_iter().enumerate() {
-                    let rect = [w - 32.0 - (2 - i) as f32 * width, 134.0, width - 5.0, 32.0];
+                    let source_y = if w < 700.0 { 262.0 } else { 134.0 };
+                    let rect = [
+                        w - 32.0 - (2 - i) as f32 * width,
+                        source_y,
+                        width - 5.0,
+                        32.0,
+                    ];
                     button(
                         &mut ui,
                         &mut self.targets,
@@ -633,9 +673,15 @@ impl Launcher {
                     "Modrinth shader ZIPs / experimental compatibility; some packs may not work"
                 }
                 Page::Shaders => "Horizon native .hshader packs",
-                _ => "Verified downloads / enable in Installed",
+                _ => "Verified downloads / enable in Files",
             };
-            let hint = ui.fit_text(Face::Regular, 14.0, hint, w - 64.0);
+            // On a narrow screen the two source buttons share the hint's row.
+            let hint_room = if w < 700.0 && matches!(page, Page::Shaders | Page::Mods) {
+                w - 64.0 - 2.0 * ((w - 185.0) / 2.0).clamp(58.0, 120.0) - 8.0
+            } else {
+                w - 64.0
+            };
+            let hint = ui.fit_text(Face::Regular, 14.0, hint, hint_room.max(60.0));
             ui.text(Face::Regular, 14.0, 32.0, 270.0, color::MUTED, &hint);
             let kind = match page {
                 Page::Mods => horizon_client::content_files::Kind::Mods,
@@ -687,7 +733,19 @@ impl Launcher {
                         && !(page == Page::Mods && crate::catalog::source_only_mod(p))
                 })
                 .collect();
-            let row_count = bundled.len() + catalog_rows.len();
+            // Mods added from files or downloads, in the same list as the built-in ones.
+            let local_mods: Vec<usize> = if page == Page::Mods {
+                self.catalog
+                    .local
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, e)| e.kind == horizon_client::content_files::Kind::Mods)
+                    .map(|(i, _)| i)
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            let row_count = bundled.len() + local_mods.len() + catalog_rows.len();
             let top = 296.0;
             let bottom = h - 112.0;
             self.catalog.scroll = self
@@ -716,8 +774,62 @@ impl Launcher {
                     Action::ToggleBundled(id),
                 );
             }
-            for (row, (i, p)) in catalog_rows.into_iter().enumerate() {
+            for (row, i) in local_mods.iter().copied().enumerate() {
                 let y = top + (row + bundled.len()) as f32 * 86.0 - self.catalog.scroll;
+                // On a narrow screen Remove sits under the switch, not beside it.
+                let remove = if w < 700.0 {
+                    [w - 150.0, y + 50.0, 118.0, 30.0]
+                } else {
+                    [w - 290.0, y, 130.0, 46.0]
+                };
+                let title_room = if w < 700.0 { w - 214.0 } else { w - 354.0 };
+                self.list_targets
+                    .push(([w - 150.0, y, 118.0, 46.0], Action::ToggleLocal(i)));
+                self.list_targets.push((remove, Action::DeleteLocal(i)));
+                if y < top - 1.0 || y + 76.0 > bottom {
+                    continue;
+                }
+                let item = &self.catalog.local[i];
+                let title = ui.fit_text(Face::Medium, 22.0, &item.title, title_room);
+                ui.text(Face::Medium, 22.0, 32.0, y, color::TEXT, &title);
+                ui.text(
+                    Face::Regular,
+                    14.0,
+                    32.0,
+                    y + 33.0,
+                    color::MUTED,
+                    "Added mod",
+                );
+                if cfg!(target_pointer_width = "64") {
+                    switch_button(
+                        &mut ui,
+                        &mut self.targets,
+                        [w - 150.0, y, 118.0, 46.0],
+                        item.enabled,
+                        Action::ToggleLocal(i),
+                    );
+                } else {
+                    ui.text(
+                        Face::Regular,
+                        14.0,
+                        w - 150.0,
+                        y + 12.0,
+                        color::MUTED,
+                        "64-bit required",
+                    );
+                }
+                button(
+                    &mut ui,
+                    &mut self.targets,
+                    remove,
+                    "Remove",
+                    Action::DeleteLocal(i),
+                    false,
+                );
+            }
+            for (row, (i, p)) in catalog_rows.into_iter().enumerate() {
+                let y = top + (row + bundled.len() + local_mods.len()) as f32 * 86.0
+                    - self.catalog.scroll;
                 let download = self.catalog.download_label(p);
                 if download.is_none()
                     && !crate::catalog::source_only_mod(p)
@@ -795,7 +907,8 @@ impl Launcher {
             );
         } else if page == Page::Installed {
             use horizon_client::content_files::Kind;
-            let top = 156.0;
+            section_chips(&mut ui, &mut self.targets, w, 0.0, page);
+            let top = 176.0;
             let bottom = h - 100.0;
             let row_height = if compact { 124.0 } else { 80.0 };
             let total = Kind::ALL
@@ -935,8 +1048,22 @@ impl Launcher {
                 color::TEXT,
                 "Launch settings",
             );
-            ui.rounded(16.0, 186.0, w - 32.0, h - 130.0 - 186.0, 0.0, color::hex(0x000000, 255));
-            ui.rounded(18.0, 188.0, w - 36.0, h - 130.0 - 190.0, 0.0, color::hex(0x1f2022, 245));
+            ui.rounded(
+                16.0,
+                186.0,
+                w - 32.0,
+                h - 130.0 - 186.0,
+                0.0,
+                color::hex(0x000000, 255),
+            );
+            ui.rounded(
+                18.0,
+                188.0,
+                w - 36.0,
+                h - 130.0 - 190.0,
+                0.0,
+                color::hex(0x1f2022, 245),
+            );
             let row_height = if compact { 82.0 } else { 66.0 };
             self.catalog.scroll = self
                 .catalog
@@ -1922,4 +2049,3 @@ impl Launcher {
         }
     }
 }
-
