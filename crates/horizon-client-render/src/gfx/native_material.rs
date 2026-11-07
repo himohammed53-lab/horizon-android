@@ -42,7 +42,10 @@ struct HorizonMaterialOut {
 }
 fn horizon_material_vertex(position: vec3<f32>, uv: vec2<f32>, layer: u32, color: vec4<f32>,
     light: vec2<u32>, origin: vec3<f32>) -> HorizonMaterialOut {
-    let pos = position + origin;
+    let base = position + origin;
+    // The pack's `sway` (a plant bending, leaves rustling, water moving), zero without one.
+    let pos = base + horizon_sway_hook(base, base + frame.camera_position, uv,
+        horizon_sprite_material(layer & 0x7fffu));
     var out: HorizonMaterialOut;
     out.clip = horizon_terrain_globals.view_proj * vec4(pos, 1.0);
     out.uv = uv;
@@ -200,10 +203,28 @@ fn layer_table(name: &str, table: &[(u32, u32)]) -> String {
 /// `materials`.
 fn shader_source(source: &str, tags: &[(u32, u32)], materials: &[(u32, u32)]) -> String {
     format!(
-        "{source}\n// Horizon's terrain (terrain.wgsl)\n{}{}{}{ENTRIES}",
+        "{source}\n// Horizon's terrain (terrain.wgsl)\n{}{}{}{}{ENTRIES}",
         vanilla_terrain(),
         layer_table("horizon_sprite_tags", tags),
-        layer_table("horizon_sprite_material", materials)
+        layer_table("horizon_sprite_material", materials),
+        sway_hook(source)
+    )
+}
+
+/// `horizon_sway_hook`: the vertex offset from the pack's `fn sway(input: SwayInput)`, or zero
+/// when the pack defines none (so vanilla terrain, and any pack without it, never moves).
+fn sway_hook(source: &str) -> String {
+    let defined = source
+        .lines()
+        .any(|line| line.trim_start().starts_with("fn sway("));
+    let body = if defined {
+        "return sway(SwayInput(position, world, uv, material));"
+    } else {
+        "return vec3<f32>(0.0);"
+    };
+    format!(
+        "fn horizon_sway_hook(position: vec3<f32>, world: vec3<f32>, uv: vec2<f32>, \
+         material: u32) -> vec3<f32> {{\n    {body}\n}}\n"
     )
 }
 

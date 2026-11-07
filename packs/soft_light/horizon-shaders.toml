@@ -1,9 +1,9 @@
 schema = 1
 id = "soft_light"
 name = "Soft Light"
-version = "0.1.0"
+version = "0.2.0"
 api = "0.1"
-description = "A light shader for phones: bright sun light on every face, soft shade under cover, warm sunsets and torches, a clear sky, water with waves, a purple End with a galaxy and a warm Nether. No shadow map; its one full-screen pass only draws the End."
+description = "A light shader for phones: bright sun light on every face, soft shade under cover, warm sunsets and torches, a clear sky, water with waves, moving grass, leaves and water, a purple End with a galaxy and a warm Nether. No shadow map; its one full-screen pass only draws the End."
 authors = ["Muhamed", "Claude"]
 license = "MIT"
 shared = ["common.wgsl"]
@@ -14,6 +14,26 @@ name = "Clear sky"
 
 [material]
 file = "material.wgsl"
+
+[[materials]]
+id = 20
+sprites = ["block/short_grass", "block/fern", "block/dandelion", "block/poppy", "block/azure_bluet", "block/allium", "block/blue_orchid", "block/cornflower", "block/oxeye_daisy", "block/lily_of_the_valley", "block/*_tulip", "block/vine"]
+
+[[materials]]
+id = 21
+sprites = ["block/tall_grass_bottom", "block/large_fern_bottom", "block/sunflower_bottom", "block/rose_bush_bottom", "block/peony_bottom", "block/lilac_bottom"]
+
+[[materials]]
+id = 22
+sprites = ["block/tall_grass_top", "block/large_fern_top", "block/sunflower_top", "block/rose_bush_top", "block/peony_top", "block/lilac_top"]
+
+[[materials]]
+id = 23
+sprites = ["block/*_leaves"]
+
+[[materials]]
+id = 24
+sprites = ["block/water_still", "block/water_flow"]
 
 [[post]]
 file = "post/end.wgsl"
@@ -80,6 +100,36 @@ step = 0.05
 id = "end_stars"
 name = "End stars"
 description = "How bright the stars of the End's sky are (0 hides them)."
+type = "float"
+default = 1.0
+min = 0.0
+max = 2.0
+step = 0.1
+
+[[options]]
+id = "sway_plants"
+name = "Moving grass"
+description = "How much grass and flowers bend in the wind (0 keeps them still)."
+type = "float"
+default = 1.0
+min = 0.0
+max = 2.0
+step = 0.1
+
+[[options]]
+id = "sway_leaves"
+name = "Moving leaves"
+description = "How much leaves rustle (0 keeps them still)."
+type = "float"
+default = 1.0
+min = 0.0
+max = 2.0
+step = 0.1
+
+[[options]]
+id = "water_motion"
+name = "Moving water"
+description = "How much the water surface rises and falls (0 keeps it flat)."
 type = "float"
 default = 1.0
 min = 0.0

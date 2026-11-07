@@ -11,6 +11,9 @@ override torch: f32 = 0.6;
 override waves: f32 = 1.0;
 override water_opacity: f32 = 0.6;
 override nether_end: bool = true;
+override sway_plants: f32 = 1.0;
+override sway_leaves: f32 = 1.0;
+override water_motion: f32 = 1.0;
 
 // 1 where the point is in the light, 0 in the shadow of a block (4 taps, softened).
 fn lit_amount(position: vec3<f32>, normal: vec3<f32>) -> f32 {
@@ -125,4 +128,37 @@ fn material(input: MaterialInput) -> Surface {
     }
 
     return Surface(vec4<f32>(grade(rgb, tone, saturation, contrast), alpha));
+}
+
+// Movement: grass and flowers bend in the wind, leaves rustle, water rises and falls. The app calls
+// this for every terrain vertex and moves it by the result (in blocks). `[[materials]]` ids:
+// 20 grass and flowers, 21 and 22 the bottom and top of tall plants, 23 leaves, 24 water.
+fn sway(input: SwayInput) -> vec3<f32> {
+    let m = input.material;
+    if (m < 20u || m > 24u) {
+        return vec3<f32>(0.0);
+    }
+    let w = input.world;
+    let t = frame.time;
+    let gust_x = sin(t * 1.9 + w.x * 0.7 + w.z * 0.5) + 0.5 * sin(t * 3.1 + w.x * 1.7 - w.z * 1.3);
+    let gust_z = sin(t * 2.3 + w.z * 0.8 - w.x * 0.4) + 0.5 * sin(t * 3.7 - w.z * 1.5 + w.x * 1.1);
+    if (m <= 22u) {
+        // Planted at the foot (v = 1), free at the top (v = 0); a tall plant's two halves meet
+        // halfway, so they do not come apart.
+        var weight = 1.0 - clamp(input.uv.y, 0.0, 1.0);
+        if (m == 21u) {
+            weight = weight * 0.5;
+        }
+        if (m == 22u) {
+            weight = 0.5 + 0.5 * weight;
+        }
+        let a = 0.07 * sway_plants * weight;
+        return vec3<f32>(gust_x * a, 0.0, gust_z * a);
+    }
+    if (m == 23u) {
+        let a = 0.03 * sway_leaves;
+        return vec3<f32>(gust_x * a, gust_z * a * 0.5, gust_z * a);
+    }
+    let h = 0.5 * sin(t * 1.4 + w.x * 1.3 + w.z * 0.9) + 0.5 * sin(t * 2.1 - w.x * 0.8 + w.z * 1.6);
+    return vec3<f32>(0.0, h * 0.035 * water_motion, 0.0);
 }

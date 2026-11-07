@@ -13,8 +13,9 @@ without a shadow map; one full-screen pass draws the End's sky and does nothing 
 
 The End has a black sky with white stars and a slowly turning purple galaxy, and soft purple light; the Nether is warmer, with glowing torch light.
 
-Not included: plants and leaves that sway, and waves that move the water's shape (a pack cannot move
-vertices yet; the waves here change only how the surface is lit).
+Movement (grass and flowers bending, leaves rustling, water rising and falling) needs a Horizon
+build that supports a pack's `sway` function; on any other build the pack still works and nothing
+moves.
 
 ## Credits
 
