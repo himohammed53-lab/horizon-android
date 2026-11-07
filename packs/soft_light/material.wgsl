@@ -27,7 +27,7 @@ fn other_dimension(input: MaterialInput) -> Surface {
     var light: vec3<f32>;
     if (frame.dimension == 1) {
         // End: ambient plus a purple glow that reaches everywhere.
-        light = (vec3<f32>(1.98, 1.25, 2.3) + 5.5 * vec3<f32>(0.4, 0.1, 0.6) * 1.1) * 0.45;
+        light = (vec3<f32>(1.98, 1.25, 2.3) + 5.5 * vec3<f32>(0.4, 0.1, 0.6) * 1.1) * 0.27;
     } else {
         // Nether: ambient plus warm light that is strongest next to a torch or lava.
         let lx = clamp(input.light.x, 0.0, 1.0);
