@@ -82,6 +82,10 @@ pub struct Shadow {
     /// a full shadow, say, whatever holes they show.
     #[serde(default)]
     pub solid_materials: Vec<u32>,
+    /// Whether entities (mobs, the player) are drawn into the map and cast shadows
+    /// (true when absent); false for a pack that wants terrain shadows only.
+    #[serde(default)]
+    pub entities: Option<bool>,
 }
 
 /// The shadow map's side, in texels.

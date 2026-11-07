@@ -50,7 +50,13 @@ impl NativePack {
         let shadow = report
             .shadow
             .as_ref()
-            .map(|s| NativeShadow::new(device, terrain, &frame, &s.solid_materials))
+            .map(|s| NativeShadow::new(
+                    device,
+                    terrain,
+                    &frame,
+                    &s.solid_materials,
+                    s.entities.unwrap_or(true),
+                ))
             .transpose()?;
         // The mirror is drawn for a material that reads it, while `[reflection] option` is on.
         let option = report.reflection.as_ref().and_then(|r| r.option.as_ref());

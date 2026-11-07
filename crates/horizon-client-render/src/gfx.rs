@@ -6806,7 +6806,7 @@ impl Renderer {
                 );
             }
             drop(pass);
-            if entity_quads > 0 || shadow_only_quads > 0 {
+            if shadow.casts_entities && (entity_quads > 0 || shadow_only_quads > 0) {
                 let mut pass = native
                     .frame
                     .shadow_map
