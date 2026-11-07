@@ -1,45 +1,48 @@
 # Horizon Android
 
-A native Android port of [Horizon](https://github.com/ludovic111/horizon), the
-Rust engine for Minecraft Java 26.3. Unofficial and in active development.
+An unofficial Android fork of [Horizon](https://github.com/ludovic111/horizon), the Rust engine
+for Minecraft: Java Edition 26.3. Native launcher, touch controls and drop-in `.hmod` mods.
 
-**Android 9+ · Vulkan · Four touch schemes · Sandboxed `.hmod` mods**
+**Android 9+ · Vulkan · Touch controls · Sandboxed `.hmod` mods**
 
-[Download APK](https://github.com/himohammed53-lab/horizon-android/releases) · [Build & play](docs/android.md) · [Contribute](CONTRIBUTING_ANDROID.md) ·
-[Report an Android bug](https://github.com/himohammed53-lab/horizon-android/issues)
+[Download APK](https://github.com/himohammed53-lab/horizon-android/releases) · [Changes](#changes-in-this-fork) · [Build & play](docs/android.md) ·
+[Report a bug](https://github.com/himohammed53-lab/horizon-android/issues)
 
-> **About this fork.** This is a fork maintained by Muhamed and Claude. It is based on the
-> Android port by [Vasysik](https://github.com/Vasysik/horizon-android), which is in turn based on
+> **About this fork.** Developed by Muhamed Al-zarqi (محمد آل زوركي) and Claude. Based on the
+> Android port of Horizon by [Vasysik](https://github.com/Vasysik/horizon-android), which is based on
 > [Horizon](https://github.com/ludovic111/horizon) by Ludovic Marie and the Horizon contributors
-> (MIT). Upstream changes are merged from time to time. The changes made here are listed in
-> [Changes in this fork](#changes-in-this-fork). Releases of this fork are tested by the maintainer
-> on one phone (Realme GT Neo 5 SE); other devices have not been verified.
+> (MIT license). Upstream changes are merged from time to time.
+> Tested by the maintainer on one phone (Realme GT Neo 5 SE); other devices and Android
+> versions have not been verified.
 
 ## Changes in this fork
 
 Version 0.1.1:
 
-- **Launcher:** dark theme with an Enderman-eyes background, purple glass buttons, larger rows in
-  the Mods, Packs, Shaders, Files and Skins lists.
-- **In game:** a Mods button (M) in the pause menu; the camera no longer moves while the attack
-  button is held; zoom up to 100x; a 60 FPS cap by default.
-- **Mod screens:** list scroll bars can be dragged by touch or mouse, and a list can be scrolled
-  with the right button held; list colours use the correct channel order.
-- **Mod API level 11:** `game.get-world` and `ui.set-slider`.
-- **Waypoints mod (0.1.4, separate `.hmod` file):** per-world waypoints, Nether/End scaling, 29
-  colours, size and opacity settings, Hide/Show and Delete, a key (B) for the waypoint screen,
-  pixel markers, and death points (the last 5 are kept and removed when you return to them).
-  Source: `crates/horizon-mod-sdk/examples/waypoints`.
+- **Launcher:** a redesigned outer look with larger lists and buttons; some old built-in items
+  and mods were removed.
+- **Mod support:** the app code was extended to support more mods, including the Waypoints mod:
+  a Mods button (M) in the pause menu, a Mod Menu-style list with details, draggable scroll bars,
+  and mod API levels 8 to 11. Mods are separate `.hmod` files and are not part of the APK.
+- **Controls and layout:** the touch buttons and layout show on screen inside the settings,
+  inventory and crafting screens as well as outside them, with a BT ON/OFF button.
+- **Zoom:** built-in zoom up to 100x.
+- **Mouse sensitivity:** a setting beside camera sensitivity, up to 600%.
+- Also: the camera no longer moves while the attack button is held; 60 FPS cap by default.
+- **Waypoints mod (0.1.4):** per-world waypoints, 29 colours, size and opacity settings, and
+  death points. Source: `crates/horizon-mod-sdk/examples/waypoints`.
 
-Not verified: other phones, other Android versions, multiplayer skin display for players who
-are not signed in to a Mojang account.
+Not verified: other phones, other Android versions, and showing other players' skins in
+multiplayer for players who are not signed in to a Mojang account.
 
 ## What works
+
+Most of this comes from the upstream Android port and has not been re-verified on every device.
 
 - Four touch schemes: joystick or D-pad, each with tap or crosshair aiming.
 - Editable button positions, sizes and opacity; handedness, circle size, optional
   360-degree movement, Auto Sprint and Sprint-button visibility.
-- Java multiplayer, including the Hypixel Arcade lobby shown below.
+- Java multiplayer.
 - Native launcher, verified resource downloads, resource packs and `.hmod` import.
 - Vulkan rendering modes and resolution scaling; Android keyboard, clipboard,
   AAudio sound and phone vibration through the existing game settings.
@@ -52,7 +55,9 @@ compiled client and are not supported on Android yet. Fabric/Forge Java code
 does not run in this client. Server and anticheat
 compatibility requires testing on the actual server.
 
-## On Android
+## Screenshots from the upstream Android port
+
+These were taken by the upstream author (Vasysik) on other devices, not on this fork's test phone.
 
 POCO M8 Pro · 16 chunks · Fancy graphics
 
@@ -68,14 +73,6 @@ POCO M8 Pro · 16 chunks · Fancy graphics
 | --- | --- |
 | ![Steve on Android with third-person camera, touch controls and FPS overlay](docs/media/android/third-person-desert.png) | ![Desert terrain on Android with touch controls and FPS overlay](docs/media/android/desert-panorama.png) |
 
-### Hypixel Arcade gameplay
-
-https://youtu.be/gWK01tGlyFI
-
-*Disasters gameplay recorded on Poco M8 Pro. FPS readings in the footage are not a controlled benchmark.*
-
-### On a flip phone
-
 Fujitsu F-03L · Portrait mode
 
 | **Main menu** | **In-game** |
@@ -85,12 +82,7 @@ Fujitsu F-03L · Portrait mode
 ## Help build it
 
 Try a developer build, send a reproducible bug report, or contribute a focused
-pull request against `android`. Touch input, accessibility, hardware controllers,
-Android lifecycle and real-phone profiling are useful areas to help.
-[Start here](CONTRIBUTING_ANDROID.md).
-
-If the port is useful to you, **star the repository** so other players and
-contributors can find it.
+pull request against `android`. [Start here](CONTRIBUTING_ANDROID.md).
 
 ## Builds and source
 
@@ -109,8 +101,6 @@ and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Mojang textures are not
 licensed under Horizon's MIT license. Game files, prepared resources, accounts,
 APKs and signing keys stay outside Git. This project is not affiliated with or
 endorsed by Mojang or Microsoft.
-
-Optional: [support development on Boosty](https://boosty.to/vasys).
 
 <details>
 <summary>Upstream Horizon documentation (desktop)</summary>
