@@ -595,6 +595,75 @@ impl Waypoints {
         true
     }
 
+    /// A death point's marker: the user's own pixel skull and crossbones, 24 x 27
+    /// blocks, `side` tall. Each row is drawn in runs of one colour.
+    fn skull(shapes: &mut Vec<Shape>, cx: f32, cy: f32, side: f32, alpha: u32) {
+        const ROWS: [&str; 27] = [
+        "........c#######........",
+        ".......#cccccccc#.......",
+        "......#cdeedddddc#......",
+        ".....#cdeddddddddcc.....",
+        "....#cdededddddddddc....",
+        "....#cdddddddcccdddc....",
+        "....#cddadddccbcdddc....",
+        "....#cddaaadca##dddc....",
+        "....#cdaaaaddaaaaddc....",
+        "....#cdaaaddddaaaddc....",
+        "....#cddcdd#bddcdccc....",
+        ".....#cddddaadddca#.....",
+        "..ee#.#cddcddcddc#.#ee..",
+        ".#ede.#cddcddcdcb..ede#.",
+        ".ccdd##cdc#cd#ccb.#ddcc.",
+        "#dddded###.##.###aedddd#",
+        "#cc#ccdde#....#eedcc#cc#",
+        ".##..#ccdde#.eddcc#..##.",
+        ".......#ccddeacc#.......",
+        ".........#cdded.........",
+        "......#eeda#ccdde#......",
+        ".ee##eddcc#..#ccdde##ee.",
+        "#edddddc#......#ccdddde#",
+        "#dcddc#..........#cdddd#",
+        ".#ddc#.............cdd#.",
+        "..ccc#.............ccc#.",
+        "...##...............##..",
+        ];
+        // The colours, darkest first: `#` is the outline.
+        const COLORS: [u32; 6] = [0x1a1925, 0x474b50, 0x7e838a, 0x959da2, 0xe7ebef, 0xf9fdfe];
+        let c = side * 1.15 / 27.0;
+        let (x, y) = (cx - c * 12.0, cy - c * 13.5);
+        for (row, line) in ROWS.iter().enumerate() {
+            let bytes = line.as_bytes();
+            let mut i = 0;
+            while i < bytes.len() {
+                let b = bytes[i];
+                let mut j = i;
+                while j < bytes.len() && bytes[j] == b {
+                    j += 1;
+                }
+                let color = match b {
+                    b'#' => Some(COLORS[0]),
+                    b'a' => Some(COLORS[1]),
+                    b'b' => Some(COLORS[2]),
+                    b'c' => Some(COLORS[3]),
+                    b'd' => Some(COLORS[4]),
+                    b'e' => Some(COLORS[5]),
+                    _ => None,
+                };
+                if let Some(rgb) = color {
+                    Self::fill(
+                        shapes,
+                        x + i as f32 * c,
+                        y + row as f32 * c,
+                        (j - i) as f32 * c,
+                        c,
+                        alpha << 24 | rgb,
+                    );
+                }
+                i = j;
+            }
+        }
+    }
+
     /// A waypoint's marker: the user's own pixel badge, a 28 x 28 block
     /// octagon with stepped corners and a darker edge, in the waypoint's
     /// colour; its letter in the game's block font in the middle.
@@ -741,16 +810,17 @@ impl Waypoints {
             let side = (30.0 / (1.0 + dist as f32 / 80.0)).clamp(12.0, 26.0) * st.size as f32 / 100.0;
             let side = side.max(8.0);
             let alpha = (st.opacity * 255 / 100).min(255);
-            let letter = if w.death {
-                '\u{2620}'
+            if w.death {
+                Self::skull(&mut shapes, x, y, side, alpha);
             } else {
-                w.name
+                let letter = w
+                    .name
                     .chars()
                     .next()
                     .and_then(|c| c.to_uppercase().next())
-                    .unwrap_or('?')
-            };
-            Self::marker(&mut shapes, x, y, side, w.color, alpha, letter);
+                    .unwrap_or('?');
+                Self::marker(&mut shapes, x, y, side, w.color, alpha, letter);
+            }
             let below = side.round().max(8.0) / 2.0;
             // How far in blocks, under the marker, as Xaero's Minimap writes it.
             let text = format!("{}", dist.round() as i64);
@@ -1153,7 +1223,6 @@ fn glyph(c: char) -> Option<[&'static str; 7]> {
         '7' => ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
         '8' => ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
         '9' => ["01110", "10001", "10001", "01111", "00001", "00010", "01100"],
-        '\u{2620}' => ["01110", "11111", "10101", "11111", "01110", "01010", "00000"],
         _ => return None,
     })
 }
