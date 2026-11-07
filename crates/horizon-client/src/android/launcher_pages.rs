@@ -16,7 +16,6 @@ pub(super) enum Action {
     FinishNameEdit,
     Install(usize),
     Import(horizon_client::content_files::Kind),
-    OpenFolder(horizon_client::content_files::Kind),
     ToggleSection(usize),
     ToggleLocal(usize),
     DeleteLocal(usize),
@@ -340,7 +339,7 @@ fn switch_button(
 ) {
     let (x, y, w, h) = plate_rect(rect, false);
     let (fill, label) = if on {
-        (0x7b4fe0, "ON")
+        (SECTION.1, "ON")
     } else {
         (0x707070, "OFF")
     };
@@ -672,23 +671,46 @@ impl Launcher {
                 },
                 page,
             );
-            button(
-                &mut ui,
-                &mut self.targets,
-                [32.0, 174.0, w - 240.0, 44.0],
-                &format!(
-                    "{}{}",
+            // The search field: a plain outlined box (white rim, the dark page inside).
+            {
+                let rect = [32.0, 174.0, w - 240.0, 44.0];
+                ui.rounded(
+                    rect[0],
+                    rect[1],
+                    rect[2],
+                    rect[3],
+                    10.0,
+                    color::hex(0xffffff, 235),
+                );
+                ui.rounded(
+                    rect[0] + 2.0,
+                    rect[1] + 2.0,
+                    rect[2] - 4.0,
+                    rect[3] - 4.0,
+                    8.0,
+                    color::hex(0x0f1013, 255),
+                );
+                let shown = if self.catalog.query.is_empty() {
                     if page == Page::Mods {
-                        "Search / .hmod URL: "
+                        "Search / .hmod URL".to_string()
                     } else {
-                        "Search: "
-                    },
-                    self.catalog.query
-                ),
-                Action::Field("search"),
-                false,
-            );
-            button(
+                        "Search".to_string()
+                    }
+                } else {
+                    self.catalog.query.clone()
+                };
+                let shown = ui.fit_text(Face::Medium, 18.0, &shown, rect[2] - 28.0);
+                ui.text(
+                    Face::Medium,
+                    18.0,
+                    rect[0] + 14.0,
+                    rect[1] + 11.0,
+                    color::hex(0xffffff, 255),
+                    &shown,
+                );
+                self.targets.push((rect, Action::Field("search")));
+            }
+            button_as(
                 &mut ui,
                 &mut self.targets,
                 [w - 190.0, 174.0, 158.0, 44.0],
@@ -699,6 +721,7 @@ impl Launcher {
                 },
                 Action::Search,
                 true,
+                Some(SECTION),
             );
             if matches!(page, Page::Shaders | Page::Mods) {
                 use crate::shader_catalog::Origin;
@@ -766,14 +789,6 @@ impl Launcher {
                 &mut ui,
                 &mut self.targets,
                 [32.0, 222.0, file_button_width, 38.0],
-                "Open folder",
-                Action::OpenFolder(kind),
-                false,
-            );
-            button(
-                &mut ui,
-                &mut self.targets,
-                [w - 32.0 - file_button_width, 222.0, file_button_width, 38.0],
                 "Import file",
                 Action::Import(kind),
                 false,
@@ -1686,20 +1701,6 @@ impl Launcher {
                 self.catalog.config.save(&self.home)?;
                 self.catalog.offset = 0;
                 self.catalog.browse(&self.home);
-            }
-            Some(Action::OpenFolder(kind)) => {
-                crate::platform::hide();
-                let folder = match kind {
-                    horizon_client::content_files::Kind::Mods => "mods",
-                    horizon_client::content_files::Kind::Packs => "packs",
-                    horizon_client::content_files::Kind::Shaders => "shaders",
-                };
-                let id = crate::document_store::folder_id(self.catalog.config.profile, folder);
-                self.catalog.status = if crate::platform::open_documents(&id) {
-                    "Opened in Files. Return here after copying files.".into()
-                } else {
-                    "Open the system Files app and choose Horizon Android.".into()
-                };
             }
             Some(Action::Import(kind)) => {
                 crate::platform::hide();
