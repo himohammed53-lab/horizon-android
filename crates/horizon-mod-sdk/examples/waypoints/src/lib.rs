@@ -310,7 +310,11 @@ impl Waypoints {
     /// Loads the list of the world the player is in when it changed: each
     /// world has its own waypoints, a new world starts with none.
     fn sync_world(&mut self) {
-        let now = game::get_world();
+        // While there is no world (a respawn, the title screen) nothing changes:
+        // the death point must survive that gap.
+        let Some(now) = game::get_world().map(Some) else {
+            return;
+        };
         if now == self.world {
             return;
         }
@@ -737,10 +741,6 @@ impl Waypoints {
             let side = (30.0 / (1.0 + dist as f32 / 80.0)).clamp(12.0, 26.0) * st.size as f32 / 100.0;
             let side = side.max(8.0);
             let alpha = (st.opacity * 255 / 100).min(255);
-            // A death point goes quiet once you are back at it (it stays in the list).
-            if w.death && dist < 6.0 {
-                continue;
-            }
             let letter = if w.death {
                 '\u{2620}'
             } else {
@@ -859,6 +859,20 @@ impl Mod for Waypoints {
             return;
         };
         if p.health > 0.0 {
+            // Back at a death point (5 blocks): it is done with, and goes.
+            let before = self.list.len();
+            self.list.retain(|w| {
+                !(w.death
+                    && w.dim == p.dimension
+                    && (w.x as f64 + 0.5 - p.x).powi(2)
+                        + (w.y as f64 - p.y).powi(2)
+                        + (w.z as f64 + 0.5 - p.z).powi(2)
+                        < 25.0)
+            });
+            if self.list.len() != before {
+                self.selected = None;
+                self.changed();
+            }
             self.alive = true;
             self.last_alive = Some((
                 p.x.floor() as i32,
