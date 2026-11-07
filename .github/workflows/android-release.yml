@@ -1,0 +1,57 @@
+name: Publish a release
+run-name: Publish release ${{ inputs.tag }}
+
+# Publishes a GitHub release of this fork: the latest successful app build's APK and the latest
+# successful mod build's .hmod. It never builds anything, and runs only when started by hand.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v0.1.1
+        type: string
+        default: v0.1.1
+      title:
+        description: Release title
+        type: string
+        default: Horizon Android 0.1.1
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+      TITLE: ${{ inputs.title }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+      - name: Download the latest successful builds
+        run: |
+          app=$(gh run list --workflow android-dev.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          mod=$(gh run list --workflow android-mod-pilot.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          mkdir -p dl/app dl/mod out
+          gh run download "$app" --dir dl/app
+          [ -n "$mod" ] && gh run download "$mod" --dir dl/mod || true
+          find dl -name '*.apk' -exec cp {} out/ \;
+          find dl -name '*.hmod' -exec cp {} out/ \;
+          ls -l out
+      - name: Publish
+        run: |
+          cat > notes.md <<'NOTES'
+          Unofficial Horizon Android fork by Muhamed and Claude, based on Vasysik's Android port of
+          Horizon (Ludovic Marie and the Horizon contributors, MIT).
+
+          Changes: dark launcher with a new background and larger lists, a Mods button in the pause
+          menu, no camera movement while the attack button is held, zoom up to 100x, draggable list
+          scroll bars in mod screens, mod API level 11, and the Waypoints mod (a separate `.hmod`
+          file, imported from the launcher's Mods page). The full list is in the README.
+
+          Tested by the maintainer on one phone (Realme GT Neo 5 SE). Other devices are not verified.
+          NOTES
+          gh release create "$TAG" out/* --title "$TITLE" --notes-file notes.md --target "$GITHUB_SHA"
