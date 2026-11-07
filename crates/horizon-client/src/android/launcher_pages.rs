@@ -138,6 +138,15 @@ fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: b
     ui.rounded(ix + iw - bevel, iy, bevel, ih, 0.0, color::hex(0x000000, 80));
 }
 
+/// The drawn plate inside a button's touch rectangle: a little smaller, centred up and down,
+/// so the buttons do not crowd the screen (the whole rectangle still takes the touch).
+fn plate_rect(rect: [f32; 4]) -> (f32, f32, f32, f32) {
+    let [x, y, w, h] = rect;
+    let ph = (h * 0.8).clamp(28.0_f32.min(h), h);
+    let pw = if w > 200.0 { w * 0.92 } else { w };
+    (x, y + (h - ph) / 2.0, pw, ph)
+}
+
 /// White text with the game's dark drop shadow.
 fn shadow_text(ui: &mut Ui, face: Face, size: f32, x: f32, y: f32, text: &str) {
     ui.text(face, size, x + 1.5, y + 1.5, color::hex(0x252525, 255), text);
@@ -206,7 +215,7 @@ pub(super) fn button(
     action: Action,
     accent: bool,
 ) {
-    let [x, y, w, h] = rect;
+    let (x, y, w, h) = plate_rect(rect);
     // Grey stone; the chosen or main button is grass green, and Play gets cracks.
     block_plate(
         ui,
@@ -239,7 +248,7 @@ pub(super) fn button(
         Face::Medium,
         font,
         x + padding,
-        y + ((h - base * 1.45) / 2.0).max(11.0),
+        y + ((h - base * 1.45) / 2.0).max(5.0),
         &label,
     );
     targets.push((rect, action));
@@ -252,8 +261,8 @@ fn switch_button(
     on: bool,
     action: Action,
 ) {
-    let [x, y, w, h] = rect;
-    let (fill, label) = if on { (0x3f9a45, "ON") } else { (0xb5382f, "OFF") };
+    let (x, y, w, h) = plate_rect(rect);
+    let (fill, label) = if on { (0x3f9a45, "ON") } else { (0x707070, "OFF") };
     block_plate(ui, x, y, w, h, fill, false);
     let size = 20.0;
     let width = ui.measure(Face::Medium, size, label);
@@ -357,21 +366,8 @@ impl Launcher {
             ui.h = ui.h.min(bottom as f32 / ui.density);
         }
         let (w, h) = (ui.w, ui.h);
-        // The background: dark grey (not black) with a faint block pattern.
-        ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x2c2d30, 255));
-        {
-            let cell = 28.0;
-            for cy in 0..(h / cell).ceil() as i32 {
-                for cx in 0..(w / cell).ceil() as i32 {
-                    let n = cell_hash(cx, cy, 11);
-                    if n % 4 == 0 {
-                        ui.rounded(cx as f32 * cell, cy as f32 * cell, cell, cell, 0.0, color::hex(0xffffff, 7));
-                    } else if n % 4 == 1 {
-                        ui.rounded(cx as f32 * cell, cy as f32 * cell, cell, cell, 0.0, color::hex(0x000000, 22));
-                    }
-                }
-            }
-        }
+        // The background: a plain, deep dark grey, no shapes.
+        ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x17181c, 255));
         ui.text(
             Face::Regular,
             12.0,
