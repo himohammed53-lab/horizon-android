@@ -316,8 +316,6 @@ pub struct NativeShadow {
     pub flat_translucent: Option<wgpu::RenderPipeline>,
     /// The entities' draw, with the entities' group 0 (`ENTITY_ENTRIES`).
     pub entity: wgpu::RenderPipeline,
-    /// Whether entities are drawn into the map (`[shadow] entities`, true when absent).
-    pub casts_entities: bool,
     pub group: wgpu::BindGroup,
 }
 
@@ -431,7 +429,6 @@ impl NativeShadow {
         shape: &TerrainShape<'_>,
         frame: &super::native_post::NativeFrame,
         solid_materials: &[u32],
-        casts_entities: bool,
     ) -> Result<Self, String> {
         let text = shader_source(&shadow_solid(shape.sprite_materials, solid_materials));
         let module = naga::front::wgsl::parse_str(&text)
@@ -579,7 +576,6 @@ impl NativeShadow {
             translucent,
             flat_translucent,
             entity,
-            casts_entities,
             group,
         })
     }

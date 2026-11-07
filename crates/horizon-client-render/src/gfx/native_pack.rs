@@ -18,8 +18,6 @@ pub struct NativePack {
     pub vanilla_clouds: bool,
     pub vanilla_sun: bool,
     pub vanilla_stars: bool,
-    /// Whether the pack's sky also draws the End's (`[sky] end = true`).
-    pub end_sky: bool,
     pub weather: Option<wgpu::RenderPipeline>,
     /// The draw of the shadow map the stages read, if the pack asks for one.
     pub shadow: Option<NativeShadow>,
@@ -50,13 +48,7 @@ impl NativePack {
         let shadow = report
             .shadow
             .as_ref()
-            .map(|s| NativeShadow::new(
-                    device,
-                    terrain,
-                    &frame,
-                    &s.solid_materials,
-                    s.entities.unwrap_or(true),
-                ))
+            .map(|s| NativeShadow::new(device, terrain, &frame, &s.solid_materials))
             .transpose()?;
         // The mirror is drawn for a material that reads it, while `[reflection] option` is on.
         let option = report.reflection.as_ref().and_then(|r| r.option.as_ref());
@@ -78,11 +70,6 @@ impl NativePack {
         let vanilla_clouds = keeps(|s| s.clouds);
         let vanilla_sun = keeps(|s| s.sun);
         let vanilla_stars = keeps(|s| s.stars);
-        let end_sky = report
-            .sky
-            .as_ref()
-            .and_then(|s| s.end)
-            .unwrap_or(false);
         let weather = report
             .stages
             .iter()
@@ -140,7 +127,6 @@ impl NativePack {
             vanilla_clouds,
             vanilla_sun,
             vanilla_stars,
-            end_sky,
             weather,
             shadow,
             timing: None,

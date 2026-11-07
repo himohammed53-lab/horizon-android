@@ -6806,7 +6806,7 @@ impl Renderer {
                 );
             }
             drop(pass);
-            if shadow.casts_entities && (entity_quads > 0 || shadow_only_quads > 0) {
+            if entity_quads > 0 || shadow_only_quads > 0 {
                 let mut pass = native
                     .frame
                     .shadow_map
@@ -7043,17 +7043,8 @@ impl Renderer {
                 && self.pack_post.is_none()
                 && mirror.is_none()
                 && cull.is_none();
-            // A pack whose `[sky]` sets `end = true` also draws the End's sky (its own code, in place of the
-            // tiled end_sky.png box), so that sky turns with the view like the Overworld's.
-            let end_pack_sky = frame.end_sky
-                && !frame.title
-                && self.native.as_ref().is_some_and(|n| n.sky.is_some() && n.end_sky);
             if !late_sky && (frame.title || (sky_visible && (frame.skybox || frame.end_sky))) {
-                if !frame.title
-                    && (frame.skybox || end_pack_sky)
-                    && !pack_draws_sky
-                    && !native_sky_pass
-                {
+                if !frame.title && frame.skybox && !pack_draws_sky && !native_sky_pass {
                     match self
                         .native
                         .as_ref()
@@ -7073,7 +7064,7 @@ impl Renderer {
                     pass.set_pipeline(&self.celestial_pipeline);
                     pass.set_bind_group(0, &self.entity_group, &[]);
                     pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
-                    if frame.end_sky && !end_pack_sky {
+                    if frame.end_sky {
                         self.end_sky.draw(&mut pass);
                     }
                     if celestial_vertices > 0 && !pack_draws_celestial {

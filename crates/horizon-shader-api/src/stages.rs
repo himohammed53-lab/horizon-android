@@ -278,19 +278,6 @@ fn horizon_material_tangent(position: vec3<f32>, uv: vec2<f32>, normal: vec3<f32
     let tangent = normalize(t - normal * dot(normal, t));
     return vec4<f32>(tangent, select(-1.0, 1.0, dot(cross(normal, tangent), b) >= 0.0));
 }
-// The input of the optional `fn sway(input: SwayInput) -> vec3<f32>` a pack may define next to
-// `material`: it moves a terrain vertex by the returned offset, in blocks (a plant bending,
-// leaves rustling, water rising and falling). A pack without it moves nothing.
-struct SwayInput {
-    // The vertex, camera-relative, in blocks.
-    position: vec3<f32>,
-    // The vertex in the world's own coordinates (the same at one place whatever the camera does).
-    world: vec3<f32>,
-    // The sprite's texture coordinate at the vertex: v is 0 at the top of the sprite, 1 at its foot.
-    uv: vec2<f32>,
-    // The `[[materials]]` id of the sprite (0 when no entry names it).
-    material: u32,
-}
 ";
 
 /// The post stage's entry points, as the renderer builds them: a full-screen
