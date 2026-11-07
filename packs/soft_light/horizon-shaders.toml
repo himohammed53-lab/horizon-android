@@ -1,0 +1,109 @@
+schema = 1
+id = "soft_light"
+name = "Soft Light"
+version = "0.1.0"
+api = "0.1"
+description = "A very light shader for phones: soft shade under cover, warm sunsets and torches, a clear sky and water with waves. No shadow map and no extra full-screen pass."
+authors = ["Muhamed", "Claude"]
+license = "MIT"
+shared = ["common.wgsl"]
+
+[sky]
+file = "sky.wgsl"
+name = "Clear sky"
+
+[material]
+file = "material.wgsl"
+
+[[options]]
+id = "sky_style"
+name = "Sky style"
+description = "How much of the clear gradient sky replaces vanilla's sky (0 is vanilla's)."
+type = "float"
+default = 0.6
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "tone"
+name = "Colour grade"
+description = "How much the soft tone mapping and colour boost are applied (0 is vanilla's)."
+type = "float"
+default = 0.5
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "saturation"
+name = "Saturation"
+description = "How colourful the picture is."
+type = "float"
+default = 1.1
+min = 0.8
+max = 1.5
+step = 0.05
+
+[[options]]
+id = "contrast"
+name = "Contrast"
+description = "Lower is brighter and flatter, 1 leaves the brightness as it is."
+type = "float"
+default = 0.85
+min = 0.6
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "shade"
+name = "Soft shade"
+description = "How dark places under trees, roofs and overhangs get in daylight."
+type = "float"
+default = 0.5
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "warmth"
+name = "Warm sunlight"
+description = "How golden the light turns at sunrise and sunset."
+type = "float"
+default = 0.6
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "torch"
+name = "Torch light"
+description = "How warm and strong torch light is, with a gentle flicker."
+type = "float"
+default = 0.6
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "waves"
+name = "Water waves"
+description = "How strong the waves and the shine of the water are."
+type = "float"
+default = 1.0
+min = 0.0
+max = 2.0
+step = 0.1
+
+[[options]]
+id = "water_opacity"
+name = "Water opacity"
+description = "How see-through the water is (lower is clearer)."
+type = "float"
+default = 0.6
+min = 0.3
+max = 1.0
+step = 0.05
+
+[budget]
+gpu_ms = 0.6
