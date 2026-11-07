@@ -172,10 +172,10 @@ fn draw_logo(ui: &mut Ui, x: f32, y: f32, cell: f32) {
                     } else {
                         let n = cell_hash(col, row as i32, letter as i32);
                         let face = [0x9c9c9c, 0xa6a6a6, 0x929292][(n % 3) as usize];
-                        ui.rounded(bx, by, cell, cell, 0.0, color::hex(0x2a2a2a, 255));
-                        ui.rounded(bx + 0.5, by + 0.5, cell - 1.0, cell - 1.0, 0.0, color::hex(face, 255));
-                        ui.rounded(bx + 0.5, by + 0.5, cell - 1.0, cell * 0.25, 0.0, color::hex(0xffffff, 80));
-                        ui.rounded(bx + 0.5, by + cell * 0.75, cell - 1.0, cell * 0.25 - 0.5, 0.0, color::hex(0x000000, 90));
+                        ui.rounded(bx, by, cell, cell, 0.0, color::hex(face, 255));
+                        ui.rounded(bx, by, cell, 1.0, 0.0, color::hex(0xffffff, 90));
+                        ui.rounded(bx, by + cell - 1.0, cell, 1.0, 0.0, color::hex(0x000000, 110));
+                        ui.rounded(bx + cell - 1.0, by, 1.0, cell, 0.0, color::hex(0x000000, 70));
                     }
                 }
             }
