@@ -160,8 +160,11 @@ fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: b
 
 /// The drawn plate inside a button's touch rectangle: a little smaller, centred up and down,
 /// so the buttons do not crowd the screen (the whole rectangle still takes the touch).
-fn plate_rect(rect: [f32; 4]) -> (f32, f32, f32, f32) {
+fn plate_rect(rect: [f32; 4], full: bool) -> (f32, f32, f32, f32) {
     let [x, y, w, h] = rect;
+    if full {
+        return (x, y, w, h);
+    }
     let ph = (h * 0.72).clamp(26.0_f32.min(h), h);
     let pw = if w > 200.0 { w * 0.85 } else { w };
     (x, y + (h - ph) / 2.0, pw, ph)
@@ -200,7 +203,7 @@ fn section_chips(
     );
     ui.rounded(16.0, 171.0, w - 32.0, 1.0, 0.0, color::hex(0xffffff, 215));
     let space = (w - 64.0 - right_reserved - 8.0).max(120.0);
-    let width = (space / 4.0).clamp(52.0, 96.0);
+    let width = ((space - 18.0) / 4.0).clamp(48.0, 96.0);
     for (i, (label, page)) in [
         ("Mods", Page::Mods),
         ("Shaders", Page::Shaders),
@@ -213,7 +216,7 @@ fn section_chips(
         button(
             ui,
             targets,
-            [32.0 + i as f32 * width, 134.0, width - 4.0, 34.0],
+            [32.0 + i as f32 * (width + 6.0), 134.0, width, 34.0],
             label,
             Action::Page(page),
             page == current,
@@ -229,19 +232,28 @@ pub(super) fn button(
     action: Action,
     accent: bool,
 ) {
-    let (x, y, w, h) = plate_rect(rect);
-    // Grey stone; the chosen or main button is grass green, and Play gets cracks.
+    let main = matches!(action, Action::Play);
+    let (x, y, w, h) = plate_rect(rect, main);
+    // Grey stone; the chosen button is grass green; Play is the big purple main block, cracked.
     block_plate(
         ui,
         x,
         y,
         w,
         h,
-        if accent { 0x4e8f35 } else { 0x707070 },
-        accent && matches!(action, Action::Play),
+        if main {
+            0x7b4fe0
+        } else if accent {
+            0x4e8f35
+        } else {
+            0x707070
+        },
+        main,
     );
     let padding = (w * 0.12).clamp(4.0, 12.0);
-    let base = if h >= 60.0 {
+    let base = if main {
+        34.0
+    } else if h >= 60.0 {
         26.0
     } else if w < 80.0 {
         13.0
@@ -275,7 +287,7 @@ fn switch_button(
     on: bool,
     action: Action,
 ) {
-    let (x, y, w, h) = plate_rect(rect);
+    let (x, y, w, h) = plate_rect(rect, false);
     let (fill, label) = if on {
         (0x3f9a45, "ON")
     } else {
@@ -448,13 +460,13 @@ impl Launcher {
         );
         let tabs = Page::ALL.len() as f32;
         let tab_margin = if w < 700.0 { 16.0 } else { 32.0 };
-        let tab_width = ((w - 2.0 * tab_margin) / tabs).min(190.0);
+        let tab_width = ((w - 2.0 * tab_margin - 16.0) / tabs).min(180.0);
         for (i, page) in Page::ALL.iter().enumerate() {
-            let x = tab_margin + i as f32 * tab_width;
+            let x = tab_margin + i as f32 * (tab_width + 8.0);
             button(
                 &mut ui,
                 &mut self.targets,
-                [x, 84.0, tab_width - 4.0, 46.0],
+                [x, 84.0, tab_width, 46.0],
                 page.name(),
                 Action::Page(*page),
                 if *page == Page::Mods {
@@ -578,7 +590,7 @@ impl Launcher {
                 button(
                     &mut ui,
                     &mut self.targets,
-                    [32.0, h - 140.0, 480.0, 100.0],
+                    [32.0, h - 140.0, (w - 64.0).min(480.0), 100.0],
                     if installed {
                         "Play"
                     } else if self.error.is_some() {
