@@ -46,6 +46,8 @@ pub(super) struct Launcher {
     cursor: (f64, f64),
     mouse_down: bool,
     feedback: Option<(pages::Action, Instant)>,
+    /// The page last drawn and when it first appeared, for the fade between pages.
+    shown_page: (Page, Instant),
     install: Arc<Mutex<horizon_client::official_install::InstallProgress>>,
     worker: Option<mpsc::Receiver<std::result::Result<(), String>>>,
     error: Option<String>,
@@ -127,6 +129,7 @@ impl Launcher {
             cursor: (0.0, 0.0),
             mouse_down: false,
             feedback: None,
+            shown_page: (Page::Play, Instant::now()),
             install: Arc::default(),
             worker: None,
             error: None,

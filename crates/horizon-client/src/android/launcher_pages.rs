@@ -218,13 +218,13 @@ fn section_chips(
     // Under the sections: a thin white rule, and a slightly darker ground for what belongs to them.
     ui.rounded(
         0.0,
-        171.0,
+        169.0,
         w,
-        (h - 171.0).max(0.0),
+        (h - 197.0).max(0.0),
         0.0,
         color::hex(0x0f1013, 255),
     );
-    ui.rounded(16.0, 171.0, w - 32.0, 1.0, 0.0, color::hex(0xffffff, 215));
+    ui.rounded(16.0, 168.0, w - 32.0, 0.8, 0.0, color::hex(0xb9bac2, 235));
     let space = (w - 64.0 - right_reserved - 8.0).max(120.0);
     let width = ((space - 18.0) / 4.0).clamp(48.0, 96.0);
     for (i, (label, page)) in [
@@ -467,11 +467,11 @@ impl Launcher {
             &mut ui,
             Face::Medium,
             if w < 400.0 {
-                18.0
-            } else if w < 700.0 {
                 22.0
+            } else if w < 700.0 {
+                26.0
             } else {
-                28.0
+                36.0
             },
             32.0,
             if w < 700.0 { 12.0 } else { 20.0 },
@@ -1535,16 +1535,36 @@ impl Launcher {
             && self.drag.is_none()
             && let Some((action, time)) = self.feedback
             && time.elapsed() < std::time::Duration::from_millis(160)
-            && let Some(([x, y, w, h], _)) = self.targets.iter().find(|(_, a)| *a == action)
+            && let Some((rect, _)) = self.targets.iter().find(|(_, a)| *a == action)
         {
+            let (x, y, w, h) = plate_rect(*rect, matches!(action, Action::Play));
             ui.rounded(
-                *x,
-                *y,
-                *w,
-                *h,
-                2.0,
+                x,
+                y,
+                w,
+                h,
+                0.0,
                 horizon_client::hud::rgba(255, 255, 255, 48),
             );
+        }
+        // A short fade-in when the page changes: a veil of the page colour that lifts.
+        if self.shown_page.0 != self.catalog.page {
+            self.shown_page = (self.catalog.page, std::time::Instant::now());
+        }
+        let fade = self.shown_page.1.elapsed().as_secs_f32() / 0.18;
+        if fade < 1.0 {
+            let alpha = ((1.0 - fade) * (1.0 - fade) * 255.0) as u8;
+            ui.rounded(
+                0.0,
+                134.0,
+                w,
+                (h - 134.0).max(0.0),
+                0.0,
+                color::hex(0x17181c, alpha),
+            );
+            if let Some(window) = &self.window {
+                window.request_redraw();
+            }
         }
         crate::documents::draw_ui(&mut ui);
         ui.finish();
