@@ -8,6 +8,7 @@ override warmth: f32 = 0.6;
 override torch: f32 = 0.6;
 override waves: f32 = 1.0;
 override water_opacity: f32 = 0.6;
+override nether_end: bool = true;
 
 // The height of the water at a point of the world: three slow waves crossing.
 fn wave_height(xz: vec2<f32>, t: f32) -> f32 {
@@ -17,7 +18,29 @@ fn wave_height(xz: vec2<f32>, t: f32) -> f32 {
     return a * 0.5 + b * 0.3 + c * 0.2;
 }
 
+// The Nether and the End: a constant warm or purple ambient light (the End's is the same everywhere),
+// plus torch light in the Nether, run through the soft tone mapping.
+fn other_dimension(input: MaterialInput) -> Surface {
+    let alpha = input.albedo.a * input.tint.a;
+    let base = input.albedo.rgb * input.tint.rgb;
+    let lm = mix(0.5, 1.0, clamp(luma(input.lightmap), 0.0, 1.0));
+    var light: vec3<f32>;
+    if (frame.dimension == 1) {
+        // End: ambient plus a purple glow that reaches everywhere.
+        light = (vec3<f32>(1.98, 1.25, 2.3) + 5.5 * vec3<f32>(0.4, 0.1, 0.6) * 1.1) * 0.45;
+    } else {
+        // Nether: ambient plus warm light that is strongest next to a torch or lava.
+        let lx = clamp(input.light.x, 0.0, 1.0);
+        let torch_strength = min(lx / (0.5 - 0.45 * lx * lx), 10.0);
+        light = (vec3<f32>(1.98, 1.44, 1.26) + vec3<f32>(0.49, 0.2, 0.1) * torch_strength * 0.55) * 0.5;
+    }
+    return Surface(vec4<f32>(grade(base * light * lm, 1.0, saturation, contrast), alpha));
+}
+
 fn material(input: MaterialInput) -> Surface {
+    if (nether_end && frame.dimension != 0) {
+        return other_dimension(input);
+    }
     var rgb = input.albedo.rgb * input.tint.rgb * input.lightmap;
     var alpha = input.albedo.a * input.tint.a;
 
