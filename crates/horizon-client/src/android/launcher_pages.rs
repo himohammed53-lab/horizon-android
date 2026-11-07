@@ -85,6 +85,105 @@ pub(super) enum Action {
     GpuProfile,
 }
 
+/// A cheap, stable number from a cell's place, for the stone texture and the cracks.
+fn cell_hash(x: i32, y: i32, seed: i32) -> u32 {
+    let mut n = (x.wrapping_mul(73_856_093) ^ y.wrapping_mul(19_349_663) ^ seed.wrapping_mul(83_492_791)) as u32;
+    n ^= n >> 13;
+    n = n.wrapping_mul(0x5bd1_e995);
+    n ^ (n >> 15)
+}
+
+/// A Minecraft-style block plate: a black outline, a speckled face, a light top and left edge and
+/// a dark bottom and right edge, so it reads as a raised block. `base` is 0xRRGGBB.
+fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: bool) {
+    let edge = 2.0;
+    ui.rounded(x, y, w, h, 0.0, color::hex(0x000000, 255));
+    let (ix, iy, iw, ih) = (x + edge, y + edge, w - 2.0 * edge, h - 2.0 * edge);
+    ui.rounded(ix, iy, iw, ih, 0.0, color::hex(base, 255));
+    // Speckles: some cells a little lighter or darker, like the game's stone.
+    let cell = 6.0;
+    let (cols, rows) = ((iw / cell).ceil() as i32, (ih / cell).ceil() as i32);
+    for cy in 0..rows {
+        for cx in 0..cols {
+            let n = cell_hash(cx, cy, base as i32);
+            if n % 3 != 0 {
+                continue;
+            }
+            let (px, py) = (ix + cx as f32 * cell, iy + cy as f32 * cell);
+            let (pw, ph) = (cell.min(ix + iw - px), cell.min(iy + ih - py));
+            let tint = if n % 2 == 0 { color::hex(0xffffff, 16) } else { color::hex(0x000000, 28) };
+            ui.rounded(px, py, pw, ph, 0.0, tint);
+        }
+    }
+    if cracks && iw >= 24.0 && ih >= 14.0 {
+        // Stepped cracks running down from the top edge, with a faint light side.
+        for (start, seed) in [(0.22, 1), (0.63, 2), (0.86, 3)] {
+            let mut cx = ix + iw * start;
+            let steps = ((ih / 7.0) as i32).clamp(2, 12);
+            for k in 0..steps {
+                let n = cell_hash(k, seed, 7);
+                let cy = iy + k as f32 * 7.0;
+                let len = (ih - (cy - iy)).min(7.0);
+                ui.rounded(cx, cy, 3.0, len, 0.0, color::hex(0x000000, 120));
+                ui.rounded(cx + 3.0, cy, 1.0, len, 0.0, color::hex(0xffffff, 28));
+                cx += if n % 2 == 0 { 3.0 } else { -3.0 };
+                cx = cx.clamp(ix + 2.0, (ix + iw - 6.0).max(ix + 2.0));
+            }
+        }
+    }
+    let bevel = 3.0;
+    ui.rounded(ix, iy, iw, bevel, 0.0, color::hex(0xffffff, 70));
+    ui.rounded(ix, iy, bevel, ih, 0.0, color::hex(0xffffff, 50));
+    ui.rounded(ix, iy + ih - bevel, iw, bevel, 0.0, color::hex(0x000000, 95));
+    ui.rounded(ix + iw - bevel, iy, bevel, ih, 0.0, color::hex(0x000000, 80));
+}
+
+/// White text with the game's dark drop shadow.
+fn shadow_text(ui: &mut Ui, face: Face, size: f32, x: f32, y: f32, text: &str) {
+    ui.text(face, size, x + 1.5, y + 1.5, color::hex(0x252525, 255), text);
+    ui.text(face, size, x, y, color::hex(0xffffff, 255), text);
+}
+
+/// The title: "HORIZON" in stone blocks (5x7 cells a letter), drawn here from scratch.
+fn draw_logo(ui: &mut Ui, x: f32, y: f32, cell: f32) {
+    const LETTERS: [(char, [u8; 7]); 6] = [
+        ('H', [0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001]),
+        ('O', [0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110]),
+        ('R', [0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001]),
+        ('I', [0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b11111]),
+        ('Z', [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b11111]),
+        ('N', [0b10001, 0b11001, 0b10101, 0b10101, 0b10011, 0b10001, 0b10001]),
+    ];
+    let mut left = x;
+    for letter in "HORIZON".chars() {
+        let Some((_, rows)) = LETTERS.iter().find(|(c, _)| *c == letter) else {
+            continue;
+        };
+        // The shadow first, so every block sits over its neighbour's shade.
+        for pass in 0..2 {
+            for (row, bits) in rows.iter().enumerate() {
+                for col in 0..5 {
+                    if bits >> (4 - col) & 1 == 0 {
+                        continue;
+                    }
+                    let (bx, by) = (left + col as f32 * cell, y + row as f32 * cell);
+                    if pass == 0 {
+                        ui.rounded(bx + cell * 0.3, by + cell * 0.3, cell, cell, 0.0, color::hex(0x000000, 110));
+                    } else {
+                        let n = cell_hash(col, row as i32, letter as i32);
+                        let face = [0x9c9c9c, 0xa6a6a6, 0x929292][(n % 3) as usize];
+                        ui.rounded(bx, by, cell, cell, 0.0, color::hex(0x2a2a2a, 255));
+                        ui.rounded(bx + 0.5, by + 0.5, cell - 1.0, cell - 1.0, 0.0, color::hex(face, 255));
+                        ui.rounded(bx + 0.5, by + 0.5, cell - 1.0, cell * 0.25, 0.0, color::hex(0xffffff, 80));
+                        ui.rounded(bx + 0.5, by + cell * 0.75, cell - 1.0, cell * 0.25 - 0.5, 0.0, color::hex(0x000000, 90));
+                    }
+                }
+            }
+        }
+        left += 7.0 * cell;
+    }
+}
+
 pub(super) fn button(
     ui: &mut Ui,
     targets: &mut Vec<([f32; 4], Action)>,
@@ -94,16 +193,16 @@ pub(super) fn button(
     accent: bool,
 ) {
     let [x, y, w, h] = rect;
-    // Glass: a faint light rim round a translucent plate (the accent stays solid).
-    if accent {
-        // A brighter purple plate with a light rim.
-        ui.rounded(x, y, w, h, 8.0, color::hex(0xe4d4ff, 150));
-        ui.rounded(x + 1.0, y + 1.0, w - 2.0, h - 2.0, 7.0, color::hex(0x8a5cf0, 215));
-    } else {
-        ui.rounded(x, y, w, h, 8.0, color::hex(0xd8c0ff, 90));
-        ui.rounded(x + 1.0, y + 1.0, w - 2.0, h - 2.0, 7.0, color::hex(0x1c0b38, 150));
-        ui.rounded(x + 1.0, y + 1.0, w - 2.0, h - 2.0, 7.0, color::hex(0xb08cff, 38));
-    }
+    // Grey stone; the chosen or main button is grass green, and Play gets cracks.
+    block_plate(
+        ui,
+        x,
+        y,
+        w,
+        h,
+        if accent { 0x4e8f35 } else { 0x707070 },
+        accent && matches!(action, Action::Play),
+    );
     let padding = (w * 0.12).clamp(4.0, 12.0);
     let base = if h >= 60.0 {
         26.0
@@ -121,21 +220,17 @@ pub(super) fn button(
         base
     };
     let label = ui.fit_text(Face::Medium, font, label, w - 2.0 * padding);
-    ui.text(
+    shadow_text(
+        ui,
         Face::Medium,
         font,
         x + padding,
         y + ((h - base * 1.45) / 2.0).max(11.0),
-        if accent {
-            u32::MAX
-        } else {
-            color::TEXT
-        },
         &label,
     );
     targets.push((rect, action));
 }
-/// A mod's ON (green) or OFF (red) switch: one press flips it.
+/// A mod's ON (green) or OFF (red) block switch: one press flips it.
 fn switch_button(
     ui: &mut Ui,
     targets: &mut Vec<([f32; 4], Action)>,
@@ -144,22 +239,11 @@ fn switch_button(
     action: Action,
 ) {
     let [x, y, w, h] = rect;
-    let (fill, label) = if on {
-        (color::hex(0x2e9b4f, 255), "ON")
-    } else {
-        (color::hex(0xc8433a, 255), "OFF")
-    };
-    ui.rounded(x, y, w, h, 2.0, fill);
+    let (fill, label) = if on { (0x3f9a45, "ON") } else { (0xb5382f, "OFF") };
+    block_plate(ui, x, y, w, h, fill, false);
     let size = 20.0;
     let width = ui.measure(Face::Medium, size, label);
-    ui.text(
-        Face::Medium,
-        size,
-        x + (w - width) / 2.0,
-        y + 10.0,
-        color::hex(0xffffff, 255),
-        label,
-    );
+    shadow_text(ui, Face::Medium, size, x + (w - width) / 2.0, y + ((h - size * 1.45) / 2.0).max(6.0), label);
     targets.push((rect, action));
 }
 fn toggle(
@@ -169,32 +253,7 @@ fn toggle(
     on: bool,
     action: Action,
 ) {
-    let [x, y, w, h] = rect;
-    ui.text(
-        Face::Regular,
-        14.0,
-        x,
-        y + 11.0,
-        color::TEXT,
-        if on { "On" } else { "Off" },
-    );
-    ui.rounded(
-        x + w - 52.0,
-        y + 8.0,
-        48.0,
-        24.0,
-        12.0,
-        if on { color::TEXT } else { color::HOVER },
-    );
-    ui.rounded(
-        x + w - if on { 26.0 } else { 50.0 },
-        y + 10.0,
-        20.0,
-        20.0,
-        10.0,
-        if on { color::BG } else { color::TEXT },
-    );
-    targets.push(([x, y, w, h], action));
+    switch_button(ui, targets, rect, on, action);
 }
 impl Launcher {
     /// The same spatial focus algorithm as the game's controller menus.
@@ -284,19 +343,18 @@ impl Launcher {
             ui.h = ui.h.min(bottom as f32 / ui.density);
         }
         let (w, h) = (ui.w, ui.h);
-        let scale = ui.density / ui.batch.scale;
-        // The background: dark, with an Enderman's eyes in the middle, drawn as a few
-        // rectangles (the picture is 2576 x 1449, cropped to fill the screen).
-        ui.batch.fill(&gui.atlas, 0.0, 0.0, w * scale, h * scale, color::hex(0x13161b, 255));
+        // The background: dark grey (not black) with a faint block pattern.
+        ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x2c2d30, 255));
         {
-            let fit = (w / 2576.0).max(h / 1449.0);
-            let at = |x: f32, y: f32| ((w / 2.0 + (x - 1288.0) * fit) * scale, (h / 2.0 + (y - 724.0) * fit) * scale);
-            // Per eye: where its dim, bright and dim parts start, and where it ends.
-            for edges in [[746.0, 886.0, 1073.0, 1186.0], [1391.0, 1503.0, 1689.0, 1830.0]] {
-                for (part, shade) in [(0, 0x9a449b), (1, 0xd700fc), (2, 0x9a449b)] {
-                    let (x0, y0) = at(edges[part], 646.0);
-                    let (x1, y1) = at(edges[part + 1], 803.0);
-                    ui.batch.fill(&gui.atlas, x0, y0, x1 - x0, y1 - y0, color::hex(shade, 235));
+            let cell = 28.0;
+            for cy in 0..(h / cell).ceil() as i32 {
+                for cx in 0..(w / cell).ceil() as i32 {
+                    let n = cell_hash(cx, cy, 11);
+                    if n % 4 == 0 {
+                        ui.rounded(cx as f32 * cell, cy as f32 * cell, cell, cell, 0.0, color::hex(0xffffff, 7));
+                    } else if n % 4 == 1 {
+                        ui.rounded(cx as f32 * cell, cy as f32 * cell, cell, cell, 0.0, color::hex(0x000000, 22));
+                    }
                 }
             }
         }
@@ -308,19 +366,11 @@ impl Launcher {
             color::MUTED,
             "Horizon Android  -  developed by Muhamed and Claude",
         );
-        ui.text(
-            Face::Medium,
-            if w < 400.0 {
-                20.0
-            } else if w < 700.0 {
-                24.0
-            } else {
-                32.0
-            },
+        draw_logo(
+            &mut ui,
             32.0,
-            if w < 700.0 { 12.0 } else { 28.0 },
-            color::TEXT,
-            "Horizon",
+            if w < 700.0 { 10.0 } else { 20.0 },
+            if w < 400.0 { 2.5 } else if w < 700.0 { 3.0 } else { 5.0 },
         );
         button(
             &mut ui,
@@ -875,6 +925,8 @@ impl Launcher {
                 color::TEXT,
                 "Launch settings",
             );
+            ui.rounded(16.0, 186.0, w - 32.0, h - 130.0 - 186.0, 0.0, color::hex(0x000000, 255));
+            ui.rounded(18.0, 188.0, w - 36.0, h - 130.0 - 190.0, 0.0, color::hex(0x1f2022, 245));
             let row_height = if compact { 82.0 } else { 66.0 };
             self.catalog.scroll = self
                 .catalog
