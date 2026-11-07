@@ -595,11 +595,63 @@ impl Waypoints {
         true
     }
 
-    /// A death point's marker: the user's own pixel skull and crossbones, 24 x 27
-    /// blocks, `side` tall. Each row is drawn in runs of one colour.
+    /// A death point's marker: the user's own pixel skull and crossbones, `side`
+    /// tall. The full picture (41 x 46 blocks, about 400 rectangles) is drawn
+    /// while the shape budget allows, a smaller one (24 x 27) after that.
     fn skull(shapes: &mut Vec<Shape>, cx: f32, cy: f32, side: f32, alpha: u32) {
-        const ROWS: [&str; 27] = [
-        "........c#######........",
+        // Rows of blocks: `#` is the darkest colour, `a`..`f` the next ones.
+        const FULL: [&str; 46] = [
+            "...............############..............",
+            ".............aaaaaaaaaaaaaaa.............",
+            "............#aaaaaaaaaaaaaaa.............",
+            "...........aaddffffdddddddddaa...........",
+            "..........#aaddffffdddddddddaa...........",
+            ".........aaddffdddddddddddddddaa.........",
+            ".........aaddffdddddddddddddddaa.........",
+            ".......aaddffddffdddddddddddddddaa.......",
+            "......#aaddffddffdddddddddddddddaa#......",
+            "......#aadddddddddddddbaaaaaddddaa#......",
+            ".......aadddddddddddddbaaaaaddddaa#......",
+            ".......aadddd######dda######ddddaa.......",
+            ".......aadddd######dda######ddddaa.......",
+            ".......aaddaa######ddda#####aaddaa.......",
+            "......#aaddaa######ddda#####aaddaa.......",
+            "......#aaddaa####ddddddd####aaddaa.......",
+            "......#aaddaa####dda#ddd####aaddaa.......",
+            "......#aaddddaadddd##abdddaaddaaaa.......",
+            "......#aaddddaadddd#.abdddaaddaaaa.......",
+            ".......##aadddddddd...adddddaa...........",
+            ".........aadddddddd...adddddaa...........",
+            "...fff#..##bbddddbbcccbbddbba#....ffff...",
+            "..bffff#...aaddddaadddbaddaa.....bfffec..",
+            "..dfedf#...aaddddaadddaacdaa.....bddfeb..",
+            "...dddf#...aaddaa#.aad##aaaa.....bdddba..",
+            ".acacddfc..aaddaa..aad##aaaa....feddbaaa.",
+            "adddddddffb...................ffeddddddb.",
+            "aacdbaadddffc...............ffeddbaacdaa.",
+            "aaaaa.aaadddffc...........ffeddcaa.aaaaa.",
+            ".aaaa...aaadddff#.......ffdddcaaa...aaaa.",
+            "..........aaadddff#...ffeddaaaa..........",
+            "............aaadddff#aacdaaaa............",
+            "..............aaacddff#aaa...............",
+            "................aaddddffd................",
+            "..............aa##aaddddffc..............",
+            "............ffdda##.aaacddffc............",
+            "..........dfdddaaa....aaadddffa..........",
+            ".fff####dfdddaaa........aaacddff####effc.",
+            "bffdffffdddaaa............aaabddffffdefd#",
+            "bfddddddddaa................aacdddddddfd#",
+            "dddacdddaaa...................aacddddddd#",
+            ".aa#bddaa.......................acddbaa..",
+            "...dddaa#........................acddd...",
+            "...abdaa#........................aacdb...",
+            "...aaaaa#........................aaaaa...",
+            "....aaa...........................aaa....",
+        ];
+        const FULL_COLORS: [u32; 7] = [
+            0x32323b, 0x90989d, 0xadb1b6, 0xcbcfd4, 0xe7eaee, 0xeef0f3, 0xf9fcfd,
+        ];
+        const SMALL: [&str; 27] = ["........c#######........",
         ".......#cccccccc#.......",
         "......#cdeedddddc#......",
         ".....#cdeddddddddcc.....",
@@ -625,13 +677,29 @@ impl Waypoints {
         "#dcddc#..........#cdddd#",
         ".#ddc#.............cdd#.",
         "..ccc#.............ccc#.",
-        "...##...............##..",
-        ];
-        // The colours, darkest first: `#` is the outline.
-        const COLORS: [u32; 6] = [0x1a1925, 0x474b50, 0x7e838a, 0x959da2, 0xe7ebef, 0xf9fdfe];
-        let c = side * 1.15 / 27.0;
-        let (x, y) = (cx - c * 12.0, cy - c * 13.5);
-        for (row, line) in ROWS.iter().enumerate() {
+        "...##...............##.."];
+        const SMALL_COLORS: [u32; 6] = [0x1a1925, 0x474b50, 0x7e838a, 0x959da2, 0xe7ebef, 0xf9fdfe];
+        if shapes.len() + 430 <= 1000 {
+            Self::paint(shapes, &FULL, &FULL_COLORS, cx, cy, side * 1.15 / 46.0, alpha);
+        } else {
+            Self::paint(shapes, &SMALL, &SMALL_COLORS, cx, cy, side * 1.15 / 27.0, alpha);
+        }
+    }
+
+    /// Rows of coloured blocks of `c` GUI pixels, centred on (`cx`, `cy`); each row
+    /// is drawn in runs of one colour and `.` is see-through.
+    fn paint(
+        shapes: &mut Vec<Shape>,
+        rows: &[&str],
+        colors: &[u32],
+        cx: f32,
+        cy: f32,
+        c: f32,
+        alpha: u32,
+    ) {
+        let width = rows.iter().map(|r| r.len()).max().unwrap_or(0) as f32;
+        let (x, y) = (cx - c * width / 2.0, cy - c * rows.len() as f32 / 2.0);
+        for (row, line) in rows.iter().enumerate() {
             let bytes = line.as_bytes();
             let mut i = 0;
             while i < bytes.len() {
@@ -640,16 +708,12 @@ impl Waypoints {
                 while j < bytes.len() && bytes[j] == b {
                     j += 1;
                 }
-                let color = match b {
-                    b'#' => Some(COLORS[0]),
-                    b'a' => Some(COLORS[1]),
-                    b'b' => Some(COLORS[2]),
-                    b'c' => Some(COLORS[3]),
-                    b'd' => Some(COLORS[4]),
-                    b'e' => Some(COLORS[5]),
+                let index = match b {
+                    b'#' => Some(0),
+                    b'a'..=b'f' => Some((b - b'a' + 1) as usize),
                     _ => None,
                 };
-                if let Some(rgb) = color {
+                if let Some(rgb) = index.and_then(|k| colors.get(k)) {
                     Self::fill(
                         shapes,
                         x + i as f32 * c,
