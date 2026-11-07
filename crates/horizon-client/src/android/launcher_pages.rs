@@ -165,8 +165,8 @@ fn plate_rect(rect: [f32; 4], full: bool) -> (f32, f32, f32, f32) {
     if full {
         return (x, y, w, h);
     }
-    let ph = (h * 0.72).clamp(26.0_f32.min(h), h);
-    let pw = if w > 200.0 { w * 0.85 } else { w };
+    let ph = (h * 0.86).clamp(30.0_f32.min(h), h);
+    let pw = if w > 200.0 { w * 0.92 } else { w };
     (x, y + (h - ph) / 2.0, pw, ph)
 }
 
@@ -234,20 +234,14 @@ pub(super) fn button(
 ) {
     let main = matches!(action, Action::Play);
     let (x, y, w, h) = plate_rect(rect, main);
-    // Grey stone; the chosen button is grass green; Play is the big purple main block, cracked.
+    // Grey stone; the chosen button is purple; Play is the big purple main block, cracked.
     block_plate(
         ui,
         x,
         y,
         w,
         h,
-        if main {
-            0x7b4fe0
-        } else if accent {
-            0x4e8f35
-        } else {
-            0x707070
-        },
+        if main || accent { 0x7b4fe0 } else { 0x707070 },
         main,
     );
     let padding = (w * 0.12).clamp(4.0, 12.0);
@@ -289,7 +283,7 @@ fn switch_button(
 ) {
     let (x, y, w, h) = plate_rect(rect, false);
     let (fill, label) = if on {
-        (0x3f9a45, "ON")
+        (0x7b4fe0, "ON")
     } else {
         (0x707070, "OFF")
     };
