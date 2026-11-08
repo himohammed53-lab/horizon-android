@@ -186,7 +186,7 @@ impl Page {
     pub fn name(self) -> &'static str {
         match self {
             Self::Play => "Play",
-            Self::Mods => "Add-ons",
+            Self::Mods => "Extensions",
             Self::Packs => "Packs",
             Self::Shaders => "Shaders",
             Self::Installed => "Installed",
