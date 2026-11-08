@@ -778,7 +778,7 @@ impl Launcher {
                 button(
                     &mut ui,
                     &mut self.targets,
-                    [32.0, h - 140.0, (w - 64.0).min(400.0), 100.0],
+                    [32.0, h - 118.0, (w - 64.0).min(400.0), 100.0],
                     if installed {
                         "Play"
                     } else if self.error.is_some() {
