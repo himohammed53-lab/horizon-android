@@ -202,9 +202,11 @@ pub(super) fn submit(
     let yaw = random.next_float() * 70.0 - 35.0;
     let pitch = random.next_float() * -30.0;
     draw.push();
-    draw.translate([0.5, 0.25, 0.475]);
-    draw.rotate_about([0.0, 1.0, 0.0], yaw, [0.0; 3]);
-    draw.rotate_about([1.0, 0.0, 0.0], pitch, [0.0; 3]);
+    // `renderPositionedHead`: a sixteenth below the block's floor, a little in front of its
+    // middle; the model is flipped upside down there, so its turn and tilt run the other way.
+    draw.translate([0.5, -0.0625, 0.475]);
+    draw.rotate_about([0.0, 1.0, 0.0], -yaw, [0.0; 3]);
+    draw.rotate_about([1.0, 0.0, 0.0], -pitch, [0.0; 3]);
     // The head model stands on its pivot: eight pixels, half a block.
     draw.translate([0.0, 0.25, 0.0]);
     head_cube(draw, rect, 0.25, 0.0);
@@ -374,6 +376,7 @@ pub(super) fn tick(game: &mut Game<'_>, pos: [i32; 3], entity: &mut ModBlockEnti
         let dimension = game.dim.id().to_owned();
         if let Some(air) = air_state(game) {
             game.native_set_block(&dimension, pos, air, 3);
+            game.gravestone_souls(pos);
         }
     } else {
         let shown = game.world.block(pos[0], pos[1], pos[2]);
@@ -408,6 +411,7 @@ pub(super) fn right_click(game: &mut Game<'_>, pos: [i32; 3], canceled: &mut boo
         "Horizon: gravestone clicked at {pos:?} (tick {})",
         game.world.game_time
     );
+    game.gravestone_souls(pos);
     game.gravestone_collect(pos);
     log::info!(
         "Horizon: gravestone collected at {pos:?} (tick {})",
@@ -559,6 +563,23 @@ impl Game<'_> {
         self.native_block_entity_sync(pos);
     }
 
+    /// `TechnicalGravestoneBlock.createSoulParticles`: sixteen souls rise from the grave.
+    fn gravestone_souls(&mut self, pos: [i32; 3]) {
+        use horizon_client::particles::{ParticleOptions, ParticleType};
+        let seed = self.world.game_time ^ i64::from(pos[0]) ^ (i64::from(pos[2]) << 20);
+        let mut random = LegacyRandom::new(seed);
+        let options = ParticleOptions::simple(ParticleType::Soul);
+        for _ in 0..16 {
+            let at = [
+                f64::from(pos[0]) + f64::from(random.next_float()) * 0.6 + 0.2,
+                f64::from(pos[1]) + f64::from(random.next_float() / 10.0) + 0.25,
+                f64::from(pos[2]) + f64::from(random.next_float()) * 0.6 + 0.2,
+            ];
+            let spread = [0; 3].map(|_| (f64::from(random.next_float()) - 0.5) * 0.08);
+            self.native_send_particles(&options, None, at, spread, 0.1, 1);
+        }
+    }
+
     /// `GravestoneCollection.collect`: the grave gives its things to the acting player.
     fn gravestone_collect(&mut self, pos: [i32; 3]) {
         let me = self.acting_player_uuid();
@@ -624,6 +645,7 @@ impl Game<'_> {
         let dimension = self.dim.id().to_owned();
         if let Some(air) = air_state(self) {
             self.native_set_block(&dimension, pos, air, 3);
+            self.gravestone_souls(pos);
         }
     }
 
@@ -677,6 +699,7 @@ impl Game<'_> {
             let dimension = self.dim.id().to_owned();
             if let Some(air) = air_state(self) {
                 self.native_set_block(&dimension, pos, air, 3);
+                self.gravestone_souls(pos);
             }
             true
         } else {

@@ -413,10 +413,19 @@ impl Login {
             .enumerate()
             {
                 let active = editing.is_some_and(|field| field.starts_with("ely_"));
-                if active && editing != Some(name) {
+                // While one is typed, the email and the password stay together at the top, above
+                // the keyboard; the optional code has the place to itself when it is the one.
+                let code = editing == Some("ely_otp");
+                if active && (code != (name == "ely_otp")) {
                     continue;
                 }
-                let top = y + 86.0 + if active { 0.0 } else { index as f32 * 72.0 };
+                let top = y
+                    + 86.0
+                    + match (active, code) {
+                        (true, true) => 0.0,
+                        (true, false) => index as f32 * 62.0,
+                        (false, _) => index as f32 * 72.0,
+                    };
                 ui.text(Face::Regular, 13.0, x + 20.0, top, color::MUTED, label);
                 let display = if secret {
                     "*".repeat(value.chars().count().min(40))
