@@ -86,6 +86,10 @@ and its logo are trademarks of the Microsoft group of companies; Horizon is not 
 
 Zoom and Recipes are adapted from [horizon-rust/horizon-mods](https://github.com/horizon-rust/horizon-mods/tree/e3ee0a7c450b28c3ed58fa59a4881ec78c5ee2e0/native),
 copyright 2026 Ludovic Marie and the Horizon contributors, MIT.
+Gravestones is ported from [Gravestones 1.4.2](https://github.com/PneumonoIsNotAvailable/Gravestones)
+by Pneumono, MIT: the game logic in `crates/horizon-client/src/game/gravestones.rs`, and its blocks,
+models, textures and names unchanged in `crates/horizon-mod-sdk/examples/gravestones` (with the
+mod's LICENSE and CREDITS.md).
 SmartF3 is adapted from [d3grando/smartf3](https://github.com/d3grando/smartf3),
 copyright 2026 d3grando, MIT. Exact revisions and adaptation notes are recorded in
 `crates/horizon-client/src/game/android_bundled/PROVENANCE.json`; each bundled

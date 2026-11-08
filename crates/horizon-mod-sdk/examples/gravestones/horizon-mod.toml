@@ -1,7 +1,8 @@
 # Gravestones, ported to Horizon. Original mod: Gravestones by Pneumono (MIT),
 # https://modrinth.com/project/Heh3BbSv, https://github.com/PneumonoIsNotAvailable/Gravestones
 # This folder holds the mod's blocks, models, textures, names, recipes and loot, taken from
-# Gravestones 1.4.2 unchanged. The behaviour (grave on death, collecting) is not here yet.
+# Gravestones 1.4.2 unchanged. The behaviour (grave on death, collecting) is built into the
+# game as "Gravestones 1.4.2" in Options > Mods; this folder only gives it the blocks.
 id = "gravestones"
 name = "Gravestones"
 version = "1.4.2"
