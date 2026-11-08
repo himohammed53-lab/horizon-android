@@ -906,58 +906,58 @@ impl Launcher {
             self.catalog.scroll = self
                 .catalog
                 .scroll
-                .clamp(0.0, (row_count as f32 * 104.0 - (bottom - top)).max(0.0));
+                .clamp(0.0, (row_count as f32 * 86.0 - (bottom - top)).max(0.0));
             self.list_view = Some([
                 top,
                 bottom,
-                (row_count as f32 * 104.0 - (bottom - top)).max(0.0),
+                (row_count as f32 * 86.0 - (bottom - top)).max(0.0),
             ]);
             for (row, (id, title, description)) in bundled.iter().enumerate() {
-                let y = top + row as f32 * 104.0 - self.catalog.scroll;
-                if y < top - 1.0 || y + 92.0 > bottom {
+                let y = top + row as f32 * 86.0 - self.catalog.scroll;
+                if y < top - 1.0 || y + 76.0 > bottom {
                     continue;
                 }
-                let title = ui.fit_text(Face::Medium, 27.0, title, w - 280.0);
-                let summary = ui.fit_text(Face::Regular, 19.0, description, w - 280.0);
-                ui.text(Face::Medium, 27.0, 32.0, y, color::TEXT, &title);
-                ui.text(Face::Regular, 17.0, 32.0, y + 41.0, color::MUTED, &summary);
+                let title = ui.fit_text(Face::Medium, 22.0, title, w - 214.0);
+                let summary = ui.fit_text(Face::Regular, 16.0, description, w - 214.0);
+                ui.text(Face::Medium, 22.0, 32.0, y, color::TEXT, &title);
+                ui.text(Face::Regular, 14.0, 32.0, y + 33.0, color::MUTED, &summary);
                 switch_button(
                     &mut ui,
                     &mut self.targets,
-                    [w - 200.0, y, 168.0, 60.0],
+                    [w - 150.0, y, 118.0, 46.0],
                     self.catalog.bundled_enabled.contains(*id),
                     Action::ToggleBundled(id),
                 );
                 let dots = if w < 700.0 {
                     [w - 150.0, y + 50.0, 56.0, 30.0]
                 } else {
-                    [w - 276.0, y, 68.0, 60.0]
+                    [w - 216.0, y, 56.0, 46.0]
                 };
                 more_dots(&mut ui, &mut self.targets, dots, Action::BuiltInInfo);
             }
             for (row, i) in local_mods.iter().copied().enumerate() {
-                let y = top + (row + bundled.len()) as f32 * 104.0 - self.catalog.scroll;
+                let y = top + (row + bundled.len()) as f32 * 86.0 - self.catalog.scroll;
                 // The three dots open the "Remove add-on?" question; on a narrow screen they sit under the switch.
                 let remove = if w < 700.0 {
                     [w - 150.0, y + 50.0, 56.0, 30.0]
                 } else {
-                    [w - 276.0, y, 68.0, 60.0]
+                    [w - 216.0, y, 56.0, 46.0]
                 };
-                let title_room = if w < 700.0 { w - 280.0 } else { w - 340.0 };
+                let title_room = if w < 700.0 { w - 214.0 } else { w - 240.0 };
                 self.list_targets
-                    .push(([w - 200.0, y, 168.0, 60.0], Action::ToggleLocal(i)));
+                    .push(([w - 150.0, y, 118.0, 46.0], Action::ToggleLocal(i)));
                 self.list_targets.push((remove, Action::DeleteLocal(i)));
-                if y < top - 1.0 || y + 92.0 > bottom {
+                if y < top - 1.0 || y + 76.0 > bottom {
                     continue;
                 }
                 let item = &self.catalog.local[i];
-                let title = ui.fit_text(Face::Medium, 27.0, &item.title, title_room);
-                ui.text(Face::Medium, 27.0, 32.0, y, color::TEXT, &title);
+                let title = ui.fit_text(Face::Medium, 22.0, &item.title, title_room);
+                ui.text(Face::Medium, 22.0, 32.0, y, color::TEXT, &title);
                 ui.text(
                     Face::Regular,
-                    17.0,
+                    14.0,
                     32.0,
-                    y + 41.0,
+                    y + 33.0,
                     color::MUTED,
                     "Added mod",
                 );
@@ -965,16 +965,16 @@ impl Launcher {
                     switch_button(
                         &mut ui,
                         &mut self.targets,
-                        [w - 200.0, y, 168.0, 60.0],
+                        [w - 150.0, y, 118.0, 46.0],
                         item.enabled,
                         Action::ToggleLocal(i),
                     );
                 } else {
                     ui.text(
                         Face::Regular,
-                        17.0,
-                        w - 200.0,
-                        y + 14.0,
+                        14.0,
+                        w - 150.0,
+                        y + 12.0,
                         color::MUTED,
                         "64-bit required",
                     );
@@ -982,7 +982,7 @@ impl Launcher {
                 more_dots(&mut ui, &mut self.targets, remove, Action::DeleteLocal(i));
             }
             for (row, (i, p)) in catalog_rows.into_iter().enumerate() {
-                let y = top + (row + bundled.len() + local_mods.len()) as f32 * 104.0
+                let y = top + (row + bundled.len() + local_mods.len()) as f32 * 86.0
                     - self.catalog.scroll;
                 let download = self.catalog.download_label(p);
                 if download.is_none()
@@ -991,49 +991,49 @@ impl Launcher {
                         && p.source == crate::browser::SourceId::Modrinth)
                 {
                     self.list_targets
-                        .push(([w - 200.0, y, 168.0, 78.0], Action::Install(i)));
+                        .push(([w - 150.0, y, 118.0, 78.0], Action::Install(i)));
                 }
-                if y < top || y + 92.0 > bottom {
+                if y < top || y + 78.0 > bottom {
                     continue;
                 }
                 // The project's picture, in a small framed square (a plain one until it arrives).
-                ui.rounded(32.0, y + 2.0, 78.0, 78.0, 0.0, color::hex(0xb9bac2, 255));
-                ui.rounded(33.0, y + 3.0, 76.0, 76.0, 0.0, color::hex(0x0f1013, 255));
+                ui.rounded(32.0, y + 2.0, 60.0, 60.0, 0.0, color::hex(0xb9bac2, 255));
+                ui.rounded(33.0, y + 3.0, 58.0, 58.0, 0.0, color::hex(0x0f1013, 255));
                 if let Some(squares) = p.icon.as_ref().and_then(|u| self.catalog.icons.get(u)) {
                     for ([sx, sy, sw, sh], c) in squares {
                         ui.rounded(
-                            33.0 + sx * 2.375,
-                            y + 3.0 + sy * 2.375,
-                            sw * 2.375 + 0.3,
-                            sh * 2.375 + 0.3,
+                            33.0 + sx * 1.8125,
+                            y + 3.0 + sy * 1.8125,
+                            sw * 1.8125 + 0.3,
+                            sh * 1.8125 + 0.3,
                             0.0,
                             *c,
                         );
                     }
                 }
-                let title = ui.fit_text(Face::Medium, 27.0, &p.title, w - 400.0);
-                let summary = ui.fit_text(Face::Regular, 19.0, &p.summary, w - 400.0);
-                ui.text(Face::Medium, 27.0, 124.0, y, color::TEXT, &title);
-                ui.text(Face::Regular, 17.0, 124.0, y + 41.0, color::MUTED, &summary);
+                let title = ui.fit_text(Face::Medium, 22.0, &p.title, w - 282.0);
+                let summary = ui.fit_text(Face::Regular, 16.0, &p.summary, w - 282.0);
+                ui.text(Face::Medium, 22.0, 104.0, y, color::TEXT, &title);
+                ui.text(Face::Regular, 14.0, 104.0, y + 33.0, color::MUTED, &summary);
                 if let Some(state) = download {
-                    ui.text(Face::Medium, 19.0, w - 200.0, y + 14.0, color::TEXT, &state);
+                    ui.text(Face::Medium, 16.0, w - 150.0, y + 12.0, color::TEXT, &state);
                 } else if p.kind == crate::browser::Kind::Mod
                     && p.source == crate::browser::SourceId::Modrinth
                 {
                     ui.text(
                         Face::Regular,
-                        17.0,
-                        w - 200.0,
-                        y + 14.0,
+                        14.0,
+                        w - 150.0,
+                        y + 12.0,
                         color::MUTED,
                         "Java mod",
                     );
                 } else if crate::catalog::source_only_mod(p) {
                     ui.text(
                         Face::Regular,
-                        17.0,
-                        w - 200.0,
-                        y + 14.0,
+                        14.0,
+                        w - 150.0,
+                        y + 12.0,
                         color::MUTED,
                         ".hnmod: later",
                     );
@@ -1041,9 +1041,9 @@ impl Launcher {
                 {
                     ui.text(
                         Face::Regular,
-                        17.0,
-                        w - 200.0,
-                        y + 14.0,
+                        14.0,
+                        w - 150.0,
+                        y + 12.0,
                         color::MUTED,
                         "64-bit required",
                     );
@@ -1051,7 +1051,7 @@ impl Launcher {
                     button(
                         &mut ui,
                         &mut self.targets,
-                        [w - 200.0, y, 168.0, 60.0],
+                        [w - 150.0, y, 118.0, 46.0],
                         self.catalog.install_button(p),
                         Action::Install(i),
                         false,
@@ -1061,7 +1061,7 @@ impl Launcher {
             button(
                 &mut ui,
                 &mut self.targets,
-                [32.0, h - 104.0, 150.0, 54.0],
+                [32.0, h - 100.0, 120.0, 40.0],
                 "Previous",
                 Action::Previous,
                 false,
@@ -1069,7 +1069,7 @@ impl Launcher {
             button(
                 &mut ui,
                 &mut self.targets,
-                [196.0, h - 104.0, 150.0, 54.0],
+                [166.0, h - 100.0, 120.0, 40.0],
                 "Next",
                 Action::Next,
                 false,
@@ -1079,12 +1079,12 @@ impl Launcher {
             section_chips(&mut ui, &mut self.targets, w, h, 0.0, page);
             let top = if compact { 176.0 } else { 198.0 };
             let bottom = h - 100.0;
-            let row_height = if compact { 124.0 } else { 92.0 };
+            let row_height = if compact { 124.0 } else { 80.0 };
             let total = Kind::ALL
                 .iter()
                 .enumerate()
                 .map(|(i, k)| {
-                    66.0 + if self.catalog.sections[i] {
+                    54.0 + if self.catalog.sections[i] {
                         self.catalog.local.iter().filter(|e| e.kind == *k).count() as f32
                             * row_height
                     } else {
@@ -1109,14 +1109,14 @@ impl Launcher {
                     kind.label()
                 );
                 self.list_targets
-                    .push(([32.0, y, w - 250.0, 58.0], Action::ToggleSection(section)));
+                    .push(([32.0, y, w - 210.0, 46.0], Action::ToggleSection(section)));
                 self.list_targets
-                    .push(([w - 200.0, y, 168.0, 58.0], Action::Import(kind)));
-                if y >= top && y + 58.0 <= bottom {
+                    .push(([w - 165.0, y, 133.0, 46.0], Action::Import(kind)));
+                if y >= top && y + 46.0 <= bottom {
                     button(
                         &mut ui,
                         &mut self.targets,
-                        [32.0, y, w - 250.0, 58.0],
+                        [32.0, y, w - 210.0, 46.0],
                         &label,
                         Action::ToggleSection(section),
                         false,
@@ -1124,13 +1124,13 @@ impl Launcher {
                     button(
                         &mut ui,
                         &mut self.targets,
-                        [w - 200.0, y, 168.0, 58.0],
+                        [w - 165.0, y, 133.0, 46.0],
                         "Import",
                         Action::Import(kind),
                         false,
                     );
                 }
-                offset += 66.0;
+                offset += 54.0;
                 if !self.catalog.sections[section] {
                     continue;
                 }
@@ -1145,15 +1145,15 @@ impl Launcher {
                     offset += row_height;
                     self.list_targets.push((
                         [
-                            if compact { 32.0 } else { w - 380.0 },
+                            if compact { 32.0 } else { w - 300.0 },
                             y,
-                            150.0,
+                            120.0,
                             row_height - 4.0,
                         ],
                         Action::ToggleLocal(i),
                     ));
                     self.list_targets.push((
-                        [w - 200.0, y, 168.0, row_height - 4.0],
+                        [w - 165.0, y, 133.0, row_height - 4.0],
                         Action::DeleteLocal(i),
                     ));
                     if y < top || y + row_height - 4.0 > bottom {
@@ -1161,16 +1161,16 @@ impl Launcher {
                     }
                     let title = ui.fit_text(
                         Face::Medium,
-                        26.0,
+                        22.0,
                         &item.title,
-                        if compact { w - 64.0 } else { w - 430.0 },
+                        if compact { w - 64.0 } else { w - 364.0 },
                     );
-                    ui.text(Face::Medium, 26.0, 32.0, y, color::TEXT, &title);
+                    ui.text(Face::Medium, 22.0, 32.0, y, color::TEXT, &title);
                     ui.text(
                         Face::Regular,
-                        19.0,
+                        16.0,
                         32.0,
-                        y + 38.0,
+                        y + 32.0,
                         color::MUTED,
                         kind.label(),
                     );
@@ -1188,10 +1188,10 @@ impl Launcher {
                             &mut ui,
                             &mut self.targets,
                             [
-                                if compact { 32.0 } else { w - 380.0 },
+                                if compact { 32.0 } else { w - 300.0 },
                                 y + if compact { 62.0 } else { 0.0 },
-                                150.0,
-                                58.0,
+                                120.0,
+                                46.0,
                             ],
                             item.enabled,
                             Action::ToggleLocal(i),
@@ -1200,7 +1200,7 @@ impl Launcher {
                     button(
                         &mut ui,
                         &mut self.targets,
-                        [w - 200.0, y + if compact { 62.0 } else { 0.0 }, 168.0, 58.0],
+                        [w - 165.0, y + if compact { 62.0 } else { 0.0 }, 133.0, 46.0],
                         "Remove",
                         Action::DeleteLocal(i),
                         false,
