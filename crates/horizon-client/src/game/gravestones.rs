@@ -389,6 +389,7 @@ pub(super) fn tick(game: &mut Game<'_>, pos: [i32; 3], entity: &mut ModBlockEnti
         if let Some(air) = air_state(game) {
             game.native_set_block(&dimension, pos, air, 3);
             game.gravestone_souls(pos);
+            game.gravestone_breaks(pos);
         }
     } else {
         let shown = game.world.block(pos[0], pos[1], pos[2]);
@@ -424,6 +425,7 @@ pub(super) fn right_click(game: &mut Game<'_>, pos: [i32; 3], canceled: &mut boo
         game.world.game_time
     );
     game.gravestone_souls(pos);
+    game.gravestone_sound(pos, "minecraft:particle.soul_escape", 1.0, 1.0);
     game.gravestone_collect(pos);
     log::info!(
         "Horizon: gravestone collected at {pos:?} (tick {})",
@@ -576,6 +578,31 @@ impl Game<'_> {
     }
 
     /// `TechnicalGravestoneBlock.createSoulParticles`: sixteen souls rise from the grave.
+    /// A sound for the players near the grave: the stone's own, as `destroyBlock` plays it when
+    /// the grave goes, and the soul escaping, as the original's particles are meant to be heard.
+    fn gravestone_sound(&mut self, pos: [i32; 3], sound: &str, volume: f32, pitch: f32) {
+        self.creatures
+            .lan_sounds
+            .push(super::creatures::NativeSound {
+                dimension: self.dim.id(),
+                sound: sound.to_owned(),
+                at: [
+                    f64::from(pos[0]) + 0.5,
+                    f64::from(pos[1]) + 0.5,
+                    f64::from(pos[2]) + 0.5,
+                ],
+                // The "block" sound source.
+                source: 4,
+                volume,
+                pitch,
+            });
+        self.flush_native_sounds();
+    }
+
+    fn gravestone_breaks(&mut self, pos: [i32; 3]) {
+        self.gravestone_sound(pos, "minecraft:block.stone.break", 1.0, 0.8);
+    }
+
     fn gravestone_souls(&mut self, pos: [i32; 3]) {
         use horizon_client::particles::{ParticleOptions, ParticleType};
         let seed = self.world.game_time ^ i64::from(pos[0]) ^ (i64::from(pos[2]) << 20);
@@ -668,6 +695,7 @@ impl Game<'_> {
         if let Some(air) = air_state(self) {
             self.native_set_block(&dimension, pos, air, 3);
             self.gravestone_souls(pos);
+            self.gravestone_breaks(pos);
         }
     }
 
@@ -722,6 +750,7 @@ impl Game<'_> {
             if let Some(air) = air_state(self) {
                 self.native_set_block(&dimension, pos, air, 3);
                 self.gravestone_souls(pos);
+                self.gravestone_breaks(pos);
             }
             true
         } else {

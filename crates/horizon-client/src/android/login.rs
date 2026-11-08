@@ -18,6 +18,8 @@ pub(super) struct Login {
     pub visible: bool,
     pub signed_in: bool,
     pub profile: Option<String>,
+    /// Which field the page last jumped to, with the room it had.
+    snapped: std::cell::Cell<(Option<&'static str>, i32)>,
     task: Option<SignIn>,
     auto_open_device: bool,
     state: Option<SignInState>,
@@ -50,59 +52,6 @@ fn button_as(
     page_button_as(ui, targets, fit(rect), label, action, accent, tint);
 }
 
-/// The one-line panel shown above the keyboard while a field is typed in: its name, the text so
-/// far, then Paste and Done. It always fits, whatever room the keyboard leaves.
-fn typing_row(
-    ui: &mut Ui,
-    targets: &mut Vec<([f32; 4], Action)>,
-    [x, y, w, h]: [f32; 4],
-    label: &str,
-    name: &'static str,
-    display: &str,
-) {
-    let wide = (w * 0.17).clamp(64.0, 92.0);
-    let label_w = 84.0;
-    let field_w = w - 12.0 - label_w - 8.0 - (wide + 6.0) * 2.0 - 4.0;
-    let (field_y, field_h) = (y + (h - 38.0) / 2.0, 38.0);
-    ui.text(
-        Face::Medium,
-        14.0,
-        x + 14.0,
-        field_y + 9.0,
-        color::MUTED,
-        label,
-    );
-    button(
-        ui,
-        targets,
-        [x + 12.0 + label_w, field_y, field_w, field_h],
-        display,
-        Action::Field(name),
-        false,
-    );
-    button(
-        ui,
-        targets,
-        [x + 12.0 + label_w + field_w + 6.0, field_y, wide, field_h],
-        "Paste",
-        Action::PasteField,
-        false,
-    );
-    button(
-        ui,
-        targets,
-        [
-            x + 12.0 + label_w + field_w + 12.0 + wide,
-            field_y,
-            wide,
-            field_h,
-        ],
-        "Done",
-        Action::FinishNameEdit,
-        true,
-    );
-}
-
 impl Login {
     pub fn new() -> Self {
         let mut login = Self {
@@ -119,6 +68,7 @@ impl Login {
             visible: false,
             signed_in: false,
             profile: None,
+            snapped: std::cell::Cell::new((None, 0)),
             task: None,
             auto_open_device: false,
             state: None,
@@ -318,22 +268,14 @@ impl Login {
         ui: &mut Ui,
         targets: &mut Vec<([f32; 4], Action)>,
         offline_name: &str,
-        editing: Option<&str>,
-    ) {
+        editing: Option<&'static str>,
+        scroll: f32,
+    ) -> Option<([f32; 3], f32)> {
         targets.clear();
         let w = (ui.w - 32.0).min(720.0);
-        // While a field is typed in, the system keyboard takes the lower part of the screen: the
-        // panel shrinks to just the fields being edited and sits at the very top, above it.
-        let typing_ely = self.ely && editing.is_some_and(|field| field.starts_with("ely_"));
-        let typing_name = self.offline && editing == Some("name");
-        let compact = typing_ely || typing_name;
-        let h = if compact {
-            56.0_f32.min(ui.h - 8.0)
-        } else {
-            (ui.h - 24.0).min(550.0)
-        };
+        let h = (ui.h - 24.0).min(550.0);
         let x = (ui.w - w) / 2.0;
-        let y = if compact { 4.0 } else { (ui.h - h) / 2.0 };
+        let y = (ui.h - h) / 2.0;
         // A thin dark-grey outline (the search field's grey) so the dialog does not blend in.
         ui.rounded(
             x - 2.0,
@@ -486,7 +428,7 @@ impl Login {
                 Action::CloseLogin,
                 false,
             );
-            return;
+            return None;
         }
         if self.choosing {
             ui.text(
@@ -559,159 +501,195 @@ impl Login {
                 Action::Account,
                 false,
             );
-            return;
+            return None;
         }
-        if self.ely {
-            if typing_ely {
-                let (label, name, value, secret) = match editing {
-                    Some("ely_otp") => ("Code", "ely_otp", self.otp.as_str(), true),
-                    Some("ely_password") => {
-                        ("Password", "ely_password", self.password.as_str(), true)
-                    }
-                    _ => ("Email", "ely_username", self.username.as_str(), false),
-                };
-                let display = if secret {
-                    "*".repeat(value.chars().count().min(40))
-                } else {
-                    value.into()
-                };
-                typing_row(ui, targets, [x, y, w, h], label, name, &display);
-                return;
-            }
-            ui.text(
-                Face::Medium,
-                22.0,
-                x + 20.0,
-                y + 16.0,
-                color::TEXT,
-                "Ely.by account",
-            );
-            // The result of the last try replaces the privacy note, in the same place.
-            let note = if self.message.is_empty() {
-                "Credentials go only to authserver.ely.by."
+        if self.ely || self.offline {
+            // One scrolling page: the panel never rearranges when the keyboard opens; its
+            // viewport just gets shorter and the page scrolls (drag it), jumping to the field
+            // being typed in.
+            if self.ely {
+                ui.rounded(
+                    x + 20.0,
+                    y + 14.0,
+                    36.0,
+                    36.0,
+                    6.0,
+                    color::hex(0x3c8a3a, 255),
+                );
+                ui.text(
+                    Face::Medium,
+                    26.0,
+                    x + 29.0,
+                    y + 17.0,
+                    color::hex(0xffffff, 255),
+                    "E",
+                );
+                ui.text(
+                    Face::Medium,
+                    24.0,
+                    x + 68.0,
+                    y + 20.0,
+                    color::TEXT,
+                    "Ely.by account",
+                );
             } else {
-                &self.message
-            };
-            let note = ui.fit_text(Face::Regular, 13.0, note, w - 40.0);
-            ui.text(
-                Face::Regular,
-                13.0,
-                x + 20.0,
-                y + 48.0,
-                if self.message.is_empty() {
-                    color::MUTED
+                ui.text(
+                    Face::Medium,
+                    24.0,
+                    x + 20.0,
+                    y + 20.0,
+                    color::TEXT,
+                    "Offline player name",
+                );
+            }
+            let (top, bottom) = (y + 64.0, y + h - 10.0);
+            let view_h = bottom - top;
+            let paste_w = 104.0;
+            let field_w = w - 40.0 - paste_w - 8.0;
+            // (label, field name, text shown)
+            let mut fields: Vec<(&str, &'static str, String)> = Vec::new();
+            if self.ely {
+                fields.push(("Email", "ely_username", self.username.clone()));
+                fields.push((
+                    "Password",
+                    "ely_password",
+                    "*".repeat(self.password.chars().count().min(40)),
+                ));
+                if self.otp_needed {
+                    fields.push((
+                        "Two-factor code",
+                        "ely_otp",
+                        "*".repeat(self.otp.chars().count().min(40)),
+                    ));
+                }
+            } else {
+                fields.push((
+                    "Player name (maximum 16 characters)",
+                    "name",
+                    if offline_name.is_empty() {
+                        String::new()
+                    } else {
+                        offline_name.to_owned()
+                    },
+                ));
+            }
+            const NOTE: f32 = 28.0;
+            const ROW: f32 = 92.0;
+            let buttons_at = NOTE + fields.len() as f32 * ROW + 6.0;
+            let total = buttons_at + 62.0 + 56.0 + 8.0;
+            let maximum = (total - view_h).max(0.0);
+            let mut scroll = scroll.clamp(0.0, maximum);
+            // Bring the field being typed in into view when it starts and when the keyboard
+            // changes the room; a hand scroll in between is left alone.
+            let marker = (editing, view_h.round() as i32);
+            if self.snapped.get() != marker {
+                self.snapped.set(marker);
+                if let Some(index) = fields.iter().position(|f| Some(f.1) == editing) {
+                    let first = NOTE + index as f32 * ROW;
+                    if first < scroll || first + ROW - 12.0 > scroll + view_h {
+                        scroll = (first - 4.0).clamp(0.0, maximum);
+                    }
+                }
+            }
+            let visible = |at: f32, height: f32| at >= 0.0 && at + height <= view_h;
+            let at = |c: f32| top + c - scroll;
+            // The note: the last result, else what the page is for.
+            if visible(0.0 - scroll, 22.0) {
+                let note = if self.message.is_empty() {
+                    if self.ely {
+                        "Credentials go only to authserver.ely.by."
+                    } else {
+                        "Used for play without an account."
+                    }
                 } else {
-                    color::TEXT
-                },
-                &note,
-            );
-            let mut top = y + 72.0;
-            for (label, name, value, secret) in [
-                ("Email", "ely_username", self.username.as_str(), false),
-                ("Password", "ely_password", self.password.as_str(), true),
-                ("Two-factor code", "ely_otp", self.otp.as_str(), true),
-            ] {
-                // The code is asked for only when the account has one.
-                if name == "ely_otp" && !self.otp_needed {
+                    &self.message
+                };
+                let note = ui.fit_text(Face::Regular, 14.0, note, w - 40.0);
+                ui.text(
+                    Face::Regular,
+                    14.0,
+                    x + 20.0,
+                    at(0.0) + 2.0,
+                    if self.message.is_empty() {
+                        color::MUTED
+                    } else {
+                        color::TEXT
+                    },
+                    &note,
+                );
+            }
+            for (index, (label, name, shown)) in fields.iter().enumerate() {
+                let c = NOTE + index as f32 * ROW;
+                if !visible(c - scroll, ROW - 12.0) {
                     continue;
                 }
-                ui.text(Face::Regular, 12.0, x + 20.0, top, color::MUTED, label);
-                let display = if secret {
-                    "*".repeat(value.chars().count().min(40))
-                } else {
-                    value.into()
-                };
+                ui.text(Face::Medium, 15.0, x + 20.0, at(c), color::MUTED, label);
                 button(
                     ui,
                     targets,
-                    [x + 20.0, top + 16.0, w - 40.0, 34.0],
-                    &display,
-                    Action::Field(name),
+                    [x + 20.0, at(c) + 24.0, field_w, 56.0],
+                    shown,
+                    Action::Field(*name),
                     false,
                 );
-                top += 54.0;
+                button(
+                    ui,
+                    targets,
+                    [x + 28.0 + field_w, at(c) + 24.0, paste_w, 56.0],
+                    "Paste",
+                    Action::PasteInto(*name),
+                    false,
+                );
+            }
+            let (main_label, main_action) = if self.ely {
+                (
+                    if self.pending() {
+                        "Signing in..."
+                    } else {
+                        "Sign in to Ely.by"
+                    },
+                    Action::SubmitEly,
+                )
+            } else {
+                ("Use offline account", Action::SelectOffline)
+            };
+            if visible(buttons_at - scroll, 56.0) {
+                button(
+                    ui,
+                    targets,
+                    [x + 20.0, at(buttons_at), w - 40.0, 56.0],
+                    main_label,
+                    main_action,
+                    true,
+                );
             }
             let half = (w - 52.0) / 2.0;
-            button(
-                ui,
-                targets,
-                [x + 20.0, y + h - 96.0, w - 40.0, 40.0],
-                if self.pending() {
-                    "Signing in..."
-                } else {
-                    "Sign in to Ely.by"
-                },
-                Action::SubmitEly,
-                true,
-            );
-            button(
-                ui,
-                targets,
-                [x + 20.0, y + h - 50.0, half, 36.0],
-                "Accounts",
-                Action::Account,
-                false,
-            );
-            button(
-                ui,
-                targets,
-                [x + 32.0 + half, y + h - 50.0, half, 36.0],
-                "Done",
-                Action::CloseLogin,
-                false,
-            );
-            return;
-        }
-        if self.offline {
-            if typing_name {
-                typing_row(ui, targets, [x, y, w, h], "Name", "name", offline_name);
-                return;
+            let second = buttons_at + 66.0;
+            if visible(second - scroll, 50.0) {
+                button(
+                    ui,
+                    targets,
+                    [x + 20.0, at(second), half, 50.0],
+                    "Accounts",
+                    Action::Account,
+                    false,
+                );
+                button(
+                    ui,
+                    targets,
+                    [x + 32.0 + half, at(second), half, 50.0],
+                    "Done",
+                    Action::CloseLogin,
+                    false,
+                );
             }
-            ui.text(
-                Face::Medium,
-                24.0,
-                x + 20.0,
-                y + 20.0,
-                color::TEXT,
-                "Offline player name",
-            );
-            ui.text(
-                Face::Regular,
-                16.0,
-                x + 20.0,
-                y + 66.0,
-                color::MUTED,
-                "Maximum 16 characters.",
-            );
-            button(
-                ui,
-                targets,
-                [x + 20.0, y + 100.0, w - 40.0, 44.0],
-                if offline_name.is_empty() {
-                    "Enter an offline name"
-                } else {
-                    offline_name
-                },
-                Action::Field("name"),
-                false,
-            );
-            button(
-                ui,
-                targets,
-                [x + 20.0, y + h - 56.0, w - 40.0, 36.0],
-                "Use offline account",
-                Action::SelectOffline,
-                true,
-            );
-            button(
-                ui,
-                targets,
-                [x + 20.0, y + h - 100.0, w - 40.0, 36.0],
-                "Back to accounts",
-                Action::Account,
-                false,
-            );
-            return;
+            // A scroll bar when the page is longer than its room.
+            if maximum > 0.0 {
+                let thumb = (view_h * view_h / total).max(24.0);
+                let at_y = top + (view_h - thumb) * (scroll / maximum);
+                ui.rounded(x + w - 8.0, at_y, 4.0, thumb, 2.0, color::MUTED);
+            }
+            return Some(([top, bottom, maximum], scroll));
         }
 
         ui.text(
@@ -872,6 +850,7 @@ impl Login {
             Action::CloseLogin,
             false,
         );
+        None
     }
 }
 impl Drop for Login {

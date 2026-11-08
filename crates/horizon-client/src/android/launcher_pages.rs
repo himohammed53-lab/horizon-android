@@ -16,8 +16,8 @@ pub(super) enum Action {
     ModSource(crate::shader_catalog::Origin),
     Field(&'static str),
     FinishNameEdit,
-    /// Paste the clipboard text into the field being typed in.
-    PasteField,
+    /// Paste the clipboard text into this field.
+    PasteInto(&'static str),
     Install(usize),
     Import(horizon_client::content_files::Kind),
     ToggleSection(usize),
@@ -783,7 +783,9 @@ impl Launcher {
                     &mut ui,
                     &mut self.targets,
                     [32.0, h - 118.0, (w - 64.0).min(400.0), 100.0],
-                    if installed {
+                    if self.session_worker.is_some() {
+                        "Starting..."
+                    } else if installed {
                         "Play"
                     } else if self.error.is_some() {
                         "Retry installation"
@@ -1506,12 +1508,16 @@ impl Launcher {
         if self.login.visible {
             self.list_targets.clear();
             self.list_view = None;
-            self.login.draw(
+            if let Some((view, scroll)) = self.login.draw(
                 &mut ui,
                 &mut self.targets,
                 &self.catalog.config.name,
                 self.catalog.editing,
-            );
+                self.catalog.scroll,
+            ) {
+                self.catalog.scroll = scroll;
+                self.list_view = Some(view);
+            }
         }
         if let Some(chooser) = &mut self.chooser {
             chooser.draw(&mut ui, &mut self.targets);
@@ -1550,7 +1556,8 @@ impl Launcher {
                 "render_scale" => self.catalog.render_scale_text.clone(),
                 _ => format!("Search: {}", self.catalog.query),
             };
-            for ([x, y, w, _], action) in &self.targets {
+            for ([x, y, w, field_h], action) in &self.targets {
+                let y = &(y + (field_h - 42.0) / 2.0);
                 if *action == Action::Field(name)
                     || (name == "render_scale" && *action == Action::RenderScale)
                 {
@@ -1878,6 +1885,7 @@ impl Launcher {
             }
             Some(Action::OfflineAccount | Action::MicrosoftAccount) => {
                 self.login.providers = false;
+                self.catalog.scroll = 0.0;
                 self.login.offline = matches!(action, Some(Action::OfflineAccount));
                 self.login.ely = false;
                 self.login.choosing = false;
@@ -1932,6 +1940,7 @@ impl Launcher {
                 );
             }
             Some(Action::ElySignIn) => {
+                self.catalog.scroll = 0.0;
                 self.login.providers = false;
                 self.login.close();
                 self.login.ely = true;
@@ -2041,8 +2050,9 @@ impl Launcher {
                 crate::platform::hide();
                 self.catalog.config.save(&self.home)?;
             }
-            Some(Action::PasteField) => {
-                if let Some(name) = self.catalog.editing {
+            Some(Action::PasteInto(name)) => {
+                self.catalog.editing = Some(name);
+                {
                     let text: String = crate::platform::clipboard_get()
                         .unwrap_or_default()
                         .chars()
@@ -2059,6 +2069,8 @@ impl Launcher {
                             } else {
                                 crate::platform::show(value);
                             }
+                        } else if name == "name" {
+                            crate::platform::show(&self.catalog.config.name);
                         }
                     }
                 }

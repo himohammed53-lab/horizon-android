@@ -331,9 +331,14 @@ impl Launcher {
                     let result = (|| {
                         let (account, secrets) = login::Login::session(&id)?
                             .ok_or("The selected account changed. Choose Play again.")?;
-                        let appearance =
+                        // Ely.by keeps its skin on its own site, which the game reads by name:
+                        // there is no Microsoft cloud wardrobe to wait for.
+                        let appearance = if account.provider == crate::account::Provider::Ely {
+                            Default::default()
+                        } else {
                             crate::skins::cloud::fetch(&account, &secrets, &wardrobe_home)
-                                .unwrap_or_default();
+                                .unwrap_or_default()
+                        };
                         let file = crate::account::write_session_file(
                             &game_home.join("sessions"),
                             &account,
