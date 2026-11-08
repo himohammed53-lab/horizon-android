@@ -1492,6 +1492,7 @@ impl Game<'_> {
         entity: &ModBlockEntity,
         tag: &mut Option<Compound>,
     ) {
+        super::gravestones::update_tag(entity, tag);
         let _ = (pos, entity, tag);
     }
     /// Draw the mod block entity at `pos`, of block `block`
@@ -1514,6 +1515,7 @@ impl Game<'_> {
         entity: &ModBlockEntity,
         draw: &mut BlockEntityDraw,
     ) {
+        super::gravestones::submit(self, pos, entity, draw);
         let _ = (pos, block, state, entity, draw);
     }
     /// Where the mod block entity at `pos` draws, for culling

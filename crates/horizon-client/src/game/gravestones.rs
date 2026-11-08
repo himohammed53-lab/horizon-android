@@ -12,12 +12,15 @@
 // gravestones content mod is not installed (the grave block does not exist then).
 
 use super::Game;
+use super::native_block_entity_draw::BlockEntityDraw;
+use horizon_assets::item_model::DisplayContext;
 use horizon_client::{
     containers::{ModBlockEntity, ModContainer},
     entities::Experience,
     items::{ItemStack, blocks::Fluid},
     text::Text,
 };
+use horizon_core::random::{LegacyRandom, RandomSource};
 use horizon_world::nbt::{Compound, JavaString, Tag};
 
 pub(super) const ID: &str = "gravestones_logic";
@@ -72,6 +75,65 @@ pub(super) fn container(block: &str, container: &mut Option<ModContainer>) {
             ..Default::default()
         });
     }
+}
+
+/// `native_block_entity_update_tag`: what a client needs to draw the grave, the owner.
+pub(super) fn update_tag(entity: &ModBlockEntity, tag: &mut Option<Compound>) {
+    if entity.id != ENTITY {
+        return;
+    }
+    let mut out = Compound::new();
+    for name in ["owner", "owner_name"] {
+        if let Some(value) = entity.nbt.get(&key(name)) {
+            out.insert(key(name), value.clone());
+        }
+    }
+    *tag = Some(out);
+}
+
+/// Java's `String.hashCode`.
+fn java_hash(text: &str) -> i32 {
+    text.encode_utf16()
+        .fold(0i32, |h, c| h.wrapping_mul(31).wrapping_add(i32::from(c)))
+}
+
+/// `native_block_entity_submit`: the owner's head, lying in front of the stone as
+/// `AbstractGravestoneBlockEntityRenderer.renderPositionedHead` puts it: its turn and
+/// tilt come from the grave's position.
+pub(super) fn submit(
+    game: &Game<'_>,
+    pos: [i32; 3],
+    entity: &ModBlockEntity,
+    draw: &mut BlockEntityDraw,
+) {
+    if entity.id != ENTITY || !game.native_on(ID) {
+        return;
+    }
+    let mut profile: Vec<(&str, Tag)> = Vec::new();
+    if let Some(name) = get_text(&entity.nbt, "owner_name") {
+        profile.push(("name", Tag::String(JavaString::from(name.as_str()))));
+    }
+    if let Some(id) = get_ints(&entity.nbt, "owner") {
+        profile.push(("id", Tag::IntArray(id)));
+    }
+    let mut head = ItemStack::new("minecraft:player_head", 1);
+    if !profile.is_empty() {
+        head.data_mut()
+            .set_other("minecraft:profile", Some(Tag::compound(profile)));
+    }
+    let text = format!(
+        "Pos: BlockPos{{x={}, y={}, z={}}}, Some other text, I don't know, it doesn't matter what goes here.",
+        pos[0], pos[1], pos[2]
+    );
+    let mut random = LegacyRandom::new(i64::from(java_hash(&text)));
+    let yaw = random.next_float() * 70.0 - 35.0;
+    let pitch = random.next_float() * -30.0;
+    draw.push();
+    draw.translate([0.5, 0.25, 0.475]);
+    draw.rotate_about([0.0, 1.0, 0.0], yaw, [0.0; 3]);
+    draw.rotate_about([1.0, 0.0, 0.0], pitch, [0.0; 3]);
+    game.native_draw_item(draw, &head, DisplayContext::Fixed, None, 0);
+    draw.pop();
 }
 
 fn key(name: &str) -> JavaString {
@@ -418,6 +480,13 @@ mod tests {
     fn decay_stage_follows_the_default_settings() {
         // damage_to_break 3: untouched, then chipped, then damaged, then gone.
         assert_eq!([0, 1, 2, 3, 4].map(decay_stage), [0, 1, 2, 3, 3]);
+    }
+
+    #[test]
+    fn java_hash_matches_javas_string_hash_code() {
+        // "hello".hashCode() in Java.
+        assert_eq!(java_hash("hello"), 99_162_322);
+        assert_eq!(java_hash(""), 0);
     }
 
     #[test]
