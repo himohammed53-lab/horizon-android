@@ -346,7 +346,7 @@ impl<'a> Ui<'a> {
                 cursor.0 * ui.scale / ui.density,
                 cursor.1 * ui.scale / ui.density,
             );
-        } else if ph < 700.0 {
+        } else {
             // Landscape phones: a quarter larger than the plain fit, so the
             // buttons, text and icons are easy to read and to hit with a thumb.
             ui.density = ((pw / 1040.0).min(ph / 700.0) * 1.25).clamp(0.5, 4.0);

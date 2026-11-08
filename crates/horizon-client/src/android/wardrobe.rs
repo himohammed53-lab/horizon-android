@@ -426,7 +426,7 @@ impl Wardrobe {
     pub fn draw(&mut self, ui: &mut Ui, targets: &mut Vec<([f32; 4], Action)>, scroll: f32) {
         let width = ui.w;
         let compact = width < 700.0;
-        let top = 160.0;
+        let top = if compact { 160.0 } else { 146.0 };
         ui.text(Face::Medium, 26.0, 32.0, top, color::TEXT, "Skins & Capes");
         ui.text(
             Face::Regular,
@@ -444,7 +444,8 @@ impl Wardrobe {
         let preview_height = if compact {
             (ui.h - 560.0).clamp(100.0, 190.0)
         } else {
-            300.0
+            // Fill the screen: as tall as fits above the controls.
+            (ui.h - top - 66.0 - 100.0).clamp(180.0, 380.0)
         };
         let px = if compact {
             (width - preview_width) * 0.5
@@ -467,7 +468,8 @@ impl Wardrobe {
                 *color,
             );
         }
-        let controls = py + preview_height + 6.0;
+        let controls = py + preview_height + if compact { 6.0 } else { 8.0 };
+        let small = (preview_width - 24.0) / 4.0;
         for (i, (label, action)) in [
             ("<", Action::WardrobeRotate(-1)),
             (">", Action::WardrobeRotate(1)),
@@ -480,7 +482,11 @@ impl Wardrobe {
             button(
                 ui,
                 targets,
-                [px + i as f32 * 44.0, controls, 38.0, 30.0],
+                if compact {
+                    [px + i as f32 * 44.0, controls, 38.0, 30.0]
+                } else {
+                    [px + i as f32 * (small + 8.0), controls, small, 46.0]
+                },
                 label,
                 action,
                 false,
@@ -492,50 +498,87 @@ impl Wardrobe {
             .get(&self.key)
             .map(|s| s.model)
             .unwrap_or_default();
-        button(
-            ui,
-            targets,
-            [px, controls + 38.0, preview_width, 32.0],
-            if model == Model::Slim {
-                "Alex / Slim"
-            } else {
-                "Steve / Classic"
-            },
-            Action::WardrobeModel,
-            false,
-        );
+        let model_label = if model == Model::Slim {
+            "Alex / Slim"
+        } else {
+            "Steve / Classic"
+        };
+        if compact {
+            button(
+                ui,
+                targets,
+                [px, controls + 38.0, preview_width, 32.0],
+                model_label,
+                Action::WardrobeModel,
+                false,
+            );
+        }
         let lx = if compact { 32.0 } else { 370.0 };
         let lw = if compact {
             width - 64.0
         } else {
-            width - lx - 32.0
+            (width - lx - 32.0).min(620.0)
         };
         let listtop = if compact { controls + 82.0 } else { top + 66.0 };
+        let (import_y, import_h, first, rh, pitch) = if compact {
+            (listtop + 40.0, 34.0, 80.0, 44.0, 50.0)
+        } else {
+            (listtop + 62.0, 52.0, 128.0, 52.0, 60.0)
+        };
+        if compact {
+            button(
+                ui,
+                targets,
+                [lx, listtop, (lw - 8.0) * 0.5, 32.0],
+                "Skins",
+                Action::WardrobeKind(false),
+                !self.capes,
+            );
+            button(
+                ui,
+                targets,
+                [lx + (lw + 8.0) * 0.5, listtop, (lw - 8.0) * 0.5, 32.0],
+                "Capes",
+                Action::WardrobeKind(true),
+                self.capes,
+            );
+        } else {
+            // Three even buttons in one row: Skins, Capes and the model.
+            let third = (lw - 16.0) / 3.0;
+            button(
+                ui,
+                targets,
+                [lx, listtop, third, 52.0],
+                "Skins",
+                Action::WardrobeKind(false),
+                !self.capes,
+            );
+            button(
+                ui,
+                targets,
+                [lx + third + 8.0, listtop, third, 52.0],
+                "Capes",
+                Action::WardrobeKind(true),
+                self.capes,
+            );
+            button(
+                ui,
+                targets,
+                [lx + 2.0 * (third + 8.0), listtop, third, 52.0],
+                model_label,
+                Action::WardrobeModel,
+                false,
+            );
+        }
         button(
             ui,
             targets,
-            [lx, listtop, (lw - 8.0) * 0.5, 32.0],
-            "Skins",
-            Action::WardrobeKind(false),
-            !self.capes,
-        );
-        button(
-            ui,
-            targets,
-            [lx + (lw + 8.0) * 0.5, listtop, (lw - 8.0) * 0.5, 32.0],
-            "Capes",
-            Action::WardrobeKind(true),
-            self.capes,
-        );
-        button(
-            ui,
-            targets,
-            [lx, listtop + 40.0, lw, 34.0],
+            [lx, import_y, lw, import_h],
             "Import PNG to local gallery",
             Action::WardrobeImport,
             true,
         );
-        let mut row = listtop + 84.0 - scroll;
+        let mut row = listtop + first + 4.0 - scroll;
         let bottom = ui.h - 80.0;
         let selection = self
             .library
@@ -550,7 +593,7 @@ impl Wardrobe {
         };
         if self.capes && self.provider.is_some() {
             for (index, cape) in self.cache.snapshot.capes.iter().enumerate() {
-                if row >= listtop + 80.0 && row + 44.0 <= bottom {
+                if row >= listtop + first && row + rh <= bottom {
                     let label = ui.fit_text(
                         Face::Medium,
                         17.0,
@@ -568,13 +611,13 @@ impl Wardrobe {
                     button(
                         ui,
                         targets,
-                        [lx, row, lw, 44.0],
+                        [lx, row, lw, rh],
                         &label,
                         Action::WardrobeActivateCape(index),
                         cape.active,
                     );
                 }
-                row += 50.0;
+                row += pitch;
             }
         }
         for (index, entry) in self
@@ -584,7 +627,7 @@ impl Wardrobe {
             .enumerate()
             .filter(|(_, e)| e.kind == self.kind())
         {
-            if row >= listtop + 80.0 && row + 44.0 <= bottom {
+            if row >= listtop + first && row + rh <= bottom {
                 let label = ui.fit_text(
                     Face::Medium,
                     17.0,
@@ -602,43 +645,43 @@ impl Wardrobe {
                 button(
                     ui,
                     targets,
-                    [lx, row, lw, 44.0],
+                    [lx, row, lw, rh],
                     &label,
                     Action::WardrobeSelect(index),
                     selected == Some(&entry.id),
                 );
             }
-            row += 50.0;
+            row += pitch;
         }
         if self.provider.is_none() {
-            if row >= listtop + 80.0 && row + 44.0 <= bottom {
+            if row >= listtop + first && row + rh <= bottom {
                 button(
                     ui,
                     targets,
-                    [lx, row, lw, 44.0],
+                    [lx, row, lw, rh],
                     "Reset to default locally",
                     Action::WardrobeUseCloud,
                     false,
                 );
             }
-            row += 50.0;
+            row += pitch;
         }
         if self.provider.is_some() {
             for (label, action) in [
                 ("Use current cloud appearance", Action::WardrobeUseCloud),
                 ("Refresh cloud profile", Action::WardrobeCloud),
             ] {
-                if row >= listtop + 80.0 && row + 44.0 <= bottom {
-                    button(ui, targets, [lx, row, lw, 44.0], label, action, false);
+                if row >= listtop + first && row + rh <= bottom {
+                    button(ui, targets, [lx, row, lw, rh], label, action, false);
                 }
-                row += 50.0;
+                row += pitch;
             }
             if !self.capes {
-                if row >= listtop + 80.0 && row + 44.0 <= bottom {
+                if row >= listtop + first && row + rh <= bottom {
                     button(
                         ui,
                         targets,
-                        [lx, row, lw, 44.0],
+                        [lx, row, lw, rh],
                         if self.provider == Some(Provider::Microsoft) {
                             "Upload selected skin to Microsoft"
                         } else {
@@ -648,24 +691,24 @@ impl Wardrobe {
                         false,
                     );
                 }
-                row += 50.0;
+                row += pitch;
             } else {
             }
         }
-        if self.capes && row >= listtop + 80.0 && row + 44.0 <= bottom {
+        if self.capes && row >= listtop + first && row + rh <= bottom {
             button(
                 ui,
                 targets,
-                [lx, row, lw, 44.0],
+                [lx, row, lw, rh],
                 "Hide / show cape locally",
                 Action::WardrobeHideCape,
                 false,
             );
         }
         self.view = [
-            listtop + 80.0,
+            listtop + first,
             bottom,
-            (row + scroll + 50.0 - bottom).max(0.0),
+            (row + scroll + pitch - bottom).max(0.0),
         ];
         let note = ui.fit_text(Face::Regular, 12.0, &self.note, width - 64.0);
         ui.text(Face::Regular, 12.0, 32.0, ui.h - 60.0, color::MUTED, &note);
