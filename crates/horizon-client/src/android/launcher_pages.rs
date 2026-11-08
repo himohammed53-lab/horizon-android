@@ -198,6 +198,56 @@ fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: b
     );
 }
 
+/// A pyramid of the launcher's own stone and purple blocks, bottom right of the Play page:
+/// it fills the empty side of the page. Plain squares, nothing taken from the game.
+fn block_pyramid(ui: &mut Ui, w: f32, h: f32) {
+    let side = 92.0;
+    let gap = 6.0;
+    let base_y = h - 40.0 - side;
+    let left = w - 64.0 - (3.0 * side + 2.0 * gap);
+    // A soft purple glow behind the top block.
+    ui.rounded(
+        left + side + gap - 24.0,
+        base_y - 2.0 * (side + gap) - 24.0,
+        side + 48.0,
+        side + 48.0,
+        24.0,
+        color::hex(0xa855e8, 34),
+    );
+    for i in 0..3 {
+        let tint = if i == 1 { 0x4a4a52 } else { GRAY };
+        block_plate(
+            ui,
+            left + i as f32 * (side + gap),
+            base_y,
+            side,
+            side,
+            tint,
+            false,
+        );
+    }
+    let middle = left + (side + gap) / 2.0;
+    block_plate(ui, middle, base_y - side - gap, side, side, 0x4a4a52, false);
+    block_plate(
+        ui,
+        middle + side + gap,
+        base_y - side - gap,
+        side,
+        side,
+        0x7b4fe0,
+        false,
+    );
+    block_plate(
+        ui,
+        left + side + gap,
+        base_y - 2.0 * (side + gap),
+        side,
+        side,
+        SWITCH_ON,
+        false,
+    );
+}
+
 /// Three small white dots, with no plate: the "more" button of a mod row.
 fn more_dots(ui: &mut Ui, targets: &mut Vec<([f32; 4], Action)>, rect: [f32; 4], action: Action) {
     let [x, y, w, h] = rect;
@@ -731,6 +781,9 @@ impl Launcher {
                     Action::Play,
                     true,
                 );
+            }
+            if !compact {
+                block_pyramid(&mut ui, w, h);
             }
         } else if page == Page::Skins {
             self.wardrobe
