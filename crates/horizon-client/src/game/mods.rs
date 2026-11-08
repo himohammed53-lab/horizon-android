@@ -515,6 +515,13 @@ impl Game<'_> {
             })
             .collect();
         self.list_native_mods();
+        // Gravestones' icon, for its switch (the mod's own, by Pneumono, MIT).
+        if let Some(icon) = decode_icon(include_bytes!("android_bundled/gravestones/icon.png")) {
+            self.settings
+                .mods
+                .icons
+                .insert(super::gravestones::ID.to_owned(), icon);
+        }
         // The bundled Zoom's icon travels inside the app.
         #[cfg(target_os = "android")]
         if let Some(icon) = decode_icon(include_bytes!("android_bundled/zoom/icon.png")) {
