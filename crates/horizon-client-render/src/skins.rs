@@ -27,10 +27,16 @@ pub struct Textures {
     pub signed: bool,
 }
 
-/// The `getTexture` endpoint's valid URIs from Minecraft services discovery.
-pub const TEXTURE_URIS: [&str; 2] = [
+/// The `getTexture` endpoint's valid URIs from Minecraft services discovery, and Ely.by's
+/// skin and cape storage, which its session server (the one an Ely.by account joins servers
+/// with) names in a profile's `textures`.
+pub const TEXTURE_URIS: [&str; 6] = [
     "https://textures.minecraft.net/texture/{textureId}",
     "http://textures.minecraft.net/texture/{textureId}",
+    "https://ely.by/storage/{textureId}",
+    "http://ely.by/storage/{textureId}",
+    "https://skinsystem.ely.by/{textureId}",
+    "http://skinsystem.ely.by/{textureId}",
 ];
 
 /// `java.util.Base64.getDecoder().decode`.

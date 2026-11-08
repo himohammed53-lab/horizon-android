@@ -13,6 +13,8 @@ pub(super) struct Login {
     pub username: String,
     pub password: String,
     pub otp: String,
+    /// Ely.by asked for the two-factor code: the field shows, and the password waits for it.
+    pub otp_needed: bool,
     pub visible: bool,
     pub signed_in: bool,
     pub profile: Option<String>,
@@ -60,6 +62,7 @@ impl Login {
             username: String::new(),
             password: String::new(),
             otp: String::new(),
+            otp_needed: false,
             visible: false,
             signed_in: false,
             profile: None,
@@ -101,11 +104,13 @@ impl Login {
     pub fn hide(&mut self) {
         self.password.clear();
         self.otp.clear();
+        self.otp_needed = false;
         self.visible = false;
     }
     pub fn close(&mut self) {
         self.password.clear();
         self.otp.clear();
+        self.otp_needed = false;
         self.auto_open_device = false;
         if let Some(task) = self.task.take() {
             task.cancel();
@@ -153,6 +158,12 @@ impl Login {
                     Ok(a) => format!("Signed in as {}", a.name),
                     Err(e) => e.clone(),
                 };
+                // Only an account protected by two-factor asks for the code, and only now: the
+                // password stays for the second try; anything else forgets it.
+                self.otp_needed = matches!(result, Err(e) if e.contains("two-factor code and"));
+                if !self.otp_needed {
+                    self.password.clear();
+                }
                 self.task = None;
                 self.refresh_status();
                 completed = true;
@@ -171,7 +182,7 @@ impl Login {
         self.message.clear();
         self.task = Some(SignIn::start_ely(
             self.username.clone(),
-            std::mem::take(&mut self.password),
+            self.password.clone(),
             std::mem::take(&mut self.otp),
         ));
         self.state = Some(SignInState::Starting);
@@ -412,6 +423,10 @@ impl Login {
             .into_iter()
             .enumerate()
             {
+                // The code is asked for only when the account has one.
+                if name == "ely_otp" && !self.otp_needed {
+                    continue;
+                }
                 let active = editing.is_some_and(|field| field.starts_with("ely_"));
                 // While one is typed, the email and the password stay together at the top, above
                 // the keyboard; the optional code has the place to itself when it is the one.

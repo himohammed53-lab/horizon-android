@@ -44,6 +44,10 @@ pub fn parse_uuid(text: &str) -> Option<u128> {
 }
 
 impl AuthSession {
+    /// An Ely.by account's session (its skins and join service are Ely.by's).
+    pub fn is_ely(&self) -> bool {
+        self.ely
+    }
     /// For tests and harnesses.
     pub fn new(name: &str, uuid: u128, access_token: &str) -> Self {
         Self {
@@ -502,7 +506,7 @@ const MINECRAFT_PROFILE: &str = "https://api.minecraftservices.com/minecraft/pro
 /// one without the equipped cape; the client asks the profile endpoint once.
 pub fn own_textures(session: &AuthSession) -> Option<crate::skins::Textures> {
     if session.ely {
-        return None;
+        return ely_textures(&session.name);
     }
     let response = agent()
         .get(MINECRAFT_PROFILE)
@@ -515,6 +519,46 @@ pub fn own_textures(session: &AuthSession) -> Option<crate::skins::Textures> {
     let body = response.into_string().ok()?;
     let profile: serde_json::Value = serde_json::from_str(&body).ok()?;
     Some(crate::skins::services_profile_textures(&profile))
+}
+
+/// An Ely.by account's skin and cape from its skin system, the way Ely.by's own launcher
+/// finds them: `GET /textures/<name>` answers `{"SKIN": {"url", "metadata": {"model"}}, "CAPE":
+/// {"url"}}`, and nothing for an account without them.
+pub fn ely_textures(name: &str) -> Option<crate::skins::Textures> {
+    if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+        return None;
+    }
+    let body = agent()
+        .get(&format!("https://skinsystem.ely.by/textures/{name}"))
+        .call()
+        .ok()?
+        .into_string()
+        .ok()?;
+    let value: serde_json::Value = serde_json::from_str(&body).ok()?;
+    let url = |key: &str| {
+        value
+            .get(key)?
+            .get("url")?
+            .as_str()
+            .filter(|url| {
+                crate::skins::TEXTURE_URIS
+                    .iter()
+                    .any(|u| url.starts_with(&u.replace("{textureId}", "")))
+            })
+            .map(str::to_owned)
+    };
+    Some(crate::skins::Textures {
+        skin: url("SKIN"),
+        slim: value
+            .get("SKIN")
+            .and_then(|s| s.get("metadata"))
+            .and_then(|m| m.get("model"))
+            .and_then(|m| m.as_str())
+            == Some("slim"),
+        cape: url("CAPE"),
+        elytra: None,
+        signed: false,
+    })
 }
 
 /// What the session service says about a player joining this server
