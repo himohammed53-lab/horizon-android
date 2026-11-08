@@ -112,6 +112,7 @@ pub fn begin(kind: Kind, home: PathBuf) -> std::result::Result<(), String> {
     if busy() {
         return Err("Finish or cancel the current import first".into());
     }
+    log::info!("World import: opening the picker");
     CANCEL.store(false, Ordering::Relaxed);
     crate::platform::hide();
     let cache = crate::platform::cache_dir()
@@ -195,6 +196,7 @@ pub extern "system" fn document_result(
     result: i32,
     uri: JString<'_>,
 ) {
+    log::info!("Document result: request {request}, result {result}");
     if request != 4101 {
         return;
     }
@@ -246,6 +248,7 @@ pub extern "system" fn document_result(
             })();
             STATE.lock().unwrap_or_else(|e| e.into_inner()).working = false;
             if let Err(error) = result {
+                log::warn!("Import failed: {error}");
                 notice(format!("Import failed: {error}"), false);
             }
         });
@@ -672,8 +675,25 @@ pub fn draw_ui(ui: &mut Ui<'_>) {
     let mut s = STATE.lock().unwrap_or_else(|e| e.into_inner());
     s.hits.clear();
     if s.conflict.is_none() && !s.working {
-        // The launcher already shows the result in its status line. Keep only
-        // actionable overlays (progress/cancel and a name-conflict choice).
+        // Besides the status line (which not every page shows), the last result stays in a
+        // bar at the bottom for a few seconds, so an import never ends in silence.
+        if let Some((text, at)) = s.toast.as_ref()
+            && at.elapsed() < std::time::Duration::from_secs(8)
+        {
+            let w = (ui.w - 24.0).min(640.0);
+            let (x, y) = ((ui.w - w) / 2.0, ui.h - 64.0);
+            ui.rounded(
+                x - 1.0,
+                y - 1.0,
+                w + 2.0,
+                50.0,
+                14.0,
+                color::hex(0xffffff, 110),
+            );
+            ui.rounded(x, y, w, 48.0, 13.0, color::hex(0x14161b, 245));
+            let text = ui.fit_text(Face::Medium, 16.0, text, w - 28.0);
+            ui.text(Face::Medium, 16.0, x + 14.0, y + 14.0, color::TEXT, &text);
+        }
         return;
     }
     let (name, choices) = if let Some(c) = &s.conflict {
