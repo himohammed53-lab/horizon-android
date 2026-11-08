@@ -369,15 +369,18 @@ fn section_chips(
         color::hex(0xb9bac2, 235),
     );
     let space = (w - 64.0 - right_reserved - 8.0).max(120.0);
-    let width = ((space - 18.0) / 4.0).clamp(48.0, if wide { 132.0 } else { 96.0 });
-    for (i, (label, page)) in [
+    let width = ((space - 24.0) / 5.0).clamp(44.0, if wide { 132.0 } else { 96.0 });
+    for (i, label, action, chosen) in [
         ("Mods", Page::Mods),
         ("Shaders", Page::Shaders),
         ("Packs", Page::Packs),
         ("Files", Page::Installed),
     ]
     .into_iter()
+    .map(|(label, page)| (label, Action::Page(page), page == current))
+    .chain([("Worlds", Action::ImportWorld, false)])
     .enumerate()
+    .map(|(i, (label, action, chosen))| (i, label, action, chosen))
     {
         button_as(
             ui,
@@ -388,8 +391,8 @@ fn section_chips(
                 [32.0 + i as f32 * (width + 6.0), 134.0, width, 34.0]
             },
             label,
-            Action::Page(page),
-            page == current,
+            action,
+            chosen,
             Some(SECTION),
         );
     }
@@ -469,7 +472,7 @@ pub(super) fn button_as(
     } else {
         16.0
     };
-    let font = if matches!(action, Action::Page(_)) {
+    let font = if matches!(action, Action::Page(_) | Action::ImportWorld) {
         (base * ((w - 2.0 * padding) / ui.measure(Face::Medium, base, label).max(1.0)).min(1.0))
             .max(9.0)
     } else {
@@ -614,7 +617,7 @@ impl Launcher {
         ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x13161b, 255));
         // Only the Play page: an Enderman's eyes in the middle, drawn as a few rectangles
         // (the picture is 2576 x 1449, cropped to fill the screen).
-        if self.catalog.page == Page::Play {
+        {
             let scale = ui.density / ui.batch.scale;
             ui.batch.fill(
                 &gui.atlas,
