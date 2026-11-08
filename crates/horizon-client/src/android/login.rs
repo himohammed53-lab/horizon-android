@@ -1,5 +1,5 @@
 //! Native account panel; authentication is shared with the desktop launcher.
-use super::pages::{Action, SWITCH_ON, button, button_as};
+use super::pages::{Action, SWITCH_ON, button as page_button, button_as as page_button_as};
 use crate::account::{self, Account, Accounts, Secrets, SignIn, SignInState};
 use horizon_client::ui_theme::{Face, Ui, color};
 
@@ -21,6 +21,36 @@ pub(super) struct Login {
     state: Option<SignInState>,
     message: String,
 }
+/// Wide buttons are drawn a little narrower than their touch area; widen the area so that the
+/// drawn plate spans the dialog evenly instead of leaning left.
+fn fit(mut rect: [f32; 4]) -> [f32; 4] {
+    if rect[2] > 200.0 {
+        rect[2] /= 0.92;
+    }
+    rect
+}
+fn button(
+    ui: &mut Ui,
+    targets: &mut Vec<([f32; 4], Action)>,
+    rect: [f32; 4],
+    label: &str,
+    action: Action,
+    accent: bool,
+) {
+    page_button(ui, targets, fit(rect), label, action, accent);
+}
+fn button_as(
+    ui: &mut Ui,
+    targets: &mut Vec<([f32; 4], Action)>,
+    rect: [f32; 4],
+    label: &str,
+    action: Action,
+    accent: bool,
+    tint: Option<(u32, u32)>,
+) {
+    page_button_as(ui, targets, fit(rect), label, action, accent, tint);
+}
+
 impl Login {
     pub fn new() -> Self {
         let mut login = Self {
@@ -234,6 +264,15 @@ impl Login {
         let h = (ui.h - 24.0).min(550.0);
         let x = (ui.w - w) / 2.0;
         let y = (ui.h - h) / 2.0;
+        // A thin dark-grey outline (the search field's grey) so the dialog does not blend in.
+        ui.rounded(
+            x - 2.0,
+            y - 2.0,
+            w + 4.0,
+            h + 4.0,
+            10.0,
+            color::hex(0x5a5a5a, 255),
+        );
         ui.rounded(x, y, w, h, 8.0, color::BG);
         if self.providers {
             ui.text(
