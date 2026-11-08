@@ -260,7 +260,7 @@ impl Launcher {
 impl Chooser {
     pub(super) fn confirm_delete(name: String) -> Self {
         Self {
-            title: "Remove extension?",
+            title: "Remove mod?",
             help: "Deletes only the selected file from this profile. This cannot be undone.",
             device: Some(name),
             choices: vec![
