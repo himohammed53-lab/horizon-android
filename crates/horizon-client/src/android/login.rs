@@ -247,7 +247,7 @@ impl Login {
             for (index, (label, action)) in [
                 ("Offline (name only)", Action::OfflineAccount),
                 ("Microsoft account", Action::MicrosoftAccount),
-                ("Ely.by (email + password)", Action::ElySignIn),
+                ("Ely.by", Action::ElySignIn),
                 ("Saved accounts", Action::SavedAccounts),
             ]
             .into_iter()
@@ -363,18 +363,8 @@ impl Login {
                 "Credentials go only to authserver.ely.by.",
             );
             for (index, (label, name, value, secret)) in [
-                (
-                    "Username or email",
-                    "ely_username",
-                    self.username.as_str(),
-                    false,
-                ),
-                (
-                    "Password (not saved)",
-                    "ely_password",
-                    self.password.as_str(),
-                    true,
-                ),
+                ("Email", "ely_username", self.username.as_str(), false),
+                ("Password", "ely_password", self.password.as_str(), true),
                 (
                     "Two-factor code (optional)",
                     "ely_otp",

@@ -211,7 +211,7 @@ fn gear_icon(ui: &mut Ui, x: f32, y: f32, size: f32) {
         ".#.###.#.",
         "...###...",
     ];
-    let cell = (size * 0.8 / 9.0).floor().max(2.0);
+    let cell = (size / 9.0).floor().max(2.0);
     let left = x + (size - cell * 9.0) / 2.0;
     let top = y + (size - cell * 9.0) / 2.0;
     for (row, line) in GEAR.iter().enumerate() {
@@ -547,7 +547,7 @@ impl Launcher {
         }
         let (w, h) = (ui.w, ui.h);
         // The background: a plain, deep dark grey, no shapes.
-        ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x17181c, 255));
+        ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x13161b, 255));
         // Only the Play page: an Enderman's eyes in the middle, drawn as a few rectangles
         // (the picture is 2576 x 1449, cropped to fill the screen).
         if self.catalog.page == Page::Play {
@@ -627,22 +627,10 @@ impl Launcher {
             [face_x - 3.0, face_y - 3.0, face + 6.0, face + 6.0],
             Action::Account,
         ));
-        let gear = if w < 700.0 { 34.0 } else { 56.0 };
+        // The gear: white squares only, as tall as the face, no plate behind it.
+        let gear = face;
         let gear_x = face_x - 12.0 - gear;
-        let gear_y = face_y + (face - gear) / 2.0;
-        block_plate(
-            &mut ui,
-            gear_x,
-            gear_y,
-            gear,
-            gear,
-            if self.catalog.page == Page::Settings {
-                0x7b4fe0
-            } else {
-                GRAY
-            },
-            false,
-        );
+        let gear_y = face_y;
         gear_icon(&mut ui, gear_x, gear_y, gear);
         self.targets
             .push(([gear_x, gear_y, gear, gear], Action::Page(Page::Settings)));
@@ -1651,7 +1639,7 @@ impl Launcher {
                 w,
                 (h - 134.0).max(0.0),
                 0.0,
-                color::hex(0x17181c, alpha),
+                color::hex(0x13161b, alpha),
             );
             if let Some(window) = &self.window {
                 window.request_redraw();
