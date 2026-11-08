@@ -1,7 +1,79 @@
 {
-  "template": "minecraft:stone",
+  "template": "minecraft:jukebox",
+  "item": false,
   "properties": {
-    "hardness": 2.0,
+    "hardness": -1.0,
+    "explosion_resistance": 3600000.0,
     "sounds": "minecraft:stone"
+  },
+  "state_properties": {
+    "damage": {
+      "type": "enum",
+      "values": [
+        "0",
+        "1",
+        "2"
+      ]
+    }
+  },
+  "default_state": {
+    "damage": "0"
+  },
+  "shapes": {
+    "property": "has_record",
+    "values": {
+      "false": [
+        [
+          0.0625,
+          0.0,
+          0.625,
+          0.9375,
+          0.125,
+          1.0
+        ],
+        [
+          0.125,
+          0.125,
+          0.75,
+          0.875,
+          0.875,
+          0.875
+        ],
+        [
+          0.25,
+          0.875,
+          0.75,
+          0.75,
+          1.0,
+          0.875
+        ]
+      ],
+      "true": [
+        [
+          0.0625,
+          0.0,
+          0.625,
+          0.9375,
+          0.125,
+          1.0
+        ],
+        [
+          0.125,
+          0.125,
+          0.75,
+          0.875,
+          0.875,
+          0.875
+        ],
+        [
+          0.25,
+          0.875,
+          0.75,
+          0.75,
+          1.0,
+          0.875
+        ]
+      ]
+    }
   }
 }

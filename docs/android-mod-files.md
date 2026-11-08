@@ -60,6 +60,7 @@ A mod that imports them is refused by a build below level 8 with the usual
 
 | Folder | Mod id | Side | What it does |
 |---|---|---|---|
+| `crates/horizon-mod-sdk/examples/gravestones` | `gravestones` | content | The blocks, 3D models, textures, names and recipes of Gravestones 1.4.2 by Pneumono (MIT). The behaviour (a grave takes your items and experience when you die; a right click gives them back) is built into the game as `gravestones_logic`, switched on and off in Options > Mods |
 | `crates/horizon-mod-sdk/examples/falling-trees` | `falling_trees_file` | server | Breaking the bottom log of a tree brings the trunk down (at most 128 logs, leaves must touch it); `/tree on` and `/tree off` |
 | `crates/horizon-mod-sdk/examples/vein-miner` | `vein_miner_file` | server | Mining an ore breaks the connected vein (at most 32 blocks); `/vein on` and `/vein off` |
 | `crates/horizon-mod-sdk/examples/gamma` | `gamma_file` | client | Brighter light; a settings page in Options > Mods (ON/OFF, brightness 1 to 16), `/gamma 1` to `/gamma 16`, `/gamma off`; starts at 8 |

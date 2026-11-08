@@ -1396,12 +1396,14 @@ impl Game<'_> {
         block: &str,
         entity: &mut Option<(String, Compound)>,
     ) {
+        super::gravestones::block_entity(block, entity);
         let _ = (block, entity);
     }
     /// Whether block `block`'s block entity ticks (`EntityBlock.getTicker`):
     /// set `ticks` when it is yours. Asked for each of the block's states
     /// when a world opens. API 15.
     pub(super) fn native_block_entity_ticks(&self, block: &str, ticks: &mut bool) {
+        super::gravestones::ticks(block, ticks);
         let _ = (block, ticks);
     }
     /// A `minecraft:post_attack` effect of a mod's own kind, on a mob a
@@ -1437,6 +1439,7 @@ impl Game<'_> {
         block: &str,
         container: &mut Option<ModContainer>,
     ) {
+        super::gravestones::container(block, container);
         let _ = (block, container);
     }
     /// Block `block`'s block entity has fluid tanks: set `fluids` when the
@@ -1465,6 +1468,7 @@ impl Game<'_> {
     /// what `native_block_entity_update_tag` gives when its chunk is sent or
     /// its block changes. API 17.
     pub(super) fn native_block_entity_tick(&mut self, pos: [i32; 3], entity: &mut ModBlockEntity) {
+        super::gravestones::tick(self, pos, entity);
         let _ = (pos, entity);
     }
     /// A consumable's effect of a mod's own kind: the item's `on_consume_effects`
@@ -2184,6 +2188,7 @@ impl Game<'_> {
         face: [i32; 3],
         canceled: &mut bool,
     ) {
+        super::gravestones::right_click(self, pos, canceled);
         let _ = (pos, face, canceled);
     }
     /// An explosion at `center` in `dimension` (`minecraft:overworld`) is

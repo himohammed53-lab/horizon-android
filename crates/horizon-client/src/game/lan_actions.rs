@@ -3382,6 +3382,18 @@ impl Game<'_> {
             }
         }
         let here = host.hub.here(&host.hub.guests[gi]);
+        // Gravestones takes the items and experience before the loot and the reward are worked out.
+        if here {
+            let g = &host.hub.guests[gi];
+            if g.health <= 0.0 && !g.dead && g.game_mode != SPECTATOR {
+                let eyes = [
+                    g.position[0],
+                    g.position[1] + g.eye_height() - 0.3,
+                    g.position[2],
+                ];
+                self.as_guest(host, conn, |game| game.gravestone_death(eyes));
+            }
+        }
         let g = &mut host.hub.guests[gi];
         if g.health <= 0.0 && !g.dead {
             g.dead = true;

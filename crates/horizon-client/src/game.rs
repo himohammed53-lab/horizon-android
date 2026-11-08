@@ -55,6 +55,7 @@ mod agent;
 mod agent_settings;
 mod allays;
 mod android_bundled;
+mod gravestones;
 #[cfg(target_os = "android")]
 mod android_input;
 mod armor_stands;
@@ -7204,6 +7205,10 @@ impl Game<'_> {
             }
             self.stats.reset("custom", "minecraft:time_since_death");
             self.stats.reset("custom", "minecraft:time_since_rest");
+            // Gravestones takes the items and experience before the reward is worked out.
+            if !self.spectator() {
+                self.gravestone_death(at);
+            }
             let reward = self
                 .experience
                 .death_reward(self.ui.rules.bool("keep_inventory") || self.spectator());
