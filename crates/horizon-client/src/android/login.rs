@@ -305,6 +305,7 @@ impl Login {
                 color::TEXT,
                 "Accounts",
             );
+            let half = (w - 52.0) / 2.0;
             for (index, (label, action)) in [
                 ("Offline (name only)", Action::OfflineAccount),
                 ("Microsoft account", Action::MicrosoftAccount),
@@ -317,17 +318,122 @@ impl Login {
                 button_as(
                     ui,
                     targets,
-                    [x + 20.0, y + 62.0 + index as f32 * 76.0, w - 40.0, 68.0],
+                    [
+                        x + 20.0 + (index % 2) as f32 * (half + 12.0),
+                        y + 58.0 + (index / 2) as f32 * 54.0,
+                        half,
+                        46.0,
+                    ],
                     label,
                     action,
                     true,
                     Some((SWITCH_ON, SWITCH_ON)),
                 );
             }
+            // Under the buttons: every account that is signed in, with its service's mark.
+            let top = y + 170.0;
+            ui.text(
+                Face::Regular,
+                13.0,
+                x + 20.0,
+                top,
+                color::MUTED,
+                "Signed-in accounts",
+            );
+            let room = (((y + h - 62.0) - (top + 20.0)) / 54.0).floor().max(0.0) as usize;
+            let signed: Vec<&Account> = self
+                .saved_accounts
+                .iter()
+                .filter(|a| {
+                    account::store()
+                        .get(&a.key())
+                        .ok()
+                        .flatten()
+                        .is_some_and(|s| serde_json::from_str::<Secrets>(&s).is_ok())
+                })
+                .collect();
+            if signed.is_empty() {
+                ui.text(
+                    Face::Regular,
+                    14.0,
+                    x + 20.0,
+                    top + 26.0,
+                    color::TEXT,
+                    "Not signed in to any service.",
+                );
+            }
+            for (row, account) in signed.iter().take(room.max(1)).enumerate() {
+                let card_y = top + 20.0 + row as f32 * 54.0;
+                let current = self.profile.as_deref() == Some(account.name.as_str());
+                ui.rounded(
+                    x + 20.0,
+                    card_y - 1.0,
+                    w - 40.0,
+                    50.0,
+                    8.0,
+                    if current {
+                        color::ACCENT
+                    } else {
+                        color::hex(0x5a5a5a, 255)
+                    },
+                );
+                ui.rounded(x + 21.0, card_y, w - 42.0, 48.0, 7.0, color::RAISED);
+                let (lx, ly) = (x + 34.0, card_y + 10.0);
+                let ely = account.provider == account::Provider::Ely;
+                if ely {
+                    ui.rounded(lx, ly, 28.0, 28.0, 6.0, color::hex(0x3c8a3a, 255));
+                    ui.text(
+                        Face::Medium,
+                        20.0,
+                        lx + 8.0,
+                        ly + 3.0,
+                        color::hex(0xffffff, 255),
+                        "E",
+                    );
+                } else {
+                    for (i, rgb) in [0xf25022, 0x7fba00, 0x00a4ef, 0xffb900]
+                        .into_iter()
+                        .enumerate()
+                    {
+                        ui.rounded(
+                            lx + (i % 2) as f32 * 15.0,
+                            ly + (i / 2) as f32 * 15.0,
+                            13.0,
+                            13.0,
+                            1.0,
+                            color::hex(rgb, 255),
+                        );
+                    }
+                }
+                ui.text(
+                    Face::Medium,
+                    16.0,
+                    x + 76.0,
+                    card_y + 6.0,
+                    color::TEXT,
+                    &ui.fit_text(Face::Medium, 16.0, &account.name, w - 220.0),
+                );
+                ui.text(
+                    Face::Regular,
+                    13.0,
+                    x + 76.0,
+                    card_y + 28.0,
+                    color::MUTED,
+                    if ely { "Ely.by" } else { "Microsoft" },
+                );
+                ui.text(
+                    Face::Medium,
+                    14.0,
+                    x + w - 120.0,
+                    card_y + 15.0,
+                    color::ACCENT,
+                    if current { "Signed in" } else { "Saved" },
+                );
+            }
             button(
                 ui,
                 targets,
-                [x + 20.0, y + h - 76.0, w - 40.0, 60.0],
+                [x + 20.0, y + h - 52.0, w - 40.0, 36.0],
                 "Close",
                 Action::CloseLogin,
                 false,
