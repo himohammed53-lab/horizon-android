@@ -83,6 +83,8 @@ pub(super) enum Action {
     ChooseCacheBudget(u32),
     ToggleBundled(&'static str),
     WorldFiles,
+    /// Pick a world ZIP and unpack it into the saves folder.
+    ImportWorld,
     GameFiles,
     WorkerLimit,
     ChooseWorkerLimit(u32),
@@ -777,6 +779,16 @@ impl Launcher {
                     progress.stage.label(),
                 );
             } else {
+                if installed {
+                    button(
+                        &mut ui,
+                        &mut self.targets,
+                        [32.0, h - 170.0, (w - 64.0).min(400.0), 44.0],
+                        "Import world (ZIP)",
+                        Action::ImportWorld,
+                        false,
+                    );
+                }
                 button(
                     &mut ui,
                     &mut self.targets,
@@ -1285,6 +1297,11 @@ impl Launcher {
                     Action::GameFiles,
                 ),
                 (
+                    "Import world",
+                    "Choose a world ZIP".into(),
+                    Action::ImportWorld,
+                ),
+                (
                     "World files",
                     "Import / copy / back up in Files".into(),
                     Action::WorldFiles,
@@ -1772,6 +1789,13 @@ impl Launcher {
                 self.catalog.status = if crate::platform::open_documents(crate::document_store::ROOT) {
                     "Game files opened. Worlds, mods, packs, shaders and reports are available here."
                 } else { "Open system Files > Horizon Android." }.into();
+            }
+            Some(Action::ImportWorld) => {
+                crate::platform::hide();
+                let home = self.catalog.config.game_home(&self.home);
+                if let Err(e) = crate::documents::begin_world(home) {
+                    self.catalog.status = e;
+                }
             }
             Some(Action::WorldFiles) => {
                 let id = crate::document_store::folder_id(self.catalog.config.profile, "worlds");

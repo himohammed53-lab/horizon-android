@@ -20,6 +20,8 @@ use std::{
 
 struct Request {
     kind: Kind,
+    /// A world archive to unpack into the saves folder.
+    world: bool,
     appearance: Option<crate::skins::library::Kind>,
     home: PathBuf,
     cache: PathBuf,
@@ -117,6 +119,7 @@ pub fn begin(kind: Kind, home: PathBuf) -> std::result::Result<(), String> {
         .join("content-imports");
     STATE.lock().unwrap_or_else(|e| e.into_inner()).request = Some(Request {
         kind,
+        world: false,
         appearance: None,
         home,
         cache,
@@ -132,6 +135,29 @@ pub fn picker_failed(error: &str) {
     STATE.lock().unwrap_or_else(|e| e.into_inner()).request = None;
     notice(error, false);
 }
+pub fn begin_world(home: PathBuf) -> std::result::Result<(), String> {
+    if busy() {
+        return Err("Finish or cancel the current import first".into());
+    }
+    CANCEL.store(false, Ordering::Relaxed);
+    crate::platform::hide();
+    let cache = crate::platform::cache_dir()
+        .ok_or("Could not access the Android import cache")?
+        .join("world-imports");
+    STATE.lock().unwrap_or_else(|e| e.into_inner()).request = Some(Request {
+        kind: Kind::Packs,
+        world: true,
+        appearance: None,
+        home,
+        cache,
+    });
+    if !crate::native_ime::pick_document() {
+        picker_failed("Android document picker is unavailable");
+        return Err("Android document picker is unavailable".into());
+    }
+    notice("Choose a world ZIP file", false);
+    Ok(())
+}
 pub fn begin_appearance(
     home: PathBuf,
     kind: crate::skins::library::Kind,
@@ -146,6 +172,7 @@ pub fn begin_appearance(
         .join("appearance-imports");
     STATE.lock().unwrap_or_else(|e| e.into_inner()).request = Some(Request {
         kind: Kind::Packs,
+        world: false,
         appearance: Some(kind),
         home,
         cache,
@@ -228,6 +255,9 @@ pub extern "system" fn document_result(
     }
 }
 fn stage(request: Request, mut input: std::fs::File, name: String) -> Result<()> {
+    if request.world {
+        return stage_world(request, input, name);
+    }
     if let Some(kind) = request.appearance {
         use std::io::Read;
         if !name.to_ascii_lowercase().ends_with(".png") {
@@ -332,6 +362,190 @@ fn stage(request: Request, mut input: std::fs::File, name: String) -> Result<()>
     })();
     if result.is_err() {
         let _ = std::fs::remove_file(staged);
+    }
+    result
+}
+const WORLD_INPUT: u64 = 3 << 30;
+const WORLD_EXPANDED: u64 = 6 << 30;
+const WORLD_ENTRIES: usize = 200_000;
+
+/// Unpack a zipped Java world into `saves/` beside the others. Every path is checked first,
+/// nothing is ever overwritten (a taken name gets " (2)"), and the world appears only once whole.
+fn stage_world(request: Request, mut input: std::fs::File, name: String) -> Result<()> {
+    use std::io::{Read, Write};
+    if !content_files::plain_name(&name) || !name.to_ascii_lowercase().ends_with(".zip") {
+        return Err("Choose a ZIP file containing your world folder".into());
+    }
+    let saves = request.home.join("saves");
+    std::fs::create_dir_all(&saves)?;
+    if std::fs::symlink_metadata(&saves)?.file_type().is_symlink() {
+        return Err("Refusing a redirected saves directory".into());
+    }
+    std::fs::create_dir_all(&request.cache)?;
+    if std::fs::symlink_metadata(&request.cache)?
+        .file_type()
+        .is_symlink()
+    {
+        return Err("Refusing a redirected import cache".into());
+    }
+    for entry in std::fs::read_dir(&request.cache)?.flatten() {
+        if entry.file_name().to_string_lossy().starts_with(".world-")
+            && entry.file_type()?.is_file()
+        {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+    let stamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
+    let staged = request.cache.join(format!(".world-{stamp}.part"));
+    let temp = saves.join(format!(".import-{stamp}.tmp"));
+    let result = (|| -> Result<()> {
+        // 1. Copy the picked file into the app's cache.
+        {
+            let mut output = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&staged)?;
+            let mut buffer = vec![0u8; 1 << 18];
+            let mut total = 0u64;
+            loop {
+                if CANCEL.load(Ordering::Relaxed) {
+                    return Err("Import cancelled".into());
+                }
+                let n = input.read(&mut buffer)?;
+                if n == 0 {
+                    break;
+                }
+                total += n as u64;
+                if total > WORLD_INPUT {
+                    return Err("World ZIP is larger than 3 GiB".into());
+                }
+                output.write_all(&buffer[..n])?;
+                notice(format!("Copying world: {} MiB", total >> 20), false);
+            }
+            output.sync_all()?;
+        }
+        // 2. Check every entry and find the folder holding level.dat.
+        notice("Checking world...", false);
+        let mut zip = zip::ZipArchive::new(std::fs::File::open(&staged)?)?;
+        if zip.len() > WORLD_ENTRIES {
+            return Err("Archive contains too many files".into());
+        }
+        let mut names = std::collections::HashSet::new();
+        let mut total = 0u64;
+        let mut level: Option<String> = None;
+        for i in 0..zip.len() {
+            let entry = zip.by_index(i)?;
+            let raw = entry.name()?.into_owned();
+            if raw.is_empty()
+                || raw.len() > 1024
+                || raw.chars().any(char::is_control)
+                || raw.contains(['\\', ':', '\0'])
+                || raw.starts_with('/')
+                || raw.split('/').any(|p| p == ".." || p == ".")
+                || !names.insert(raw.clone())
+                || entry.unix_mode().is_some_and(|m| m & 0o170000 == 0o120000)
+            {
+                return Err("Archive contains an unsafe or duplicate path".into());
+            }
+            total = total.saturating_add(entry.size());
+            if total > WORLD_EXPANDED {
+                return Err("World is larger than 6 GiB unpacked".into());
+            }
+            let parts: Vec<&str> = raw.split('/').collect();
+            if !entry.is_dir()
+                && parts.last() == Some(&"level.dat")
+                && parts.len() <= 3
+                && parts[0] != "__MACOSX"
+                && level
+                    .as_ref()
+                    .is_none_or(|l| l.split('/').count() > parts.len())
+            {
+                level = Some(raw);
+            }
+        }
+        let level = level.ok_or("No level.dat found: this is not a Java world ZIP")?;
+        let prefix = level.strip_suffix("level.dat").unwrap_or("").to_owned();
+        // 3. Pick a free folder name.
+        let mut base = prefix
+            .trim_end_matches('/')
+            .rsplit('/')
+            .next()
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+            .unwrap_or_else(|| {
+                name.trim_end_matches(".zip")
+                    .trim_end_matches(".ZIP")
+                    .to_owned()
+            });
+        base = base.chars().filter(|c| !c.is_control()).take(60).collect();
+        if !content_files::plain_name(&base) {
+            base = "Imported world".into();
+        }
+        let mut folder = base.clone();
+        let mut n = 2;
+        while saves.join(&folder).exists() {
+            folder = format!("{base} ({n})");
+            n += 1;
+            if n > 1000 {
+                return Err("Too many worlds with this name".into());
+            }
+        }
+        // 4. Unpack beside the others under a temporary name, then rename it into place.
+        std::fs::create_dir(&temp)?;
+        let mut done = 0u64;
+        let mut buffer = vec![0u8; 1 << 18];
+        for i in 0..zip.len() {
+            if CANCEL.load(Ordering::Relaxed) {
+                return Err("Import cancelled".into());
+            }
+            let mut entry = zip.by_index(i)?;
+            let raw = entry.name()?.into_owned();
+            let Some(rest) = raw.strip_prefix(prefix.as_str()) else {
+                continue;
+            };
+            if rest.is_empty() || raw.starts_with("__MACOSX/") {
+                continue;
+            }
+            let target = temp.join(rest);
+            if entry.is_dir() {
+                std::fs::create_dir_all(&target)?;
+                continue;
+            }
+            if let Some(parent) = target.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let mut output = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&target)?;
+            loop {
+                let n = entry.read(&mut buffer)?;
+                if n == 0 {
+                    break;
+                }
+                done += n as u64;
+                if done > WORLD_EXPANDED {
+                    return Err("World is larger than 6 GiB unpacked".into());
+                }
+                output.write_all(&buffer[..n])?;
+            }
+            if i % 32 == 0 {
+                notice(format!("Unpacking world: {} MiB", done >> 20), false);
+            }
+        }
+        if !temp.join("level.dat").is_file() {
+            return Err("No level.dat found: this is not a Java world ZIP".into());
+        }
+        std::fs::rename(&temp, saves.join(&folder))?;
+        notice(
+            format!("World \"{folder}\" added. Open Play > Singleplayer to find it."),
+            false,
+        );
+        Ok(())
+    })();
+    let _ = std::fs::remove_file(&staged);
+    if result.is_err() {
+        let _ = std::fs::remove_dir_all(&temp);
     }
     result
 }
