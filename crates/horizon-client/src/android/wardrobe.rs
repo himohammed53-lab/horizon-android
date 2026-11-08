@@ -43,6 +43,47 @@ pub(super) struct Wardrobe {
     note: String,
     damaged: bool,
 }
+/// The last cloud skin of each account, kept on disk so the face in the corner shows the right
+/// skin at once on the next start instead of Steve's until the profile service answers.
+fn last_cloud(root: &Path, key: &str) -> Option<cloud::Cache> {
+    let text = std::fs::read_to_string(root.join("cloud-last.json")).ok()?;
+    let map: std::collections::BTreeMap<String, (String, Option<String>, bool)> =
+        serde_json::from_str(&text).ok()?;
+    let (skin, cape, slim) = map.get(key)?.clone();
+    let skin = PathBuf::from(skin);
+    let cape = cape.map(PathBuf::from).filter(|p| p.is_file());
+    skin.is_file().then(|| cloud::Cache {
+        skin: Some(skin),
+        cape,
+        slim,
+        ..Default::default()
+    })
+}
+fn remember_cloud(root: &Path, key: &str, cache: &cloud::Cache) {
+    let Some(skin) = cache.skin.as_ref() else {
+        return;
+    };
+    let path = root.join("cloud-last.json");
+    let mut map: std::collections::BTreeMap<String, (String, Option<String>, bool)> =
+        std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|t| serde_json::from_str(&t).ok())
+            .unwrap_or_default();
+    map.insert(
+        key.to_owned(),
+        (
+            skin.to_string_lossy().into_owned(),
+            cache
+                .cape
+                .as_ref()
+                .map(|p| p.to_string_lossy().into_owned()),
+            cache.slim,
+        ),
+    );
+    if let Ok(text) = serde_json::to_string(&map) {
+        let _ = std::fs::write(path, text);
+    }
+}
 impl Wardrobe {
     pub fn new(home: &Path) -> Self {
         let root = home.join("wardrobe");
@@ -89,7 +130,7 @@ impl Wardrobe {
             self.fingers.clear();
             self.key = key;
             self.provider = account.map(|a| a.provider);
-            self.cache = Default::default();
+            self.cache = last_cloud(&self.root, &self.key).unwrap_or_default();
         }
         self.reload();
         if self.provider.is_some() && self.worker.is_none() {
@@ -135,6 +176,7 @@ impl Wardrobe {
                             return;
                         }
                     }
+                    remember_cloud(&self.root, &self.key, &cache);
                     self.cache = cache;
                     self.note =
                         "Cloud profile synchronized. Local overrides are kept separate.".into();
