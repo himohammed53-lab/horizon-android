@@ -779,16 +779,6 @@ impl Launcher {
                     progress.stage.label(),
                 );
             } else {
-                if installed {
-                    button(
-                        &mut ui,
-                        &mut self.targets,
-                        [32.0, h - 170.0, (w - 64.0).min(400.0), 44.0],
-                        "Import world (ZIP)",
-                        Action::ImportWorld,
-                        false,
-                    );
-                }
                 button(
                     &mut ui,
                     &mut self.targets,
@@ -1256,7 +1246,7 @@ impl Launcher {
             self.catalog.scroll = self
                 .catalog
                 .scroll
-                .clamp(0.0, (18.0 * row_height - (h - 130.0 - 195.0)).max(0.0));
+                .clamp(0.0, (19.0 * row_height - (h - 130.0 - 195.0)).max(0.0));
             self.list_view = Some([
                 195.0,
                 h - 130.0,
@@ -1297,13 +1287,13 @@ impl Launcher {
                     Action::GameFiles,
                 ),
                 (
-                    "Import world",
-                    "Choose a world ZIP".into(),
+                    "Worlds: import",
+                    "Choose a world ZIP / unpacked here".into(),
                     Action::ImportWorld,
                 ),
                 (
-                    "World files",
-                    "Import / copy / back up in Files".into(),
+                    "Worlds: folder",
+                    "Open in Files / back up".into(),
                     Action::WorldFiles,
                 ),
                 ("Profile", format!("Profile {}", c.profile), Action::Profile),

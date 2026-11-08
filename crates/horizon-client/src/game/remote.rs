@@ -5154,6 +5154,10 @@ impl Game<'_> {
         }
         (skin, slim)
     }
+    /// The skin the game resolved for this player (the one their model wears), if any.
+    pub(super) fn resolved_skin(&self, uuid: u128) -> Option<String> {
+        self.remote.as_ref()?.skins.get(&uuid).cloned()
+    }
     /// `drawn_skin` for a face in the player list or spectator menu.
     pub(super) fn face_skin(&mut self, uuid: u128, skin: &str) -> String {
         self.drawn_skin(uuid, (skin.to_owned(), false)).0

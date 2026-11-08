@@ -50,6 +50,59 @@ fn button_as(
     page_button_as(ui, targets, fit(rect), label, action, accent, tint);
 }
 
+/// The one-line panel shown above the keyboard while a field is typed in: its name, the text so
+/// far, then Paste and Done. It always fits, whatever room the keyboard leaves.
+fn typing_row(
+    ui: &mut Ui,
+    targets: &mut Vec<([f32; 4], Action)>,
+    [x, y, w, h]: [f32; 4],
+    label: &str,
+    name: &'static str,
+    display: &str,
+) {
+    let wide = (w * 0.17).clamp(64.0, 92.0);
+    let label_w = 84.0;
+    let field_w = w - 12.0 - label_w - 8.0 - (wide + 6.0) * 2.0 - 4.0;
+    let (field_y, field_h) = (y + (h - 38.0) / 2.0, 38.0);
+    ui.text(
+        Face::Medium,
+        14.0,
+        x + 14.0,
+        field_y + 9.0,
+        color::MUTED,
+        label,
+    );
+    button(
+        ui,
+        targets,
+        [x + 12.0 + label_w, field_y, field_w, field_h],
+        display,
+        Action::Field(name),
+        false,
+    );
+    button(
+        ui,
+        targets,
+        [x + 12.0 + label_w + field_w + 6.0, field_y, wide, field_h],
+        "Paste",
+        Action::PasteField,
+        false,
+    );
+    button(
+        ui,
+        targets,
+        [
+            x + 12.0 + label_w + field_w + 12.0 + wide,
+            field_y,
+            wide,
+            field_h,
+        ],
+        "Done",
+        Action::FinishNameEdit,
+        true,
+    );
+}
+
 impl Login {
     pub fn new() -> Self {
         let mut login = Self {
@@ -273,19 +326,14 @@ impl Login {
         // panel shrinks to just the fields being edited and sits at the very top, above it.
         let typing_ely = self.ely && editing.is_some_and(|field| field.starts_with("ely_"));
         let typing_name = self.offline && editing == Some("name");
-        let rows: f32 = if typing_ely && editing != Some("ely_otp") {
-            2.0
-        } else {
-            1.0
-        };
         let compact = typing_ely || typing_name;
         let h = if compact {
-            (rows * 44.0 + 66.0).min(ui.h - 12.0)
+            56.0_f32.min(ui.h - 8.0)
         } else {
             (ui.h - 24.0).min(550.0)
         };
         let x = (ui.w - w) / 2.0;
-        let y = if compact { 6.0 } else { (ui.h - h) / 2.0 };
+        let y = if compact { 4.0 } else { (ui.h - h) / 2.0 };
         // A thin dark-grey outline (the search field's grey) so the dialog does not blend in.
         ui.rounded(
             x - 2.0,
@@ -515,56 +563,19 @@ impl Login {
         }
         if self.ely {
             if typing_ely {
-                let fields: Vec<(&str, &'static str, &str, bool)> = if editing == Some("ely_otp") {
-                    vec![("Code", "ely_otp", self.otp.as_str(), true)]
-                } else {
-                    vec![
-                        ("Email", "ely_username", self.username.as_str(), false),
-                        ("Password", "ely_password", self.password.as_str(), true),
-                    ]
+                let (label, name, value, secret) = match editing {
+                    Some("ely_otp") => ("Code", "ely_otp", self.otp.as_str(), true),
+                    Some("ely_password") => {
+                        ("Password", "ely_password", self.password.as_str(), true)
+                    }
+                    _ => ("Email", "ely_username", self.username.as_str(), false),
                 };
-                for (index, (label, name, value, secret)) in fields.into_iter().enumerate() {
-                    let top = y + 10.0 + index as f32 * 44.0;
-                    ui.text(
-                        Face::Regular,
-                        14.0,
-                        x + 16.0,
-                        top + 10.0,
-                        color::MUTED,
-                        label,
-                    );
-                    let display = if secret {
-                        "*".repeat(value.chars().count().min(40))
-                    } else {
-                        value.into()
-                    };
-                    button(
-                        ui,
-                        targets,
-                        [x + 112.0, top, w - 128.0, 36.0],
-                        &display,
-                        Action::Field(name),
-                        false,
-                    );
-                }
-                let bottom = y + 10.0 + rows * 44.0;
-                let half = (w - 40.0) / 2.0;
-                button(
-                    ui,
-                    targets,
-                    [x + 16.0, bottom, half, 38.0],
-                    "Paste",
-                    Action::PasteField,
-                    false,
-                );
-                button(
-                    ui,
-                    targets,
-                    [x + 24.0 + half, bottom, half, 38.0],
-                    "Done",
-                    Action::FinishNameEdit,
-                    true,
-                );
+                let display = if secret {
+                    "*".repeat(value.chars().count().min(40))
+                } else {
+                    value.into()
+                };
+                typing_row(ui, targets, [x, y, w, h], label, name, &display);
                 return;
             }
             ui.text(
@@ -653,39 +664,7 @@ impl Login {
         }
         if self.offline {
             if typing_name {
-                ui.text(
-                    Face::Regular,
-                    14.0,
-                    x + 16.0,
-                    y + 20.0,
-                    color::MUTED,
-                    "Name",
-                );
-                button(
-                    ui,
-                    targets,
-                    [x + 112.0, y + 10.0, w - 128.0, 36.0],
-                    offline_name,
-                    Action::Field("name"),
-                    false,
-                );
-                let half = (w - 40.0) / 2.0;
-                button(
-                    ui,
-                    targets,
-                    [x + 16.0, y + 54.0, half, 38.0],
-                    "Paste",
-                    Action::PasteField,
-                    false,
-                );
-                button(
-                    ui,
-                    targets,
-                    [x + 24.0 + half, y + 54.0, half, 38.0],
-                    "Done",
-                    Action::FinishNameEdit,
-                    true,
-                );
+                typing_row(ui, targets, [x, y, w, h], "Name", "name", offline_name);
                 return;
             }
             ui.text(

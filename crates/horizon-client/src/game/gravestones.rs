@@ -144,7 +144,7 @@ fn draw_lines(game: &Game<'_>, draw: &mut BlockEntityDraw, lines: &[String; 3]) 
                     ],
                     [[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [1.0, 0.0]],
                     cell,
-                    0xF0_EBCC,
+                    0xFF_FFFF,
                 );
             }
             x += step;
@@ -167,26 +167,38 @@ pub(super) fn submit(
     draw_lines(game, draw, &grave_lines(&entity.nbt));
     let sprites = &game.gui.atlas.sprites;
     let name = get_text(&entity.nbt, "owner_name");
-    // The owner's skin: the player's own when it is theirs (what the game shows them, whatever
-    // account they are on), otherwise the one the profile names, or the default one.
+    // The owner's skin, as the game shows that player: the skin it resolved for their account
+    // (Microsoft, Ely.by or the launcher's offline one), else the player's own model's, else
+    // the one the profile names, else the default one.
+    let owner = get_ints(&entity.nbt, "owner")
+        .filter(|o| o.len() == 4)
+        .map(|o| {
+            o.iter()
+                .fold(0u128, |acc, part| (acc << 32) | u128::from(*part as u32))
+        });
     let own = name.as_deref() == Some(game.acting_player_name());
-    let skin = if own {
-        game.player_model
-            .as_ref()
-            .and_then(|m| m.skin.clone())
-            .filter(|skin| sprites.contains_key(skin))
-    } else {
-        None
-    }
-    .unwrap_or_else(|| {
-        let profile = serde_json::json!({ "name": name.clone().unwrap_or_default() });
-        horizon_client::skins::head_skin(
-            &profile,
-            &mut game.skin_profiles.borrow_mut(),
-            &mut game.skin_downloads.borrow_mut(),
-            |location| sprites.contains_key(location),
-        )
-    });
+    let skin = owner
+        .and_then(|uuid| game.resolved_skin(uuid))
+        .filter(|skin| sprites.contains_key(skin))
+        .or_else(|| {
+            if own {
+                game.player_model
+                    .as_ref()
+                    .and_then(|m| m.skin.clone())
+                    .filter(|skin| sprites.contains_key(skin))
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| {
+            let profile = serde_json::json!({ "name": name.clone().unwrap_or_default() });
+            horizon_client::skins::head_skin(
+                &profile,
+                &mut game.skin_profiles.borrow_mut(),
+                &mut game.skin_downloads.borrow_mut(),
+                |location| sprites.contains_key(location),
+            )
+        });
     let Some(rect) = sprites
         .get(&skin)
         .or_else(|| sprites.get("entity/player/wide/steve"))
