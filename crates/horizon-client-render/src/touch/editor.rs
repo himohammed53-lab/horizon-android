@@ -75,7 +75,15 @@ impl TouchControls {
                         CustomButton::new(button.key.clone(), i).layouts
                             [self.settings.mode.index()];
                 }
-            } else if layout::contains([0.02, 0.13, 0.335, 0.075], p) {
+            } else if layout::contains([0.02, 0.13, 0.335, 0.075], p)
+                && (e.palette
+                    || !Control::ALL.into_iter().any(|c| {
+                        self.visible(c)
+                            && layout::contains(self.placement(c).rect(self.aspect()), p)
+                    }))
+            {
+                // "Add buttons..." only when no button of the layout lies under the finger:
+                // a button behind it is meant to be moved, not to open the list.
                 e.palette = !e.palette;
                 e.selected = None;
                 e.selected_custom = None;
@@ -345,7 +353,17 @@ impl TouchControls {
         started: bool,
         ended: bool,
     ) -> bool {
-        if p[1] < 0.13 && started {
+        // Only the Done / Cancel / Reset row is reserved at the top: a button of the
+        // player's own placed up there must still be selectable and movable.
+        if started
+            && [
+                [0.02, 0.04, 0.105, 0.075],
+                [0.135, 0.04, 0.105, 0.075],
+                [0.25, 0.04, 0.105, 0.075],
+            ]
+            .into_iter()
+            .any(|rect| layout::contains(rect, p))
+        {
             return false;
         }
         if e.key_picker {
@@ -600,4 +618,58 @@ impl TouchControls {
 }
 fn key_rect(i: usize) -> [f32; 4] {
     [0.15, 0.25 + i as f32 * 0.072, 0.7, 0.06]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn editing() -> TouchControls {
+        let mut t = TouchControls::default();
+        t.viewport(2400, 1080);
+        t.open_editor();
+        t
+    }
+
+    #[test]
+    fn a_custom_button_at_the_top_can_be_picked_again() {
+        let mut t = editing();
+        t.settings
+            .custom_buttons
+            .push(CustomButton::new("key.keyboard.b".into(), 0));
+        let mode = t.settings.mode.index();
+        t.settings.custom_buttons[0].layouts[mode].center = [0.6, 0.07];
+        let p = t.custom_placement(0).center;
+        assert!(p[1] < 0.13, "the button sits in the top strip");
+        t.edit_touch(1, p, true, false);
+        assert_eq!(t.editor.as_ref().unwrap().selected_custom, Some(0));
+    }
+
+    #[test]
+    fn a_button_behind_add_buttons_is_picked_instead_of_opening_the_list() {
+        let mut t = editing();
+        let mode = t.settings.mode.index();
+        let slot = t.settings.slot(Control::Jump);
+        t.settings.layouts[mode][slot].center = [0.1, 0.17];
+        let p = t.placement(Control::Jump).center;
+        assert!(layout::contains([0.02, 0.13, 0.335, 0.075], p));
+        t.edit_touch(1, p, true, false);
+        let e = t.editor.as_ref().unwrap();
+        assert_eq!(e.selected, Some(Control::Jump));
+        assert!(!e.palette);
+    }
+
+    #[test]
+    fn add_buttons_still_opens_the_list_when_nothing_is_under_it() {
+        let mut t = editing();
+        let p = [0.3, 0.17];
+        assert!(
+            !Control::ALL
+                .into_iter()
+                .any(|c| t.visible(c) && layout::contains(t.placement(c).rect(t.aspect()), p)),
+            "no default button lies under the Add buttons row"
+        );
+        t.edit_touch(1, p, true, false);
+        assert!(t.editor.as_ref().unwrap().palette);
+    }
 }
