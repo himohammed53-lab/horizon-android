@@ -198,45 +198,6 @@ fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: b
     );
 }
 
-/// A big letter H built from the launcher's own blocks, bottom right of the Play page:
-/// it fills the empty side of the page. Plain squares, nothing taken from the game.
-fn block_pyramid(ui: &mut Ui, w: f32, h: f32) {
-    let side = 60.0;
-    let gap = 0.0;
-    let left = w - 80.0 - (3.0 * side + 2.0 * gap);
-    let bottom = h - 40.0;
-    for row in 0..5 {
-        let y = bottom - (row + 1) as f32 * side - row as f32 * gap;
-        for col in 0..3 {
-            let bar = row == 2;
-            // The two stems, and the bar across the middle.
-            if col != 1 && !bar {
-                let tint = if row % 2 == 0 { GRAY } else { 0x4a4a52 };
-                block_plate(
-                    ui,
-                    left + col as f32 * (side + gap),
-                    y,
-                    side,
-                    side,
-                    tint,
-                    false,
-                );
-            } else if col == 1 && bar || col != 1 && bar {
-                let tint = if col == 1 { SWITCH_ON } else { 0x7b4fe0 };
-                block_plate(
-                    ui,
-                    left + col as f32 * (side + gap),
-                    y,
-                    side,
-                    side,
-                    tint,
-                    false,
-                );
-            }
-        }
-    }
-}
-
 /// Three small white dots, with no plate: the "more" button of a mod row.
 fn more_dots(ui: &mut Ui, targets: &mut Vec<([f32; 4], Action)>, rect: [f32; 4], action: Action) {
     let [x, y, w, h] = rect;
@@ -770,9 +731,6 @@ impl Launcher {
                     Action::Play,
                     true,
                 );
-            }
-            if !compact {
-                block_pyramid(&mut ui, w, h);
             }
         } else if page == Page::Skins {
             self.wardrobe
