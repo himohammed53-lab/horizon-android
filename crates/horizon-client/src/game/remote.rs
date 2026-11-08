@@ -4837,36 +4837,34 @@ impl Game<'_> {
             &r.skin_textures,
             &mut r.level_player_textures,
         );
-        // An Ely.by account sees the others by the skins Ely.by keeps for their names, where the
-        // server (an offline one, a LAN world) named none.
+        // Ely.by keeps a skin for a name where the server (an offline one, a LAN world) sent none:
+        // players who set theirs there are seen with it, on their graves too.
         let mut ely_found = std::collections::HashSet::new();
-        if horizon_client::auth::current().is_some_and(|a| a.is_ely()) {
-            for (uuid, textures) in &mut entries {
-                if textures.skin.is_some() || *uuid == local {
-                    continue;
-                }
-                let Some(name) = r.tab_players.get(uuid).map(|p| p.name.clone()) else {
-                    continue;
-                };
-                let entry = r.ely_skins.entry(*uuid).or_insert_with(|| {
-                    let (send, recv) = std::sync::mpsc::channel();
-                    std::thread::Builder::new()
-                        .name("Ely.by skin".into())
-                        .spawn(move || {
-                            let _ = send.send(horizon_client::auth::ely_textures(&name));
-                        })
-                        .ok();
-                    ElySkin::Fetching(recv)
-                });
-                if let ElySkin::Fetching(recv) = entry
-                    && let Ok(found) = recv.try_recv()
-                {
-                    *entry = ElySkin::Done(found);
-                }
-                if let ElySkin::Done(Some(found)) = entry {
-                    *textures = found.clone();
-                    ely_found.insert(*uuid);
-                }
+        for (uuid, textures) in &mut entries {
+            if textures.skin.is_some() {
+                continue;
+            }
+            let Some(name) = r.tab_players.get(uuid).map(|p| p.name.clone()) else {
+                continue;
+            };
+            let entry = r.ely_skins.entry(*uuid).or_insert_with(|| {
+                let (send, recv) = std::sync::mpsc::channel();
+                std::thread::Builder::new()
+                    .name("Ely.by skin".into())
+                    .spawn(move || {
+                        let _ = send.send(horizon_client::auth::ely_textures(&name));
+                    })
+                    .ok();
+                ElySkin::Fetching(recv)
+            });
+            if let ElySkin::Fetching(recv) = entry
+                && let Ok(found) = recv.try_recv()
+            {
+                *entry = ElySkin::Done(found);
+            }
+            if let ElySkin::Done(Some(found)) = entry {
+                *textures = found.clone();
+                ely_found.insert(*uuid);
             }
         }
         let own = match &r.own_profile {
