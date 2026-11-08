@@ -265,8 +265,7 @@ fn plate_rect(rect: [f32; 4], full: bool) -> (f32, f32, f32, f32) {
         return (x, y, w, h);
     }
     let ph = (h * 0.86).clamp(30.0_f32.min(h), h);
-    let pw = if w > 200.0 { w * 0.92 } else { w };
-    (x, y + (h - ph) / 2.0, pw, ph)
+    (x, y + (h - ph) / 2.0, w, ph)
 }
 
 /// White text with the game's dark drop shadow.
@@ -632,7 +631,7 @@ impl Launcher {
         ));
         // The gear: white squares only, as tall as the face, no plate behind it.
         let gear = face;
-        let gear_x = face_x - 12.0 - gear;
+        let gear_x = face_x - 28.0 - gear;
         let gear_y = face_y;
         gear_icon(&mut ui, gear_x, gear_y, gear);
         self.targets

@@ -23,10 +23,7 @@ pub(super) struct Login {
 }
 /// Wide buttons are drawn a little narrower than their touch area; widen the area so that the
 /// drawn plate spans the dialog evenly instead of leaning left.
-fn fit(mut rect: [f32; 4]) -> [f32; 4] {
-    if rect[2] > 200.0 {
-        rect[2] /= 0.92;
-    }
+fn fit(rect: [f32; 4]) -> [f32; 4] {
     rect
 }
 fn button(
