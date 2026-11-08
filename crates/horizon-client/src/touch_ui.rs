@@ -86,8 +86,10 @@ const KEYS: [(&str, KeyCode); 28] = [
 // Shared draw/hit rectangles: utility-style buttons at the lower right.
 /// Width of each top-right menu button (BT, Mouse, Back); they touch each other.
 const MENU_BUTTON: f32 = 54.0;
-/// Touch height of that row: taller than the 20-unit drawing so a thumb lands.
-const MENU_HIT_HEIGHT: f32 = 30.0;
+/// Visible gap between them; touch boxes still meet, so no press falls in the gap.
+const MENU_GAP: f32 = 4.0;
+/// Touch height of that row: a little taller than the 20-unit drawing.
+const MENU_HIT_HEIGHT: f32 = 26.0;
 
 fn mouse_button_rects(w: f32, h: f32) -> [([f32; 4], bool); 2] {
     [
@@ -397,9 +399,9 @@ impl TouchUi {
                 } else {
                     "Mouse"
                 },
-                b.width - MENU_BUTTON * 2.0,
+                b.width - MENU_BUTTON * 2.0 + MENU_GAP / 2.0,
                 0.0,
-                MENU_BUTTON,
+                MENU_BUTTON - MENU_GAP,
             );
         }
         if menu {
@@ -412,9 +414,9 @@ impl TouchUi {
                 } else {
                     "BT ON"
                 },
-                b.width - MENU_BUTTON * 3.0,
+                b.width - MENU_BUTTON * 3.0 + MENU_GAP / 2.0,
                 0.0,
-                MENU_BUTTON,
+                MENU_BUTTON - MENU_GAP,
             );
         }
         if menu && self.virtual_mouse && self.menu_touch_on {
@@ -423,7 +425,14 @@ impl TouchUi {
             }
         }
         if menu {
-            button(b, a, "Back", b.width - MENU_BUTTON, 0.0, MENU_BUTTON);
+            button(
+                b,
+                a,
+                "Back",
+                b.width - MENU_BUTTON + MENU_GAP / 2.0,
+                0.0,
+                MENU_BUTTON - MENU_GAP,
+            );
         }
         if self.expanded {
             button(
