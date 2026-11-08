@@ -198,6 +198,40 @@ fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: b
     );
 }
 
+/// A white gear made of squares, centred on a square button.
+fn gear_icon(ui: &mut Ui, x: f32, y: f32, size: f32) {
+    const GEAR: [&str; 9] = [
+        "...###...",
+        ".#.###.#.",
+        ".#######.",
+        "###...###",
+        "###...###",
+        "###...###",
+        ".#######.",
+        ".#.###.#.",
+        "...###...",
+    ];
+    let cell = (size * 0.8 / 9.0).floor().max(2.0);
+    let left = x + (size - cell * 9.0) / 2.0;
+    let top = y + (size - cell * 9.0) / 2.0;
+    for (row, line) in GEAR.iter().enumerate() {
+        for (col, c) in line.bytes().enumerate() {
+            if c == b'#' {
+                let (px, py) = (left + col as f32 * cell, top + row as f32 * cell);
+                ui.rounded(
+                    px + 1.0,
+                    py + 1.0,
+                    cell,
+                    cell,
+                    0.0,
+                    color::hex(0x252525, 255),
+                );
+                ui.rounded(px, py, cell, cell, 0.0, color::hex(0xffffff, 255));
+            }
+        }
+    }
+}
+
 /// Three small white dots, with no plate: the "more" button of a mod row.
 fn more_dots(ui: &mut Ui, targets: &mut Vec<([f32; 4], Action)>, rect: [f32; 4], action: Action) {
     let [x, y, w, h] = rect;
@@ -255,17 +289,26 @@ fn section_chips(
     current: Page,
 ) {
     // Under the sections: a thin white rule, and a slightly darker ground for what belongs to them.
+    let wide = w >= 700.0;
+    let dy = if wide { 20.0 } else { 0.0 };
     ui.rounded(
         0.0,
-        169.0,
+        169.0 + dy,
         w,
-        (h - 197.0).max(0.0),
+        (h - 197.0 - dy).max(0.0),
         0.0,
         color::hex(0x0f1013, 255),
     );
-    ui.rounded(16.0, 168.0, w - 32.0, 0.8, 0.0, color::hex(0xb9bac2, 235));
+    ui.rounded(
+        16.0,
+        168.0 + dy,
+        w - 32.0,
+        0.8,
+        0.0,
+        color::hex(0xb9bac2, 235),
+    );
     let space = (w - 64.0 - right_reserved - 8.0).max(120.0);
-    let width = ((space - 18.0) / 4.0).clamp(48.0, 96.0);
+    let width = ((space - 18.0) / 4.0).clamp(48.0, if wide { 132.0 } else { 96.0 });
     for (i, (label, page)) in [
         ("Mods", Page::Mods),
         ("Shaders", Page::Shaders),
@@ -278,7 +321,11 @@ fn section_chips(
         button_as(
             ui,
             targets,
-            [32.0 + i as f32 * (width + 6.0), 134.0, width, 34.0],
+            if wide {
+                [32.0 + i as f32 * (width + 8.0), 138.0, width, 46.0]
+            } else {
+                [32.0 + i as f32 * (width + 6.0), 134.0, width, 34.0]
+            },
             label,
             Action::Page(page),
             page == current,
@@ -555,9 +602,8 @@ impl Launcher {
             if w < 700.0 { 12.0 } else { 20.0 },
             "Horizon Rust Edition",
         );
-        let settings_width = if w < 700.0 { 96.0 } else { 108.0 };
-        let account_width = 150.0;
-        // The player's face, top right: the skin in use, or the default skin. It opens Skins.
+        // The player's face, top right: the skin in use, or the default skin. It opens the
+        // sign-in choices (Offline, Microsoft, Ely.by). Next to it, a gear opens Settings.
         let face = if w < 700.0 { 34.0 } else { 66.0 };
         let face_y = if w < 700.0 { 8.0 } else { 12.0 };
         let face_x = w - 32.0 - face;
@@ -579,43 +625,27 @@ impl Launcher {
         self.wardrobe.draw_face(&mut ui, face_x, face_y, face);
         self.targets.push((
             [face_x - 3.0, face_y - 3.0, face + 6.0, face + 6.0],
-            Action::Page(Page::Skins),
-        ));
-        let right = if w < 700.0 { 0.0 } else { face + 14.0 };
-        button(
-            &mut ui,
-            &mut self.targets,
-            [
-                if w < 700.0 {
-                    32.0
-                } else {
-                    w - 32.0 - settings_width - 8.0 - account_width - right
-                },
-                if w < 700.0 { 47.0 } else { 19.0 },
-                if w < 700.0 {
-                    w - 64.0 - settings_width - 6.0
-                } else {
-                    account_width
-                },
-                if w < 700.0 { 34.0 } else { 54.0 },
-            ],
-            &self.login.status(&self.catalog.config.name),
             Action::Account,
-            self.login.signed_in,
-        );
-        button(
+        ));
+        let gear = if w < 700.0 { 34.0 } else { 56.0 };
+        let gear_x = face_x - 12.0 - gear;
+        let gear_y = face_y + (face - gear) / 2.0;
+        block_plate(
             &mut ui,
-            &mut self.targets,
-            [
-                w - 32.0 - settings_width - right,
-                if w < 700.0 { 47.0 } else { 19.0 },
-                settings_width,
-                if w < 700.0 { 34.0 } else { 54.0 },
-            ],
-            "Settings",
-            Action::Page(Page::Settings),
-            self.catalog.page == Page::Settings,
+            gear_x,
+            gear_y,
+            gear,
+            gear,
+            if self.catalog.page == Page::Settings {
+                0x7b4fe0
+            } else {
+                GRAY
+            },
+            false,
         );
+        gear_icon(&mut ui, gear_x, gear_y, gear);
+        self.targets
+            .push(([gear_x, gear_y, gear, gear], Action::Page(Page::Settings)));
         let tabs = Page::ALL.len() as f32;
         let tab_margin = if w < 700.0 { 16.0 } else { 32.0 };
         let tab_width = ((w - 2.0 * tab_margin - 16.0) / tabs).min(150.0);
@@ -773,7 +803,7 @@ impl Launcher {
             section_chips(&mut ui, &mut self.targets, w, h, 0.0, page);
             // The search field: a plain outlined box (white rim, the dark page inside).
             {
-                let rect = [32.0, 174.0, w - 240.0, 44.0];
+                let rect = [32.0, if compact { 174.0 } else { 196.0 }, w - 240.0, 44.0];
                 // Inner dark field and a rim of the same dark grey on all four sides.
                 let rim = color::hex(GRAY, 255);
                 ui.rounded(
@@ -811,7 +841,7 @@ impl Launcher {
             button_as(
                 &mut ui,
                 &mut self.targets,
-                [w - 190.0, 174.0, 158.0, 44.0],
+                [w - 190.0, if compact { 174.0 } else { 196.0 }, 158.0, 44.0],
                 if page == Page::Mods && self.catalog.query.trim().starts_with("https://") {
                     "Import .hmod"
                 } else {
@@ -830,7 +860,11 @@ impl Launcher {
             button(
                 &mut ui,
                 &mut self.targets,
-                [32.0, 222.0, file_button_width, 38.0],
+                if compact {
+                    [32.0, 222.0, file_button_width, 38.0]
+                } else {
+                    [w - 190.0, 138.0, 158.0, 46.0]
+                },
                 "Import file",
                 Action::Import(kind),
                 false,
@@ -876,7 +910,7 @@ impl Launcher {
                 Vec::new()
             };
             let row_count = bundled.len() + local_mods.len() + catalog_rows.len();
-            let top = 270.0;
+            let top = if compact { 270.0 } else { 254.0 };
             let bottom = h - 112.0;
             self.catalog.scroll = self
                 .catalog
@@ -1052,7 +1086,7 @@ impl Launcher {
         } else if page == Page::Installed {
             use horizon_client::content_files::Kind;
             section_chips(&mut ui, &mut self.targets, w, h, 0.0, page);
-            let top = 176.0;
+            let top = if compact { 176.0 } else { 198.0 };
             let bottom = h - 100.0;
             let row_height = if compact { 124.0 } else { 80.0 };
             let total = Kind::ALL

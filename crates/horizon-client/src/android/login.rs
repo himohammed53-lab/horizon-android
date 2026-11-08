@@ -57,6 +57,7 @@ impl Login {
                 .is_some_and(|s| serde_json::from_str::<Secrets>(&s).is_ok())
         });
     }
+    #[allow(dead_code)]
     pub fn status(&self, offline_name: &str) -> String {
         match (&self.profile, self.signed_in) {
             (Some(name), true) => format!("Signed in: {name}"),
@@ -244,9 +245,9 @@ impl Login {
                 "Accounts",
             );
             for (index, (label, action)) in [
-                ("Offline", Action::OfflineAccount),
-                ("Microsoft", Action::MicrosoftAccount),
-                ("Ely.by", Action::ElySignIn),
+                ("Offline (name only)", Action::OfflineAccount),
+                ("Microsoft account", Action::MicrosoftAccount),
+                ("Ely.by (email + password)", Action::ElySignIn),
                 ("Saved accounts", Action::SavedAccounts),
             ]
             .into_iter()
@@ -255,7 +256,7 @@ impl Login {
                 button(
                     ui,
                     targets,
-                    [x + 20.0, y + 62.0 + index as f32 * 42.0, w - 40.0, 36.0],
+                    [x + 20.0, y + 62.0 + index as f32 * 76.0, w - 40.0, 68.0],
                     label,
                     action,
                     false,
@@ -264,7 +265,7 @@ impl Login {
             button(
                 ui,
                 targets,
-                [x + 20.0, y + h - 52.0, w - 40.0, 36.0],
+                [x + 20.0, y + h - 76.0, w - 40.0, 60.0],
                 "Close",
                 Action::CloseLogin,
                 false,
