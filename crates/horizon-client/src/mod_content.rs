@@ -1155,6 +1155,9 @@ impl<'a> Plan<'a> {
                     let Some(entry) = doc.get_mut(&b.decl.id) else {
                         continue;
                     };
+                    if !model && let Some(occludes) = b.decl.properties.occludes {
+                        entry.set("can_occlude", J::Bool(occludes));
+                    }
                     if model && let Some(schema) = entry.get_mut("schema") {
                         for (property_name, property) in &b.decl.state_properties {
                             schema.set(

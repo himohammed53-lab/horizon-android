@@ -1,10 +1,12 @@
 {
-  "template": "minecraft:jukebox",
+  "template": "minecraft:brewing_stand",
   "item": false,
   "properties": {
     "hardness": -1.0,
     "explosion_resistance": 3600000.0,
-    "sounds": "minecraft:stone"
+    "sounds": "minecraft:stone",
+    "occludes": false,
+    "light": 0
   },
   "state_properties": {
     "stage": {
@@ -20,7 +22,7 @@
     "stage": "0"
   },
   "shapes": {
-    "property": "has_record",
+    "property": "has_bottle_0",
     "values": {
       "false": [
         [

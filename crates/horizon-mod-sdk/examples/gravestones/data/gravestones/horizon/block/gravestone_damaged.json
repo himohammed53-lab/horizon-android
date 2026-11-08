@@ -5,7 +5,8 @@
     "hardness": 2.0,
     "explosion_resistance": 6.0,
     "sounds": "minecraft:stone",
-    "requires_tool": true
+    "requires_tool": true,
+    "occludes": false
   },
   "shapes": {
     "property": "facing",

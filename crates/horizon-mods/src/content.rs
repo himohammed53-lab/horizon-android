@@ -80,6 +80,9 @@ pub struct BlockProperties {
     pub explosion_resistance: Option<f32>,
     /// Light emitted, 0 to 15.
     pub light: Option<u8>,
+    /// `false`: the block hides no faces of the blocks around it (its template's
+    /// shape is bigger than what the model draws, as a grave's is).
+    pub occludes: Option<bool>,
     pub requires_tool: Option<bool>,
     pub friction: Option<f32>,
     /// A `MapColor` id, 0 to 61.

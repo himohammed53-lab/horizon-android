@@ -13,7 +13,7 @@
 
 use super::Game;
 use super::native_block_entity_draw::BlockEntityDraw;
-use horizon_assets::item_model::DisplayContext;
+use horizon_client::hud::Rect;
 use horizon_client::{
     blocks::Fluid,
     containers::{ModBlockEntity, ModContainer},
@@ -165,18 +165,35 @@ pub(super) fn submit(
         return;
     }
     draw_lines(game, draw, &grave_lines(&entity.nbt));
-    let mut profile: Vec<(&str, Tag)> = Vec::new();
-    if let Some(name) = get_text(&entity.nbt, "owner_name") {
-        profile.push(("name", Tag::String(JavaString::from(name.as_str()))));
+    let sprites = &game.gui.atlas.sprites;
+    let name = get_text(&entity.nbt, "owner_name");
+    // The owner's skin: the player's own when it is theirs (what the game shows them, whatever
+    // account they are on), otherwise the one the profile names, or the default one.
+    let own = name.as_deref() == Some(game.acting_player_name());
+    let skin = if own {
+        game.player_model
+            .as_ref()
+            .and_then(|m| m.skin.clone())
+            .filter(|skin| sprites.contains_key(skin))
+    } else {
+        None
     }
-    if let Some(id) = get_ints(&entity.nbt, "owner") {
-        profile.push(("id", Tag::IntArray(id)));
-    }
-    let mut head = ItemStack::new("minecraft:player_head", 1);
-    if !profile.is_empty() {
-        head.data_mut()
-            .set_other("minecraft:profile", Some(Tag::compound(profile)));
-    }
+    .unwrap_or_else(|| {
+        let profile = serde_json::json!({ "name": name.clone().unwrap_or_default() });
+        horizon_client::skins::head_skin(
+            &profile,
+            &mut game.skin_profiles.borrow_mut(),
+            &mut game.skin_downloads.borrow_mut(),
+            |location| sprites.contains_key(location),
+        )
+    });
+    let Some(rect) = sprites
+        .get(&skin)
+        .or_else(|| sprites.get("entity/player/wide/steve"))
+        .copied()
+    else {
+        return;
+    };
     let text = format!(
         "Pos: BlockPos{{x={}, y={}, z={}}}, Some other text, I don't know, it doesn't matter what goes here.",
         pos[0], pos[1], pos[2]
@@ -188,8 +205,91 @@ pub(super) fn submit(
     draw.translate([0.5, 0.25, 0.475]);
     draw.rotate_about([0.0, 1.0, 0.0], yaw, [0.0; 3]);
     draw.rotate_about([1.0, 0.0, 0.0], pitch, [0.0; 3]);
-    game.native_draw_item(draw, &head, DisplayContext::Fixed, None, 0);
+    // The head model stands on its pivot: eight pixels, half a block.
+    draw.translate([0.0, 0.25, 0.0]);
+    head_cube(draw, rect, 0.25, 0.0);
+    // The hat layer, a little larger.
+    head_cube(draw, rect, 0.28125, 32.0);
     draw.pop();
+}
+
+/// A player's head from the skin: a cube of half a side `half`, its faces' pixels at `x_shift`
+/// more to the right in the skin for the hat layer. Corners run top left, bottom left, bottom
+/// right, top right as seen from outside, looking at the face.
+fn head_cube(draw: &mut BlockEntityDraw, rect: Rect, half: f32, x_shift: f32) {
+    // Each face: its corner signs and its pixel origin in the 64 x 64 skin.
+    const FACES: [([[f32; 3]; 4], [f32; 2]); 6] = [
+        // Front, towards -z.
+        (
+            [
+                [1.0, 1.0, -1.0],
+                [1.0, -1.0, -1.0],
+                [-1.0, -1.0, -1.0],
+                [-1.0, 1.0, -1.0],
+            ],
+            [8.0, 8.0],
+        ),
+        // Back.
+        (
+            [
+                [-1.0, 1.0, 1.0],
+                [-1.0, -1.0, 1.0],
+                [1.0, -1.0, 1.0],
+                [1.0, 1.0, 1.0],
+            ],
+            [24.0, 8.0],
+        ),
+        // Right, towards +x.
+        (
+            [
+                [1.0, 1.0, 1.0],
+                [1.0, -1.0, 1.0],
+                [1.0, -1.0, -1.0],
+                [1.0, 1.0, -1.0],
+            ],
+            [0.0, 8.0],
+        ),
+        // Left.
+        (
+            [
+                [-1.0, 1.0, -1.0],
+                [-1.0, -1.0, -1.0],
+                [-1.0, -1.0, 1.0],
+                [-1.0, 1.0, 1.0],
+            ],
+            [16.0, 8.0],
+        ),
+        // Top.
+        (
+            [
+                [1.0, 1.0, 1.0],
+                [1.0, 1.0, -1.0],
+                [-1.0, 1.0, -1.0],
+                [-1.0, 1.0, 1.0],
+            ],
+            [8.0, 0.0],
+        ),
+        // Bottom.
+        (
+            [
+                [1.0, -1.0, -1.0],
+                [1.0, -1.0, 1.0],
+                [-1.0, -1.0, 1.0],
+                [-1.0, -1.0, -1.0],
+            ],
+            [16.0, 0.0],
+        ),
+    ];
+    for (signs, origin) in FACES {
+        let (u0, v0) = ((origin[0] + x_shift) / 64.0, origin[1] / 64.0);
+        let (u1, v1) = (u0 + 8.0 / 64.0, v0 + 8.0 / 64.0);
+        draw.quad(
+            signs.map(|[x, y, z]| [x * half, y * half, z * half]),
+            [[u0, v0], [u0, v1], [u1, v1], [u1, v0]],
+            rect,
+            0xFF_FFFF,
+        );
+    }
 }
 
 fn key(name: &str) -> JavaString {
