@@ -399,34 +399,46 @@ fn stage_world(request: Request, mut input: std::fs::File, name: String) -> Resu
     let staged = request.cache.join(format!(".world-{stamp}.part"));
     let temp = saves.join(format!(".import-{stamp}.tmp"));
     let result = (|| -> Result<()> {
-        // 1. Copy the picked file into the app's cache.
-        {
-            let mut output = std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&staged)?;
-            let mut buffer = vec![0u8; 1 << 18];
-            let mut total = 0u64;
-            loop {
-                if CANCEL.load(Ordering::Relaxed) {
-                    return Err("Import cancelled".into());
+        // 1. Read the picked file in place when Android lets us seek in it: no second copy of
+        //    the ZIP is made. Otherwise copy it into the app's cache first (deleted afterwards).
+        let direct = input
+            .try_clone()
+            .ok()
+            .and_then(|file| zip::ZipArchive::new(file).ok());
+        let mut zip = match direct {
+            Some(zip) => zip,
+            None => {
+                use std::io::Seek;
+                input.rewind()?;
+                {
+                    let mut output = std::fs::OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .open(&staged)?;
+                    let mut buffer = vec![0u8; 1 << 18];
+                    let mut total = 0u64;
+                    loop {
+                        if CANCEL.load(Ordering::Relaxed) {
+                            return Err("Import cancelled".into());
+                        }
+                        let n = input.read(&mut buffer)?;
+                        if n == 0 {
+                            break;
+                        }
+                        total += n as u64;
+                        if total > WORLD_INPUT {
+                            return Err("World ZIP is larger than 3 GiB".into());
+                        }
+                        output.write_all(&buffer[..n])?;
+                        notice(format!("Copying world: {} MiB", total >> 20), false);
+                    }
+                    output.sync_all()?;
                 }
-                let n = input.read(&mut buffer)?;
-                if n == 0 {
-                    break;
-                }
-                total += n as u64;
-                if total > WORLD_INPUT {
-                    return Err("World ZIP is larger than 3 GiB".into());
-                }
-                output.write_all(&buffer[..n])?;
-                notice(format!("Copying world: {} MiB", total >> 20), false);
+                zip::ZipArchive::new(std::fs::File::open(&staged)?)?
             }
-            output.sync_all()?;
-        }
+        };
         // 2. Check every entry and find the folder holding level.dat.
         notice("Checking world...", false);
-        let mut zip = zip::ZipArchive::new(std::fs::File::open(&staged)?)?;
         if zip.len() > WORLD_ENTRIES {
             return Err("Archive contains too many files".into());
         }
