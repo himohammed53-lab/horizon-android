@@ -269,9 +269,23 @@ impl Login {
     ) {
         targets.clear();
         let w = (ui.w - 32.0).min(720.0);
-        let h = (ui.h - 24.0).min(550.0);
+        // While a field is typed in, the system keyboard takes the lower part of the screen: the
+        // panel shrinks to just the fields being edited and sits at the very top, above it.
+        let typing_ely = self.ely && editing.is_some_and(|field| field.starts_with("ely_"));
+        let typing_name = self.offline && editing == Some("name");
+        let rows = if typing_ely && editing != Some("ely_otp") {
+            2.0
+        } else {
+            1.0
+        };
+        let compact = typing_ely || typing_name;
+        let h = if compact {
+            (rows * 44.0 + 66.0).min(ui.h - 12.0)
+        } else {
+            (ui.h - 24.0).min(550.0)
+        };
         let x = (ui.w - w) / 2.0;
-        let y = (ui.h - h) / 2.0;
+        let y = if compact { 6.0 } else { (ui.h - h) / 2.0 };
         // A thin dark-grey outline (the search field's grey) so the dialog does not blend in.
         ui.rounded(
             x - 2.0,
@@ -394,54 +408,97 @@ impl Login {
             return;
         }
         if self.ely {
+            if typing_ely {
+                let fields: Vec<(&str, &'static str, &str, bool)> = if editing == Some("ely_otp") {
+                    vec![("Code", "ely_otp", self.otp.as_str(), true)]
+                } else {
+                    vec![
+                        ("Email", "ely_username", self.username.as_str(), false),
+                        ("Password", "ely_password", self.password.as_str(), true),
+                    ]
+                };
+                for (index, (label, name, value, secret)) in fields.into_iter().enumerate() {
+                    let top = y + 10.0 + index as f32 * 44.0;
+                    ui.text(
+                        Face::Regular,
+                        14.0,
+                        x + 16.0,
+                        top + 10.0,
+                        color::MUTED,
+                        label,
+                    );
+                    let display = if secret {
+                        "*".repeat(value.chars().count().min(40))
+                    } else {
+                        value.into()
+                    };
+                    button(
+                        ui,
+                        targets,
+                        [x + 112.0, top, w - 128.0, 36.0],
+                        &display,
+                        Action::Field(name),
+                        false,
+                    );
+                }
+                let bottom = y + 10.0 + rows * 44.0;
+                let half = (w - 40.0) / 2.0;
+                button(
+                    ui,
+                    targets,
+                    [x + 16.0, bottom, half, 38.0],
+                    "Paste",
+                    Action::PasteField,
+                    false,
+                );
+                button(
+                    ui,
+                    targets,
+                    [x + 24.0 + half, bottom, half, 38.0],
+                    "Done",
+                    Action::FinishNameEdit,
+                    true,
+                );
+                return;
+            }
             ui.text(
                 Face::Medium,
-                24.0,
+                22.0,
                 x + 20.0,
-                y + 18.0,
+                y + 16.0,
                 color::TEXT,
                 "Ely.by account",
             );
+            // The result of the last try replaces the privacy note, in the same place.
+            let note = if self.message.is_empty() {
+                "Credentials go only to authserver.ely.by."
+            } else {
+                &self.message
+            };
+            let note = ui.fit_text(Face::Regular, 13.0, note, w - 40.0);
             ui.text(
                 Face::Regular,
                 13.0,
                 x + 20.0,
-                y + 54.0,
-                color::MUTED,
-                "Credentials go only to authserver.ely.by.",
+                y + 48.0,
+                if self.message.is_empty() {
+                    color::MUTED
+                } else {
+                    color::TEXT
+                },
+                &note,
             );
-            for (index, (label, name, value, secret)) in [
+            let mut top = y + 72.0;
+            for (label, name, value, secret) in [
                 ("Email", "ely_username", self.username.as_str(), false),
                 ("Password", "ely_password", self.password.as_str(), true),
-                (
-                    "Two-factor code (optional)",
-                    "ely_otp",
-                    self.otp.as_str(),
-                    true,
-                ),
-            ]
-            .into_iter()
-            .enumerate()
-            {
+                ("Two-factor code", "ely_otp", self.otp.as_str(), true),
+            ] {
                 // The code is asked for only when the account has one.
                 if name == "ely_otp" && !self.otp_needed {
                     continue;
                 }
-                let active = editing.is_some_and(|field| field.starts_with("ely_"));
-                // While one is typed, the email and the password stay together at the top, above
-                // the keyboard; the optional code has the place to itself when it is the one.
-                let code = editing == Some("ely_otp");
-                if active && (code != (name == "ely_otp")) {
-                    continue;
-                }
-                let top = y
-                    + 86.0
-                    + match (active, code) {
-                        (true, true) => 0.0,
-                        (true, false) => index as f32 * 62.0,
-                        (false, _) => index as f32 * 72.0,
-                    };
-                ui.text(Face::Regular, 13.0, x + 20.0, top, color::MUTED, label);
+                ui.text(Face::Regular, 12.0, x + 20.0, top, color::MUTED, label);
                 let display = if secret {
                     "*".repeat(value.chars().count().min(40))
                 } else {
@@ -450,36 +507,18 @@ impl Login {
                 button(
                     ui,
                     targets,
-                    [x + 20.0, top + 20.0, w - 40.0, 38.0],
+                    [x + 20.0, top + 16.0, w - 40.0, 34.0],
                     &display,
                     Action::Field(name),
                     false,
                 );
+                top += 54.0;
             }
-            if editing.is_some_and(|field| field.starts_with("ely_")) {
-                button(
-                    ui,
-                    targets,
-                    [x + 20.0, y + h - 52.0, w - 40.0, 36.0],
-                    "Done editing",
-                    Action::FinishNameEdit,
-                    true,
-                );
-                return;
-            }
-            let message = ui.fit_text(Face::Regular, 13.0, &self.message, w - 40.0);
-            ui.text(
-                Face::Regular,
-                13.0,
-                x + 20.0,
-                y + 310.0,
-                color::TEXT,
-                &message,
-            );
+            let half = (w - 52.0) / 2.0;
             button(
                 ui,
                 targets,
-                [x + 20.0, y + h - 142.0, w - 40.0, 38.0],
+                [x + 20.0, y + h - 96.0, w - 40.0, 40.0],
                 if self.pending() {
                     "Signing in..."
                 } else {
@@ -491,15 +530,15 @@ impl Login {
             button(
                 ui,
                 targets,
-                [x + 20.0, y + h - 96.0, w - 40.0, 36.0],
-                "Back to accounts",
+                [x + 20.0, y + h - 50.0, half, 36.0],
+                "Accounts",
                 Action::Account,
                 false,
             );
             button(
                 ui,
                 targets,
-                [x + 20.0, y + h - 52.0, w - 40.0, 36.0],
+                [x + 32.0 + half, y + h - 50.0, half, 36.0],
                 "Done",
                 Action::CloseLogin,
                 false,
@@ -507,6 +546,42 @@ impl Login {
             return;
         }
         if self.offline {
+            if typing_name {
+                ui.text(
+                    Face::Regular,
+                    14.0,
+                    x + 16.0,
+                    y + 20.0,
+                    color::MUTED,
+                    "Name",
+                );
+                button(
+                    ui,
+                    targets,
+                    [x + 112.0, y + 10.0, w - 128.0, 36.0],
+                    offline_name,
+                    Action::Field("name"),
+                    false,
+                );
+                let half = (w - 40.0) / 2.0;
+                button(
+                    ui,
+                    targets,
+                    [x + 16.0, y + 54.0, half, 38.0],
+                    "Paste",
+                    Action::PasteField,
+                    false,
+                );
+                button(
+                    ui,
+                    targets,
+                    [x + 24.0 + half, y + 54.0, half, 38.0],
+                    "Done",
+                    Action::FinishNameEdit,
+                    true,
+                );
+                return;
+            }
             ui.text(
                 Face::Medium,
                 24.0,

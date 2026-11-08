@@ -16,6 +16,8 @@ pub(super) enum Action {
     ModSource(crate::shader_catalog::Origin),
     Field(&'static str),
     FinishNameEdit,
+    /// Paste the clipboard text into the field being typed in.
+    PasteField,
     Install(usize),
     Import(horizon_client::content_files::Kind),
     ToggleSection(usize),
@@ -1528,6 +1530,14 @@ impl Launcher {
             .is_ok_and(|t| t.as_millis() % 1000 < 500);
         if caret_visible && let Some(name) = self.catalog.editing {
             let value = match name {
+                _ if name.starts_with("ely_") => {
+                    let value = self.login.field(name).unwrap_or_default();
+                    if name == "ely_username" {
+                        value.to_owned()
+                    } else {
+                        "*".repeat(value.chars().count().min(40))
+                    }
+                }
                 "name" => self.catalog.config.name.clone(),
                 "server" => self.catalog.config.server.clone(),
                 "render_scale" => self.catalog.render_scale_text.clone(),
@@ -2016,6 +2026,28 @@ impl Launcher {
                 self.catalog.editing = None;
                 crate::platform::hide();
                 self.catalog.config.save(&self.home)?;
+            }
+            Some(Action::PasteField) => {
+                if let Some(name) = self.catalog.editing {
+                    let text: String = crate::platform::clipboard_get()
+                        .unwrap_or_default()
+                        .chars()
+                        .filter(|c| !c.is_control())
+                        .take(256)
+                        .collect();
+                    if !text.is_empty() {
+                        self.edit_text(Output::Text(text));
+                        // The system editor holds the whole value, so later typing and
+                        // deleting continue from what was pasted.
+                        if let Some(value) = self.login.field(name) {
+                            if name == "ely_password" || name == "ely_otp" {
+                                crate::platform::show_secret(value);
+                            } else {
+                                crate::platform::show(value);
+                            }
+                        }
+                    }
+                }
             }
             Some(Action::Field(name)) => {
                 if let Some(value) = self.login.field(name) {
