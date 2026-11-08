@@ -404,7 +404,15 @@ pub(super) fn right_click(game: &mut Game<'_>, pos: [i32; 3], canceled: &mut boo
     if game.serving.is_none() && game.options.dedicated.is_none() {
         return;
     }
+    log::info!(
+        "Horizon: gravestone clicked at {pos:?} (tick {})",
+        game.world.game_time
+    );
     game.gravestone_collect(pos);
+    log::info!(
+        "Horizon: gravestone collected at {pos:?} (tick {})",
+        game.world.game_time
+    );
 }
 
 impl Game<'_> {

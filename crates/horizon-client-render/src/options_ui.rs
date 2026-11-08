@@ -1716,6 +1716,9 @@ pub struct OptionsUi {
     slider_value: Option<(Opt, f32, Instant)>,
     /// The pointer's last y while a scrollbar is held.
     pub(crate) scrollbar_drag_y: Option<f32>,
+    /// The Mods page with a list on the left: where its scroll bar stands (just right of the
+    /// list), set when the page is laid out.
+    mod_scrollbar_x: Option<f32>,
     /// Key Binds: the mapping waiting for a key ([`NATIVE_KEY`]: a native
     /// mod's, `selected_native_key`).
     pub selected_key: Option<&'static str>,
@@ -1790,6 +1793,7 @@ impl Default for OptionsUi {
             shift: false,
             slider_value: None,
             scrollbar_drag_y: None,
+            mod_scrollbar_x: None,
             selected_key: None,
             selected_native_key: None,
             selected_pad_action: None,
@@ -2620,6 +2624,11 @@ impl OptionsUi {
         }
     }
     fn scrollbar_x(&self, width: f32) -> f32 {
+        if self.page() == Page::Mods
+            && let Some(x) = self.mod_scrollbar_x
+        {
+            return x;
+        }
         (width / 2.0).floor()
             + match self.page() {
                 Page::KeyBinds | Page::PadBinds => 178.0,
@@ -3657,6 +3666,8 @@ impl OptionsUi {
                 // Mods: a list on the left, the chosen mod's details on the right.
                 let mod_menu = page == Page::Mods && !s.mods.installed.is_empty();
                 let mod_left = ((w * 0.44).clamp(150.0, 220.0)).floor();
+                // The scroll bar belongs to the list, not to the middle of the screen.
+                self.mod_scrollbar_x = mod_menu.then_some(8.0 + mod_left + 4.0);
                 if mod_menu {
                     self.mod_sel = self.mod_sel.min(s.mods.installed.len() - 1);
                     for (i, m) in s.mods.installed.iter().enumerate() {
