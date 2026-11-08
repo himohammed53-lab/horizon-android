@@ -582,11 +582,16 @@ impl Launcher {
                 }
             }
         }
+        // The credit line sits at the bottom; on the Play page it moves up, above the Play button.
         ui.text(
             Face::Regular,
-            12.0,
+            13.0,
             32.0,
-            h - 22.0,
+            if self.catalog.page == Page::Play {
+                h - 138.0
+            } else {
+                h - 22.0
+            },
             color::MUTED,
             "Horizon Android  -  developed by Muhamed and Claude",
         );
@@ -772,7 +777,7 @@ impl Launcher {
                 button(
                     &mut ui,
                     &mut self.targets,
-                    [32.0, h - 140.0, (w - 64.0).min(400.0), 100.0],
+                    [32.0, h - 112.0, (w - 64.0).min(400.0), 100.0],
                     if installed {
                         "Play"
                     } else if self.error.is_some() {
