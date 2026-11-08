@@ -501,6 +501,38 @@ impl Launcher {
         let (w, h) = (ui.w, ui.h);
         // The background: a plain, deep dark grey, no shapes.
         ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x17181c, 255));
+        // Only the Play page: an Enderman's eyes in the middle, drawn as a few rectangles
+        // (the picture is 2576 x 1449, cropped to fill the screen).
+        if self.catalog.page == Page::Play {
+            let scale = ui.density / ui.batch.scale;
+            ui.batch.fill(
+                &gui.atlas,
+                0.0,
+                0.0,
+                w * scale,
+                h * scale,
+                color::hex(0x13161b, 255),
+            );
+            let fit = (w / 2576.0).max(h / 1449.0);
+            let at = |x: f32, y: f32| {
+                (
+                    (w / 2.0 + (x - 1288.0) * fit) * scale,
+                    (h / 2.0 + (y - 724.0) * fit) * scale,
+                )
+            };
+            // Per eye: where its dim, bright and dim parts start, and where it ends.
+            for edges in [
+                [746.0, 886.0, 1073.0, 1186.0],
+                [1391.0, 1503.0, 1689.0, 1830.0],
+            ] {
+                for (part, shade) in [(0, 0x9a449b), (1, 0xd700fc), (2, 0x9a449b)] {
+                    let (x0, y0) = at(edges[part], 646.0);
+                    let (x1, y1) = at(edges[part + 1], 803.0);
+                    ui.batch
+                        .fill(&gui.atlas, x0, y0, x1 - x0, y1 - y0, color::hex(shade, 235));
+                }
+            }
+        }
         ui.text(
             Face::Regular,
             12.0,
