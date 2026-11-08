@@ -1,5 +1,5 @@
 //! Native account panel; authentication is shared with the desktop launcher.
-use super::pages::{Action, button};
+use super::pages::{Action, SWITCH_ON, button, button_as};
 use crate::account::{self, Account, Accounts, Secrets, SignIn, SignInState};
 use horizon_client::ui_theme::{Face, Ui, color};
 
@@ -253,13 +253,14 @@ impl Login {
             .into_iter()
             .enumerate()
             {
-                button(
+                button_as(
                     ui,
                     targets,
                     [x + 20.0, y + 62.0 + index as f32 * 76.0, w - 40.0, 68.0],
                     label,
                     action,
                     true,
+                    Some((SWITCH_ON, SWITCH_ON)),
                 );
             }
             button(

@@ -355,7 +355,7 @@ const GRAY: u32 = 0x5a5a5a;
 const SECTION: (u32, u32) = (GRAY, 0x7b4fe0);
 
 /// The light pink-violet of a switch that is ON.
-const SWITCH_ON: u32 = 0xa855e8;
+pub(super) const SWITCH_ON: u32 = 0xa855e8;
 
 /// `button` with its own plate colours (idle, chosen) in place of the top bar's grey and purple.
 pub(super) fn button_as(
