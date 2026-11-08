@@ -84,6 +84,11 @@ const KEYS: [(&str, KeyCode); 28] = [
 ];
 
 // Shared draw/hit rectangles: utility-style buttons at the lower right.
+/// Width of each top-right menu button (BT, Mouse, Back); they touch each other.
+const MENU_BUTTON: f32 = 54.0;
+/// Touch height of that row: taller than the 20-unit drawing so a thumb lands.
+const MENU_HIT_HEIGHT: f32 = 30.0;
+
 fn mouse_button_rects(w: f32, h: f32) -> [([f32; 4], bool); 2] {
     [
         ([w - 53.0, h - 51.0, 50.0, 20.0], false),
@@ -321,16 +326,19 @@ impl TouchUi {
                 }
             }
         }
-        if menu && (3.0..23.0).contains(&p[1]) && (w - 108.0..w - 56.0).contains(&p[0]) {
-            return Some(Action::VirtualMouse);
-        }
-        if menu && (3.0..23.0).contains(&p[1]) && (w - 148.0..w - 112.0).contains(&p[0]) {
-            return Some(Action::TouchToggle);
-        }
-        if (3.0..23.0).contains(&p[1]) {
-            if menu && (w - 53.0..w - 3.0).contains(&p[0]) {
+        if menu && (0.0..MENU_HIT_HEIGHT).contains(&p[1]) {
+            // Three equal buttons glued together, so the hit boxes meet with no gap.
+            if (w - MENU_BUTTON * 3.0..w - MENU_BUTTON * 2.0).contains(&p[0]) {
+                return Some(Action::TouchToggle);
+            }
+            if (w - MENU_BUTTON * 2.0..w - MENU_BUTTON).contains(&p[0]) {
+                return Some(Action::VirtualMouse);
+            }
+            if (w - MENU_BUTTON..=w).contains(&p[0]) {
                 return Some(Action::Key(KeyCode::Escape));
             }
+        }
+        if (3.0..23.0).contains(&p[1]) {
             if self.expanded && (39.0..72.0).contains(&p[0]) {
                 return Some(Action::Key(KeyCode::F3));
             }
@@ -389,9 +397,9 @@ impl TouchUi {
                 } else {
                     "Mouse"
                 },
-                b.width - 108.0,
-                3.0,
-                50.0,
+                b.width - MENU_BUTTON * 2.0,
+                0.0,
+                MENU_BUTTON,
             );
         }
         if menu {
@@ -404,9 +412,9 @@ impl TouchUi {
                 } else {
                     "BT ON"
                 },
-                b.width - 148.0,
-                3.0,
-                36.0,
+                b.width - MENU_BUTTON * 3.0,
+                0.0,
+                MENU_BUTTON,
             );
         }
         if menu && self.virtual_mouse && self.menu_touch_on {
@@ -415,7 +423,7 @@ impl TouchUi {
             }
         }
         if menu {
-            button(b, a, "Back", b.width - 53.0, 3.0, 50.0);
+            button(b, a, "Back", b.width - MENU_BUTTON, 0.0, MENU_BUTTON);
         }
         if self.expanded {
             button(
