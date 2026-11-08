@@ -352,7 +352,7 @@ pub(super) fn button_as(
     } else if w < 80.0 {
         13.0
     } else if h >= 50.0 {
-        20.0
+        17.0
     } else if h >= 44.0 && !matches!(action, Action::Account) {
         18.0
     } else {
@@ -523,10 +523,11 @@ impl Launcher {
             if w < 700.0 { 12.0 } else { 20.0 },
             "Horizon Rust Edition",
         );
-        let settings_width = if w < 700.0 { 96.0 } else { 120.0 };
+        let settings_width = if w < 700.0 { 96.0 } else { 108.0 };
+        let account_width = 150.0;
         // The player's face, top right: the skin in use, or the default skin. It opens Skins.
-        let face = if w < 700.0 { 34.0 } else { 56.0 };
-        let face_y = if w < 700.0 { 8.0 } else { 19.0 };
+        let face = if w < 700.0 { 34.0 } else { 66.0 };
+        let face_y = if w < 700.0 { 8.0 } else { 12.0 };
         let face_x = w - 32.0 - face;
         if self.wardrobe.needs_open() {
             self.wardrobe.open(
@@ -556,13 +557,13 @@ impl Launcher {
                 if w < 700.0 {
                     32.0
                 } else {
-                    w - 32.0 - settings_width - 8.0 - 176.0 - right
+                    w - 32.0 - settings_width - 8.0 - account_width - right
                 },
                 if w < 700.0 { 47.0 } else { 19.0 },
                 if w < 700.0 {
                     w - 64.0 - settings_width - 6.0
                 } else {
-                    176.0
+                    account_width
                 },
                 if w < 700.0 { 34.0 } else { 54.0 },
             ],
@@ -585,7 +586,7 @@ impl Launcher {
         );
         let tabs = Page::ALL.len() as f32;
         let tab_margin = if w < 700.0 { 16.0 } else { 32.0 };
-        let tab_width = ((w - 2.0 * tab_margin - 16.0) / tabs).min(180.0);
+        let tab_width = ((w - 2.0 * tab_margin - 16.0) / tabs).min(150.0);
         for (i, page) in Page::ALL.iter().enumerate() {
             let x = tab_margin + i as f32 * (tab_width + 8.0);
             button(
@@ -719,7 +720,7 @@ impl Launcher {
                 button(
                     &mut ui,
                     &mut self.targets,
-                    [32.0, h - 140.0, (w - 64.0).min(480.0), 100.0],
+                    [32.0, h - 140.0, (w - 64.0).min(400.0), 100.0],
                     if installed {
                         "Play"
                     } else if self.error.is_some() {
@@ -741,22 +742,20 @@ impl Launcher {
             // The search field: a plain outlined box (white rim, the dark page inside).
             {
                 let rect = [32.0, 174.0, w - 240.0, 44.0];
+                // Inner dark field and a rim of the same dark grey on all four sides.
+                let rim = color::hex(GRAY, 255);
                 ui.rounded(
                     rect[0],
                     rect[1],
                     rect[2],
                     rect[3],
-                    10.0,
-                    color::hex(0xffffff, 235),
-                );
-                ui.rounded(
-                    rect[0] + 2.0,
-                    rect[1] + 2.0,
-                    rect[2] - 4.0,
-                    rect[3] - 4.0,
-                    8.0,
+                    0.0,
                     color::hex(0x0f1013, 255),
                 );
+                ui.rounded(rect[0], rect[1], rect[2], 2.0, 0.0, rim);
+                ui.rounded(rect[0], rect[1] + rect[3] - 2.0, rect[2], 2.0, 0.0, rim);
+                ui.rounded(rect[0], rect[1], 2.0, rect[3], 0.0, rim);
+                ui.rounded(rect[0] + rect[2] - 2.0, rect[1], 2.0, rect[3], 0.0, rim);
                 let shown = if self.catalog.query.is_empty() {
                     if page == Page::Mods {
                         "Search / .hmod URL".to_string()
