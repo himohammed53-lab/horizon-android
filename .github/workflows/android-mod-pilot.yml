@@ -38,9 +38,15 @@ jobs:
             (cd "$dir" && "$GITHUB_WORKSPACE/target/release/cargo-horizon-mod" build)
           done
       - name: Collect and check the package
+        env:
+          MOD_DIRS: ${{ inputs.mod_dirs }}
         run: |
           mkdir -p out
-          cp "$GITHUB_WORKSPACE"/target/horizon-mod/*.hmod out/
+          # Code mods build into the workspace target; content mods (no Cargo.toml) beside themselves.
+          cp "$GITHUB_WORKSPACE"/target/horizon-mod/*.hmod out/ 2>/dev/null || true
+          for dir in $MOD_DIRS; do
+            cp "$GITHUB_WORKSPACE/$dir"/target/horizon-mod/*.hmod out/ 2>/dev/null || true
+          done
           for f in out/*.hmod; do
             "$GITHUB_WORKSPACE/target/release/cargo-horizon-mod" check "$f"
           done

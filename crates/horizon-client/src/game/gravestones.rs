@@ -15,9 +15,10 @@ use super::Game;
 use super::native_block_entity_draw::BlockEntityDraw;
 use horizon_assets::item_model::DisplayContext;
 use horizon_client::{
+    blocks::Fluid,
     containers::{ModBlockEntity, ModContainer},
     entities::Experience,
-    items::{ItemStack, blocks::Fluid},
+    items::ItemStack,
     text::Text,
 };
 use horizon_core::random::{LegacyRandom, RandomSource};
