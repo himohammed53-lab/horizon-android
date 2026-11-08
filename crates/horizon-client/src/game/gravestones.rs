@@ -83,7 +83,7 @@ pub(super) fn update_tag(entity: &ModBlockEntity, tag: &mut Option<Compound>) {
         return;
     }
     let mut out = Compound::new();
-    for name in ["owner", "owner_name"] {
+    for name in ["owner", "owner_name", "spawn_date_time"] {
         if let Some(value) = entity.nbt.get(&key(name)) {
             out.insert(key(name), value.clone());
         }
@@ -95,6 +95,60 @@ pub(super) fn update_tag(entity: &ModBlockEntity, tag: &mut Option<Compound>) {
 fn java_hash(text: &str) -> i32 {
     text.encode_utf16()
         .fold(0i32, |h, c| h.wrapping_mul(31).wrapping_add(i32::from(c)))
+}
+
+/// The three lines on the stone: the owner's name, the date and the time of the death
+/// (`TechnicalGravestoneBlockEntityRenderer.getSignText`, with the `MM/dd/yyyy` format).
+fn grave_lines(nbt: &Compound) -> [String; 3] {
+    let name = get_text(nbt, "owner_name").unwrap_or_else(|| "???".to_owned());
+    let (date, time) = get_text(nbt, "spawn_date_time")
+        .and_then(|stamp| {
+            let (day, time) = stamp.split_once(' ')?;
+            let parts: Vec<&str> = day.split('-').collect();
+            (parts.len() == 3).then(|| {
+                (
+                    format!("{}/{}/{}", parts[1], parts[2], parts[0]),
+                    time.to_owned(),
+                )
+            })
+        })
+        .unwrap_or_default();
+    [name, date, time]
+}
+
+/// `AbstractGravestoneBlockEntityRenderer.renderText`: the lines centred on the stone's face, in
+/// the font at one seventh of a pixel a font pixel, in the light colour a black sign gets.
+fn draw_lines(game: &Game<'_>, draw: &mut BlockEntityDraw, lines: &[String; 3]) {
+    // One font pixel, in blocks.
+    let unit = 0.0625_f32 / 7.0;
+    // Just in front of the stone's face.
+    let z = 0.0625 * 11.95;
+    for (i, line) in lines.iter().enumerate() {
+        let advance = |c: char| game.gui.atlas.glyph_cell(c).1;
+        let width = line.chars().map(advance).sum::<f32>().ceil();
+        let mut x = -((width as i32) / 2) as f32;
+        let y = ((i + 1) * 14) as f32;
+        for c in line.chars() {
+            let (cell, step) = game.gui.atlas.glyph_cell(c);
+            if let Some(cell) = cell {
+                // Seen from the north, where the stone faces: text runs towards -x.
+                let (left, right) = (0.5 - unit * x, 0.5 - unit * (x + 8.0));
+                let (top, bottom) = (0.875 - unit * y, 0.875 - unit * (y + 8.0));
+                draw.quad(
+                    [
+                        [left, top, z],
+                        [left, bottom, z],
+                        [right, bottom, z],
+                        [right, top, z],
+                    ],
+                    [[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [1.0, 0.0]],
+                    cell,
+                    0xF0_EBCC,
+                );
+            }
+            x += step;
+        }
+    }
 }
 
 /// `native_block_entity_submit`: the owner's head, lying in front of the stone as
@@ -109,6 +163,7 @@ pub(super) fn submit(
     if entity.id != ENTITY || !game.native_on(ID) {
         return;
     }
+    draw_lines(game, draw, &grave_lines(&entity.nbt));
     let mut profile: Vec<(&str, Tag)> = Vec::new();
     if let Some(name) = get_text(&entity.nbt, "owner_name") {
         profile.push(("name", Tag::String(JavaString::from(name.as_str()))));
@@ -362,6 +417,8 @@ impl Game<'_> {
         let owner = self.acting_player_uuid();
         let name = self.acting_player_name().to_owned();
         let spawned = self.world.game_time;
+        // The real date and time of the death, which the grave shows (`GravestoneTime.READABLE`).
+        let clock = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
         let filled = self.native_with_mod_block_entity(pos, |entity| {
             entity.items = stored.clone();
             entity.nbt.insert(key("experience"), Tag::Int(points));
@@ -373,6 +430,10 @@ impl Game<'_> {
                 Tag::String(JavaString::from(name.as_str())),
             );
             entity.nbt.insert(key("spawn_ticks"), Tag::Long(spawned));
+            entity.nbt.insert(
+                key("spawn_date_time"),
+                Tag::String(JavaString::from(clock.as_str())),
+            );
             entity.nbt.insert(key("death_damage"), Tag::Int(0));
             entity.nbt.insert(key("age_damage"), Tag::Int(0));
         });
@@ -382,6 +443,9 @@ impl Game<'_> {
                 self.spawn_item(stack, at, [0.0, 0.2, 0.0], 40);
             }
             self.spawn_orbs(at, points as u32);
+        }
+        if filled.is_some() {
+            self.gravestone_remember(owner, &dimension, pos);
         }
         self.native_block_entity_sync(pos);
     }
@@ -456,19 +520,120 @@ impl Game<'_> {
 
     /// `AbstractGravestoneBlockEntity` breaking: the things in a grave fall out where it stood.
     fn gravestone_release(&mut self, pos: [i32; 3], entity: &mut ModBlockEntity) {
+        let items = std::mem::take(&mut entity.items);
+        let points = get_int(&entity.nbt, "experience");
+        entity.nbt.insert(key("experience"), Tag::Int(0));
+        self.gravestone_drop(pos, items, points);
+    }
+
+    /// Items and experience falling where a grave stood.
+    fn gravestone_drop(&mut self, pos: [i32; 3], items: Vec<Option<ItemStack>>, points: i32) {
         let here = [
             f64::from(pos[0]) + 0.5,
             f64::from(pos[1]) + 0.5,
             f64::from(pos[2]) + 0.5,
         ];
-        for stack in std::mem::take(&mut entity.items).into_iter().flatten() {
+        for stack in items.into_iter().flatten() {
             self.spawn_item(stack, here, [0.0, 0.2, 0.0], 10);
         }
-        let points = get_int(&entity.nbt, "experience");
         if points > 0 {
             self.spawn_orbs(here, points as u32);
         }
-        entity.nbt.insert(key("experience"), Tag::Int(0));
+    }
+
+    /// `GravestoneDecay.incrementDeathDamage`: an older grave of the same player takes one
+    /// more point of damage. True when it is no longer in the world (broken, or not a grave).
+    fn gravestone_death_damage(&mut self, pos: [i32; 3]) -> bool {
+        let state = self.world.block(pos[0], pos[1], pos[2]);
+        if &*self.res.facts().get(state).name != BLOCK {
+            return true;
+        }
+        let Some(Some(stage)) = self.native_with_mod_block_entity(pos, |entity| {
+            get_ints(&entity.nbt, "owner")?;
+            let deaths = get_int(&entity.nbt, "death_damage") + 1;
+            entity.nbt.insert(key("death_damage"), Tag::Int(deaths));
+            Some(decay_stage(get_int(&entity.nbt, "age_damage") + deaths))
+        }) else {
+            return true;
+        };
+        if stage >= 3 {
+            let taken = self.native_with_mod_block_entity(pos, |entity| {
+                let points = get_int(&entity.nbt, "experience");
+                entity.nbt.insert(key("experience"), Tag::Int(0));
+                (std::mem::take(&mut entity.items), points)
+            });
+            if let Some((items, points)) = taken {
+                self.gravestone_drop(pos, items, points);
+            }
+            let dimension = self.dim.id().to_owned();
+            if let Some(air) = air_state(self) {
+                self.native_set_block(&dimension, pos, air, 3);
+            }
+            true
+        } else {
+            self.native_set_block_property_with(pos, "damage", &stage.to_string(), 3);
+            false
+        }
+    }
+
+    /// The graves a player has made in this world, as `GravestoneHistory` keeps them.
+    fn gravestone_history_path(&self, owner: [i32; 4]) -> std::path::PathBuf {
+        let name = owner.map(|v| format!("{:08x}", v as u32)).concat();
+        self.world_root
+            .join("gravestones")
+            .join(format!("{name}.txt"))
+    }
+
+    fn gravestone_history(&self, owner: [i32; 4]) -> Vec<(String, [i32; 3])> {
+        let text = std::fs::read_to_string(self.gravestone_history_path(owner)).unwrap_or_default();
+        text.lines()
+            .filter_map(|line| {
+                let mut parts = line.split(' ');
+                let dimension = parts.next()?.to_owned();
+                let mut at = [0; 3];
+                for c in &mut at {
+                    *c = parts.next()?.parse().ok()?;
+                }
+                Some((dimension, at))
+            })
+            .collect()
+    }
+
+    fn gravestone_save_history(&self, owner: [i32; 4], history: &[(String, [i32; 3])]) {
+        let path = self.gravestone_history_path(owner);
+        let text: String = history
+            .iter()
+            .map(|(d, p)| format!("{d} {} {} {}\n", p[0], p[1], p[2]))
+            .collect();
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let _ = std::fs::write(path, text);
+    }
+
+    /// `GravestoneCreation`: the new grave joins the player's history, and each older one in this
+    /// level takes a point of damage (`decay_with_deaths`); the ones gone are forgotten.
+    fn gravestone_remember(&mut self, owner: [i32; 4], dimension: &str, pos: [i32; 3]) {
+        if self.world_root.as_os_str().is_empty() {
+            return;
+        }
+        let mut history = self.gravestone_history(owner);
+        history.push((dimension.to_owned(), pos));
+        let mut kept: Vec<(String, [i32; 3])> = Vec::new();
+        let mut checked: Vec<(String, [i32; 3])> = Vec::new();
+        for entry in history {
+            if entry.0 == dimension && entry.1 == pos {
+                kept.push(entry);
+            } else if checked.contains(&entry) {
+                // A repeated position is cleared, as `deathDamageOldGravestones` does.
+            } else {
+                checked.push(entry.clone());
+                if entry.0 != dimension || !self.gravestone_death_damage(entry.1) {
+                    kept.push(entry);
+                }
+            }
+        }
+        self.gravestone_save_history(owner, &kept);
     }
 }
 
@@ -480,6 +645,18 @@ mod tests {
     fn decay_stage_follows_the_default_settings() {
         // damage_to_break 3: untouched, then chipped, then damaged, then gone.
         assert_eq!([0, 1, 2, 3, 4].map(decay_stage), [0, 1, 2, 3, 3]);
+    }
+
+    #[test]
+    fn the_stone_reads_name_date_and_time() {
+        let mut nbt = Compound::new();
+        nbt.insert(key("owner_name"), Tag::String(JavaString::from("Steve")));
+        nbt.insert(
+            key("spawn_date_time"),
+            Tag::String(JavaString::from("2026-11-08 09:30:05")),
+        );
+        assert_eq!(grave_lines(&nbt), ["Steve", "11/08/2026", "09:30:05"]);
+        assert_eq!(grave_lines(&Compound::new()), ["???", "", ""]);
     }
 
     #[test]
