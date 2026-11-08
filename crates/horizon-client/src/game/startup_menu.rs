@@ -1237,7 +1237,6 @@ impl Loading {
                                 self.startup_mouse_button(event_loop, right, true)?;
                             }
                         }
-                        Action::More => self.menu.touch.expanded = !self.menu.touch.expanded,
                         Action::Keyboard => {
                             if crate::platform::active() {
                                 crate::platform::hide();

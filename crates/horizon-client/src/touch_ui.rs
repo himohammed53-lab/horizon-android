@@ -50,7 +50,6 @@ pub enum Action {
     /// Show or hide the touch buttons over inventory and settings screens.
     TouchToggle,
     MouseButton(bool),
-    More,
 }
 
 const KEYS: [(&str, KeyCode); 28] = [
@@ -332,9 +331,6 @@ impl TouchUi {
             if menu && (w - 53.0..w - 3.0).contains(&p[0]) {
                 return Some(Action::Key(KeyCode::Escape));
             }
-            if (3.0..36.0).contains(&p[0]) {
-                return Some(Action::More);
-            }
             if self.expanded && (39.0..72.0).contains(&p[0]) {
                 return Some(Action::Key(KeyCode::F3));
             }
@@ -363,13 +359,12 @@ impl TouchUi {
     }
     pub fn draw(&self, b: &mut HudBatch, a: &HudAtlas, menu: bool) {
         for (label, x, width) in [
-            ("...", 3.0, 33.0),
             ("F3", 39.0, 33.0),
             ("F5", 75.0, 33.0),
             ("Chat", 111.0, 33.0),
             ("Keys", 147.0, 39.0),
         ] {
-            if label != "..." && !self.expanded {
+            if !self.expanded {
                 continue;
             }
             button(

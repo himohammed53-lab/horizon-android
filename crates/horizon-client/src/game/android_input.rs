@@ -373,7 +373,6 @@ impl Game<'_> {
                         self.pad.touch_ui.menu_touch_on ^= true;
                         self.pad.touch.clear();
                     }
-                    Action::More => self.pad.touch_ui.expanded = !self.pad.touch_ui.expanded,
                     Action::Keyboard => {
                         if crate::platform::active() {
                             crate::platform::hide();
