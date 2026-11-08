@@ -259,7 +259,7 @@ impl Login {
                     [x + 20.0, y + 62.0 + index as f32 * 76.0, w - 40.0, 68.0],
                     label,
                     action,
-                    false,
+                    true,
                 );
             }
             button(

@@ -229,7 +229,7 @@ fn gear_icon(ui: &mut Ui, x: f32, y: f32, size: f32) {
                     0.0,
                     color::hex(0x252525, 255),
                 );
-                ui.rounded(px, py, cell, cell, 0.0, color::hex(0xffffff, 255));
+                ui.rounded(px, py, cell, cell, 0.0, color::hex(0xc4c5cc, 255));
             }
         }
     }
