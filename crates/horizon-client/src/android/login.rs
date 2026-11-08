@@ -282,10 +282,17 @@ impl Login {
             y - 2.0,
             w + 4.0,
             h + 4.0,
-            10.0,
+            if super::pages::GLASS { 22.0 } else { 10.0 },
             color::hex(0x5a5a5a, 255),
         );
-        ui.rounded(x, y, w, h, 8.0, color::BG);
+        ui.rounded(
+            x,
+            y,
+            w,
+            h,
+            if super::pages::GLASS { 20.0 } else { 8.0 },
+            color::BG,
+        );
         if self.providers {
             ui.text(
                 Face::Medium,

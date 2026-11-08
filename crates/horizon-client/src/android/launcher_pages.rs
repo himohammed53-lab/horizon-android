@@ -102,9 +102,51 @@ fn cell_hash(x: i32, y: i32, seed: i32) -> u32 {
     n ^ (n >> 15)
 }
 
+/// The launcher's look. `true`: soft glass plates with rounded corners and the plain font;
+/// `false`: the Minecraft block plates (kept as the git tag `minecraft-style-launcher`).
+pub(super) const GLASS: bool = true;
+
+/// A glass plate: a soft shadow, a faint light rim, a translucent body (white-tinted when `base`
+/// is the neutral grey, the colour itself when it is an accent) and a gloss across the top.
+fn glass_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, big: bool) {
+    let radius = if big {
+        (h * 0.22).clamp(14.0, 26.0)
+    } else {
+        (h * 0.3).clamp(8.0, 18.0)
+    };
+    let neutral = base == 0x5a5a5a;
+    ui.rounded(x, y + 2.0, w, h, radius, color::hex(0x000000, 70));
+    ui.rounded(
+        x,
+        y,
+        w,
+        h,
+        radius,
+        color::hex(if neutral { 0xffffff } else { 0xe9dcff }, 70),
+    );
+    let body = if neutral {
+        color::hex(0x2b2e36, 235)
+    } else {
+        color::hex(base, 235)
+    };
+    ui.rounded(x + 1.0, y + 1.0, w - 2.0, h - 2.0, radius - 1.0, body);
+    ui.rounded(
+        x + 3.0,
+        y + 3.0,
+        w - 6.0,
+        (h * 0.46).max(6.0),
+        (radius - 3.0).max(3.0),
+        color::hex(0xffffff, if neutral { 20 } else { 34 }),
+    );
+}
+
 /// A Minecraft-style block plate: a black outline, a speckled face, a light top and left edge and
 /// a dark bottom and right edge, so it reads as a raised block. `base` is 0xRRGGBB.
 fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: bool) {
+    if GLASS {
+        glass_plate(ui, x, y, w, h, base, cracks);
+        return;
+    }
     let edge = 2.0;
     ui.rounded(x, y, w, h, 0.0, color::hex(0x000000, 255));
     let (ix, iy, iw, ih) = (x + edge, y + edge, w - 2.0 * edge, h - 2.0 * edge);
@@ -274,6 +316,18 @@ fn plate_rect(rect: [f32; 4], full: bool) -> (f32, f32, f32, f32) {
 
 /// White text with the game's dark drop shadow.
 fn shadow_text(ui: &mut Ui, face: Face, size: f32, x: f32, y: f32, text: &str) {
+    if GLASS {
+        ui.text(
+            face,
+            size,
+            x + 1.0,
+            y + 1.0,
+            color::hex(0x000000, 110),
+            text,
+        );
+        ui.text(face, size, x, y, color::hex(0xffffff, 255), text);
+        return;
+    }
     ui.text(
         face,
         size,
@@ -532,7 +586,7 @@ impl Launcher {
             return Ok(());
         }
         // The launcher is set in block lettering; the game keeps its own fonts.
-        horizon_client::ui_theme::set_block_letters(true);
+        horizon_client::ui_theme::set_block_letters(!GLASS);
         self.targets.clear();
         self.list_targets.clear();
         self.list_view = None;
