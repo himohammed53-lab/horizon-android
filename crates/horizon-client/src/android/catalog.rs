@@ -221,7 +221,7 @@ pub struct Catalog {
     pub render_scale_text: String,
     worker: Option<mpsc::Receiver<Result<Reply, String>>>,
     search_worker: Option<mpsc::Receiver<Result<Vec<Project>, String>>>,
-    /// Project icons shrunk to 16x16 and ready to draw as squares, by icon address.
+    /// Project icons shrunk to 32x32 and ready to draw as squares, by icon address.
     pub icons: std::collections::HashMap<String, Vec<([f32; 4], u32)>>,
     icons_tried: std::collections::HashSet<String>,
     icon_worker: Option<mpsc::Receiver<(String, Vec<([f32; 4], u32)>)>>,
@@ -784,7 +784,7 @@ impl Catalog {
 }
 
 /// A project's icon from its source's image server (kept in the launcher's image cache),
-/// shrunk to 16x16 and joined into runs of one colour: `[x, y, width, 1]` in icon squares.
+/// shrunk to 32x32 and joined into runs of one colour: `[x, y, width, 1]` in icon squares.
 /// Empty when the icon cannot be fetched or read; the row then shows a plain square.
 fn icon_squares(home: &Path, url: &str) -> Vec<([f32; 4], u32)> {
     let Ok(file) = browser::images::fetch(home, url, 64) else {
@@ -795,18 +795,18 @@ fn icon_squares(home: &Path, url: &str) -> Vec<([f32; 4], u32)> {
     };
     let small = image::imageops::resize(
         &image.to_rgba8(),
-        16,
-        16,
+        32,
+        32,
         image::imageops::FilterType::Triangle,
     );
     let mut out = vec![];
-    for y in 0..16 {
+    for y in 0..32 {
         let mut x = 0;
-        while x < 16 {
+        while x < 32 {
             let c = small.get_pixel(x, y).0;
             let start = x;
             x += 1;
-            while x < 16 && small.get_pixel(x, y).0 == c {
+            while x < 32 && small.get_pixel(x, y).0 == c {
                 x += 1;
             }
             if c[3] > 0 {

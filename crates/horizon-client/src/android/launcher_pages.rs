@@ -125,19 +125,56 @@ fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: b
         }
     }
     if cracks && iw >= 24.0 && ih >= 14.0 {
-        // Stepped cracks running down from the top edge, with a faint light side.
-        for (start, seed) in [(0.22, 1), (0.63, 2), (0.86, 3)] {
-            let mut cx = ix + iw * start;
-            let steps = ((ih / 7.0) as i32).clamp(2, 12);
-            for k in 0..steps {
-                let n = cell_hash(k, seed, 7);
-                let cy = iy + k as f32 * 7.0;
-                let len = (ih - (cy - iy)).min(7.0);
-                ui.rounded(cx, cy, 3.0, len, 0.0, color::hex(0x000000, 120));
-                ui.rounded(cx + 3.0, cy, 1.0, len, 0.0, color::hex(0xffffff, 28));
-                cx += if n % 2 == 0 { 3.0 } else { -3.0 };
-                cx = cx.clamp(ix + 2.0, (ix + iw - 6.0).max(ix + 2.0));
+        // One thin, uneven crack wandering down from the top, a short side branch,
+        // and a few small chips: worn stone, not a pattern.
+        let mut cx = ix + iw * 0.58;
+        let mut cy = iy;
+        let reach = iy + ih * 0.7;
+        let mut k = 0;
+        while cy < reach {
+            let n = cell_hash(k, 11, 5);
+            let step = 4.0 + (n % 6) as f32;
+            let jog = match n % 4 {
+                0 => -3.0,
+                1 => 2.0,
+                2 => 4.0,
+                _ => -1.0,
+            };
+            let len = step.min(reach - cy).max(1.0);
+            ui.rounded(cx, cy, 2.0, len, 0.0, color::hex(0x000000, 150));
+            ui.rounded(cx + 2.0, cy, 1.0, len, 0.0, color::hex(0xffffff, 26));
+            if k == 3 {
+                // The branch: a short stub heading sideways and down.
+                ui.rounded(
+                    cx + 2.0,
+                    cy + len - 2.0,
+                    9.0,
+                    2.0,
+                    0.0,
+                    color::hex(0x000000, 130),
+                );
+                ui.rounded(
+                    cx + 10.0,
+                    cy + len,
+                    2.0,
+                    5.0,
+                    0.0,
+                    color::hex(0x000000, 110),
+                );
             }
+            cy += len;
+            cx = (cx + jog).clamp(ix + 4.0, (ix + iw - 8.0).max(ix + 4.0));
+            k += 1;
+        }
+        for (fx, fy, size) in [(0.12, 0.62, 4.0), (0.81, 0.3, 3.0), (0.33, 0.2, 3.0)] {
+            ui.rounded(
+                ix + iw * fx,
+                iy + ih * fy,
+                size,
+                size,
+                0.0,
+                color::hex(0x000000, 70),
+            );
         }
     }
     let bevel = 3.0;
@@ -898,10 +935,10 @@ impl Launcher {
                 if let Some(squares) = p.icon.as_ref().and_then(|u| self.catalog.icons.get(u)) {
                     for ([sx, sy, sw, sh], c) in squares {
                         ui.rounded(
-                            33.0 + sx * 3.625,
-                            y + 3.0 + sy * 3.625,
-                            sw * 3.625 + 0.4,
-                            sh * 3.625 + 0.4,
+                            33.0 + sx * 1.8125,
+                            y + 3.0 + sy * 1.8125,
+                            sw * 1.8125 + 0.3,
+                            sh * 1.8125 + 0.3,
                             0.0,
                             *c,
                         );
