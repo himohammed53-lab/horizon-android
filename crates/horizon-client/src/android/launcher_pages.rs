@@ -365,13 +365,14 @@ pub(super) fn button_as(
         base
     };
     let label = ui.fit_text(Face::Medium, font, label, w - 2.0 * padding);
-    let text_x = x + padding;
+    // The label sits in the middle of the plate, across and up and down.
+    let text_x = x + ((w - ui.measure(Face::Medium, font, &label)) / 2.0).max(2.0);
     shadow_text(
         ui,
         Face::Medium,
         font,
         text_x,
-        y + ((h - base * 1.45) / 2.0).max(5.0),
+        y + ((h - font * 1.05) / 2.0).max(3.0),
         &label,
     );
     targets.push((rect, action));
