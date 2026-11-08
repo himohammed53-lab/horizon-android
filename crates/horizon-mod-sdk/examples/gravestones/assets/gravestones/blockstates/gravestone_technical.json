@@ -1,7 +1,7 @@
 {
     "variants": {
-        "damage=0": {"model": "gravestones:block/gravestone"},
-        "damage=1": {"model": "gravestones:block/gravestone_chipped"},
-        "damage=2": {"model": "gravestones:block/gravestone_damaged"}
+        "stage=0": {"model": "gravestones:block/gravestone"},
+        "stage=1": {"model": "gravestones:block/gravestone_chipped"},
+        "stage=2": {"model": "gravestones:block/gravestone_damaged"}
     }
 }

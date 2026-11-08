@@ -7,7 +7,7 @@
     "sounds": "minecraft:stone"
   },
   "state_properties": {
-    "damage": {
+    "stage": {
       "type": "enum",
       "values": [
         "0",
@@ -17,7 +17,7 @@
     }
   },
   "default_state": {
-    "damage": "0"
+    "stage": "0"
   },
   "shapes": {
     "property": "has_record",

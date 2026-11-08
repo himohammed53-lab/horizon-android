@@ -278,10 +278,10 @@ pub(super) fn tick(game: &mut Game<'_>, pos: [i32; 3], entity: &mut ModBlockEnti
     } else {
         let shown = game.world.block(pos[0], pos[1], pos[2]);
         let current = game
-            .native_block_state_property(shown, "damage")
+            .native_block_state_property(shown, "stage")
             .and_then(|v| v.parse::<i32>().ok());
         if current != Some(stage) {
-            game.native_set_block_property_with(pos, "damage", &stage.to_string(), 3);
+            game.native_set_block_property_with(pos, "stage", &stage.to_string(), 3);
         }
     }
 }
@@ -572,7 +572,7 @@ impl Game<'_> {
             }
             true
         } else {
-            self.native_set_block_property_with(pos, "damage", &stage.to_string(), 3);
+            self.native_set_block_property_with(pos, "stage", &stage.to_string(), 3);
             false
         }
     }
