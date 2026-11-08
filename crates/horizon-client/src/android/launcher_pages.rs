@@ -488,20 +488,20 @@ impl Launcher {
         let face = if w < 700.0 { 34.0 } else { 46.0 };
         let face_y = if w < 700.0 { 8.0 } else { 24.0 };
         let face_x = w - 32.0 - face;
+        if self.wardrobe.needs_open() {
+            self.wardrobe.open(
+                &self.catalog.config.name,
+                &self.catalog.config.microsoft_client_id,
+            );
+        }
+        // A very thin white outline around the face.
         ui.rounded(
-            face_x - 3.0,
-            face_y - 3.0,
-            face + 6.0,
-            face + 6.0,
+            face_x - 1.5,
+            face_y - 1.5,
+            face + 3.0,
+            face + 3.0,
             0.0,
-            color::hex(
-                if self.catalog.page == Page::Skins {
-                    0xa855e8
-                } else {
-                    0x5a5a5a
-                },
-                255,
-            ),
+            color::hex(0xffffff, 255),
         );
         self.wardrobe.draw_face(&mut ui, face_x, face_y, face);
         self.targets.push((
@@ -892,10 +892,25 @@ impl Launcher {
                 if y < top || y + 78.0 > bottom {
                     continue;
                 }
-                let title = ui.fit_text(Face::Medium, 22.0, &p.title, w - 214.0);
-                let summary = ui.fit_text(Face::Regular, 16.0, &p.summary, w - 214.0);
-                ui.text(Face::Medium, 22.0, 32.0, y, color::TEXT, &title);
-                ui.text(Face::Regular, 14.0, 32.0, y + 33.0, color::MUTED, &summary);
+                // The project's picture, in a small framed square (a plain one until it arrives).
+                ui.rounded(32.0, y + 2.0, 60.0, 60.0, 0.0, color::hex(0xb9bac2, 255));
+                ui.rounded(33.0, y + 3.0, 58.0, 58.0, 0.0, color::hex(0x0f1013, 255));
+                if let Some(squares) = p.icon.as_ref().and_then(|u| self.catalog.icons.get(u)) {
+                    for ([sx, sy, sw, sh], c) in squares {
+                        ui.rounded(
+                            33.0 + sx * 3.625,
+                            y + 3.0 + sy * 3.625,
+                            sw * 3.625 + 0.4,
+                            sh * 3.625 + 0.4,
+                            0.0,
+                            *c,
+                        );
+                    }
+                }
+                let title = ui.fit_text(Face::Medium, 22.0, &p.title, w - 282.0);
+                let summary = ui.fit_text(Face::Regular, 16.0, &p.summary, w - 282.0);
+                ui.text(Face::Medium, 22.0, 104.0, y, color::TEXT, &title);
+                ui.text(Face::Regular, 14.0, 104.0, y + 33.0, color::MUTED, &summary);
                 if let Some(state) = download {
                     ui.text(Face::Medium, 16.0, w - 150.0, y + 12.0, color::TEXT, &state);
                 } else if p.kind == crate::browser::Kind::Mod
@@ -1760,12 +1775,10 @@ impl Launcher {
                 self.prepared_session = None;
                 self.session_worker = None;
                 self.login.refresh_status();
-                if self.catalog.page == Page::Skins {
-                    self.wardrobe.open(
-                        &self.catalog.config.name,
-                        &self.catalog.config.microsoft_client_id,
-                    );
-                }
+                self.wardrobe.open(
+                    &self.catalog.config.name,
+                    &self.catalog.config.microsoft_client_id,
+                );
             }
             Some(Action::SelectOffline) => {
                 self.catalog.config.save(&self.home)?;
@@ -1780,12 +1793,10 @@ impl Launcher {
                 self.session_worker = None;
                 self.login.choosing = false;
                 self.login.refresh_status();
-                if self.catalog.page == Page::Skins {
-                    self.wardrobe.open(
-                        &self.catalog.config.name,
-                        &self.catalog.config.microsoft_client_id,
-                    );
-                }
+                self.wardrobe.open(
+                    &self.catalog.config.name,
+                    &self.catalog.config.microsoft_client_id,
+                );
             }
             Some(Action::ElySignIn) => {
                 self.login.providers = false;

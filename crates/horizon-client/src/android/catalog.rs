@@ -221,6 +221,10 @@ pub struct Catalog {
     pub render_scale_text: String,
     worker: Option<mpsc::Receiver<Result<Reply, String>>>,
     search_worker: Option<mpsc::Receiver<Result<Vec<Project>, String>>>,
+    /// Project icons shrunk to 16x16 and ready to draw as squares, by icon address.
+    pub icons: std::collections::HashMap<String, Vec<([f32; 4], u32)>>,
+    icons_tried: std::collections::HashSet<String>,
+    icon_worker: Option<mpsc::Receiver<(String, Vec<([f32; 4], u32)>)>>,
     searches: crate::search_queue::Queue<(Page, browser::SourceId, String, usize), Vec<Project>>,
 }
 #[derive(Clone)]
@@ -253,6 +257,9 @@ impl Catalog {
             render_scale_text: String::new(),
             worker: None,
             search_worker: None,
+            icons: Default::default(),
+            icons_tried: Default::default(),
+            icon_worker: None,
             searches: crate::search_queue::Queue::new(),
         };
         result.refresh(home);
@@ -412,7 +419,39 @@ impl Catalog {
                 }
             }
         }
+        self.poll_icons(home);
         self.start_search();
+    }
+    /// Fetches the icons of the listed projects one at a time, off the screen thread.
+    fn poll_icons(&mut self, home: &Path) {
+        if let Some(rx) = &self.icon_worker {
+            match rx.try_recv() {
+                Ok((url, rects)) => {
+                    self.icons.insert(url, rects);
+                    self.icon_worker = None;
+                }
+                Err(mpsc::TryRecvError::Disconnected) => self.icon_worker = None,
+                Err(_) => {}
+            }
+        }
+        if self.icon_worker.is_some() || !self.page.is_catalog() {
+            return;
+        }
+        let next = self
+            .results
+            .iter()
+            .filter_map(|p| p.icon.clone())
+            .find(|u| !self.icons_tried.contains(u));
+        if let Some(url) = next {
+            self.icons_tried.insert(url.clone());
+            let (tx, rx) = mpsc::channel();
+            let home = home.to_path_buf();
+            std::thread::spawn(move || {
+                let rects = icon_squares(&home, &url);
+                let _ = tx.send((url, rects));
+            });
+            self.icon_worker = Some(rx);
+        }
     }
     pub fn search(&mut self, home: &Path) {
         self.request_search(home, true);
@@ -742,4 +781,41 @@ impl Catalog {
             }
         }
     }
+}
+
+/// A project's icon from its source's image server (kept in the launcher's image cache),
+/// shrunk to 16x16 and joined into runs of one colour: `[x, y, width, 1]` in icon squares.
+/// Empty when the icon cannot be fetched or read; the row then shows a plain square.
+fn icon_squares(home: &Path, url: &str) -> Vec<([f32; 4], u32)> {
+    let Ok(file) = browser::images::fetch(home, url, 64) else {
+        return vec![];
+    };
+    let Ok(image) = image::open(&file) else {
+        return vec![];
+    };
+    let small = image::imageops::resize(
+        &image.to_rgba8(),
+        16,
+        16,
+        image::imageops::FilterType::Triangle,
+    );
+    let mut out = vec![];
+    for y in 0..16 {
+        let mut x = 0;
+        while x < 16 {
+            let c = small.get_pixel(x, y).0;
+            let start = x;
+            x += 1;
+            while x < 16 && small.get_pixel(x, y).0 == c {
+                x += 1;
+            }
+            if c[3] > 0 {
+                out.push((
+                    [start as f32, y as f32, (x - start) as f32, 1.0],
+                    horizon_client::hud::rgba(c[0], c[1], c[2], c[3]),
+                ));
+            }
+        }
+    }
+    out
 }

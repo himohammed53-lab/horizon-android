@@ -72,11 +72,11 @@ impl Launcher {
     pub(super) fn refresh_wardrobe_account(&mut self) {
         if self.catalog.page == Page::Skins {
             self.catalog.scroll = 0.0;
-            self.wardrobe.open(
-                &self.catalog.config.name,
-                &self.catalog.config.microsoft_client_id,
-            );
         }
+        self.wardrobe.open(
+            &self.catalog.config.name,
+            &self.catalog.config.microsoft_client_id,
+        );
     }
 
     fn edit_text(&mut self, output: horizon_client::osk::Output) {

@@ -73,6 +73,10 @@ impl Wardrobe {
         value.preview();
         value
     }
+    /// True until the first `open`: the face in the corner needs the account's skin.
+    pub fn needs_open(&self) -> bool {
+        self.key.is_empty()
+    }
     pub fn open(&mut self, offline: &str, client_id: &str) {
         let account = Accounts::load().selected().cloned();
         let key = account
