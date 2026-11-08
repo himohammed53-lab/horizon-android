@@ -351,6 +351,8 @@ pub(super) fn button_as(
         26.0
     } else if w < 80.0 {
         13.0
+    } else if h >= 50.0 {
+        20.0
     } else if h >= 44.0 && !matches!(action, Action::Account) {
         18.0
     } else {
@@ -520,10 +522,10 @@ impl Launcher {
             if w < 700.0 { 12.0 } else { 20.0 },
             "Horizon Rust Edition",
         );
-        let settings_width = 96.0;
+        let settings_width = if w < 700.0 { 96.0 } else { 120.0 };
         // The player's face, top right: the skin in use, or the default skin. It opens Skins.
-        let face = if w < 700.0 { 34.0 } else { 46.0 };
-        let face_y = if w < 700.0 { 8.0 } else { 24.0 };
+        let face = if w < 700.0 { 34.0 } else { 56.0 };
+        let face_y = if w < 700.0 { 8.0 } else { 19.0 };
         let face_x = w - 32.0 - face;
         if self.wardrobe.needs_open() {
             self.wardrobe.open(
@@ -550,14 +552,18 @@ impl Launcher {
             &mut ui,
             &mut self.targets,
             [
-                if w < 700.0 { 32.0 } else { w - 320.0 - right },
-                if w < 700.0 { 47.0 } else { 24.0 },
+                if w < 700.0 {
+                    32.0
+                } else {
+                    w - 32.0 - settings_width - 8.0 - 176.0 - right
+                },
+                if w < 700.0 { 47.0 } else { 19.0 },
                 if w < 700.0 {
                     w - 64.0 - settings_width - 6.0
                 } else {
-                    288.0 - settings_width - 6.0
+                    176.0
                 },
-                if w < 700.0 { 34.0 } else { 46.0 },
+                if w < 700.0 { 34.0 } else { 54.0 },
             ],
             &self.login.status(&self.catalog.config.name),
             Action::Account,
@@ -568,9 +574,9 @@ impl Launcher {
             &mut self.targets,
             [
                 w - 32.0 - settings_width - right,
-                if w < 700.0 { 47.0 } else { 24.0 },
+                if w < 700.0 { 47.0 } else { 19.0 },
                 settings_width,
-                if w < 700.0 { 34.0 } else { 46.0 },
+                if w < 700.0 { 34.0 } else { 54.0 },
             ],
             "Settings",
             Action::Page(Page::Settings),
@@ -584,7 +590,11 @@ impl Launcher {
             button(
                 &mut ui,
                 &mut self.targets,
-                [x, 84.0, tab_width, 46.0],
+                if w < 700.0 {
+                    [x, 84.0, tab_width, 46.0]
+                } else {
+                    [x, 74.0, tab_width, 60.0]
+                },
                 page.name(),
                 Action::Page(*page),
                 if *page == Page::Mods {
