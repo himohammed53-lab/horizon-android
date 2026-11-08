@@ -576,7 +576,17 @@ impl Game<'_> {
                 f64::from(pos[2]) + f64::from(random.next_float()) * 0.6 + 0.2,
             ];
             let spread = [0; 3].map(|_| (f64::from(random.next_float()) - 0.5) * 0.08);
-            self.native_send_particles(&options, None, at, spread, 0.1, 1);
+            self.particles.send_particles(&options, at, spread, 0.1, 1);
+            self.lan_send_particles(super::lan_particles::QueuedParticle {
+                dimension: self.dim.id(),
+                options: options.clone(),
+                state: None,
+                at,
+                spread,
+                speed: 0.1,
+                count: 1,
+                randomization: 0,
+            });
         }
     }
 

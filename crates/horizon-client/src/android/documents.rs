@@ -447,7 +447,7 @@ fn stage_world(request: Request, mut input: std::fs::File, name: String) -> Resu
         let mut level: Option<String> = None;
         for i in 0..zip.len() {
             let entry = zip.by_index(i)?;
-            let raw = entry.name()?.into_owned();
+            let raw = entry.name().to_owned();
             if raw.is_empty()
                 || raw.len() > 1024
                 || raw.chars().any(char::is_control)
@@ -511,7 +511,7 @@ fn stage_world(request: Request, mut input: std::fs::File, name: String) -> Resu
                 return Err("Import cancelled".into());
             }
             let mut entry = zip.by_index(i)?;
-            let raw = entry.name()?.into_owned();
+            let raw = entry.name().to_owned();
             let Some(rest) = raw.strip_prefix(prefix.as_str()) else {
                 continue;
             };

@@ -273,7 +273,7 @@ impl Login {
         // panel shrinks to just the fields being edited and sits at the very top, above it.
         let typing_ely = self.ely && editing.is_some_and(|field| field.starts_with("ely_"));
         let typing_name = self.offline && editing == Some("name");
-        let rows = if typing_ely && editing != Some("ely_otp") {
+        let rows: f32 = if typing_ely && editing != Some("ely_otp") {
             2.0
         } else {
             1.0
