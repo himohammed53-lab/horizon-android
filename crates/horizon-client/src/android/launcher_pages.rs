@@ -200,20 +200,23 @@ fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: b
 
 /// A white gear made of squares, centred on a square button.
 fn gear_icon(ui: &mut Ui, x: f32, y: f32, size: f32) {
-    const GEAR: [&str; 9] = [
-        "...###...",
-        ".#.###.#.",
-        ".#######.",
-        "###...###",
-        "###...###",
-        "###...###",
-        ".#######.",
-        ".#.###.#.",
-        "...###...",
+    const GEAR: [&str; 11] = [
+        "....###....",
+        "..#.###.#..",
+        ".#########.",
+        "..##...##..",
+        "###.....###",
+        "###.....###",
+        "###.....###",
+        "..##...##..",
+        ".#########.",
+        "..#.###.#..",
+        "....###....",
     ];
-    let cell = (size / 9.0).floor().max(2.0);
-    let left = x + (size - cell * 9.0) / 2.0;
-    let top = y + (size - cell * 9.0) / 2.0;
+    // A little smaller than the face next to it.
+    let cell = (size * 0.9 / 11.0).floor().max(2.0);
+    let left = x + (size - cell * 11.0) / 2.0;
+    let top = y + (size - cell * 11.0) / 2.0;
     for (row, line) in GEAR.iter().enumerate() {
         for (col, c) in line.bytes().enumerate() {
             if c == b'#' {
