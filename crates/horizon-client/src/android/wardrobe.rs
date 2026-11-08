@@ -36,6 +36,8 @@ pub(super) struct Wardrobe {
     pub view: [f32; 3],
     worker: Option<mpsc::Receiver<(String, Result<(cloud::Cache, bool), String>)>>,
     bitmap: Vec<([f32; 4], u32)>,
+    /// The 8x8 face (hat layer over face) of the active skin, row by row.
+    face: Vec<u32>,
     rect: [f32; 4],
     fingers: std::collections::BTreeMap<u64, [f32; 2]>,
     note: String,
@@ -61,6 +63,7 @@ impl Wardrobe {
             cache: Default::default(),
             worker: None,
             bitmap: vec![],
+            face: vec![],
             rect: [0.0; 4],
             view: [0.0; 3],
             fingers: Default::default(),
@@ -317,6 +320,17 @@ impl Wardrobe {
                 skins::read_skin(&bytes).ok()
             })
             .unwrap_or_else(preview::mannequin);
+        self.face.clear();
+        if skin.width() >= 64 && skin.height() >= 16 {
+            for y in 0..8 {
+                for x in 0..8 {
+                    let base = skin.get_pixel(8 + x, 8 + y).0;
+                    let hat = skin.get_pixel(40 + x, 8 + y).0;
+                    let c = if hat[3] > 127 { hat } else { base };
+                    self.face.push(rgba(c[0], c[1], c[2], 255));
+                }
+            }
+        }
         let cape = if selection.hide_cape {
             None
         } else {
@@ -344,6 +358,25 @@ impl Wardrobe {
                     ));
                 }
             }
+        }
+    }
+    /// Draws the player's face (the skin in use, or the default skin) as a square.
+    pub fn draw_face(&self, ui: &mut Ui, x: f32, y: f32, size: f32) {
+        if self.face.len() != 64 {
+            return;
+        }
+        let cell = size / 8.0;
+        for (i, c) in self.face.iter().enumerate() {
+            let (cx, cy) = ((i % 8) as f32, (i / 8) as f32);
+            // Slight overlap hides hairline gaps between the squares.
+            ui.rounded(
+                x + cx * cell,
+                y + cy * cell,
+                cell + 0.5,
+                cell + 0.5,
+                0.0,
+                *c,
+            );
         }
     }
     pub fn gesture(&mut self, touch: &winit::event::Touch, density: f32) -> bool {

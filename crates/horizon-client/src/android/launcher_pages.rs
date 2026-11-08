@@ -484,11 +484,36 @@ impl Launcher {
             "Horizon Rust Edition",
         );
         let settings_width = 96.0;
+        // The player's face, top right: the skin in use, or the default skin. It opens Skins.
+        let face = if w < 700.0 { 34.0 } else { 46.0 };
+        let face_y = if w < 700.0 { 8.0 } else { 24.0 };
+        let face_x = w - 32.0 - face;
+        ui.rounded(
+            face_x - 3.0,
+            face_y - 3.0,
+            face + 6.0,
+            face + 6.0,
+            0.0,
+            color::hex(
+                if self.catalog.page == Page::Skins {
+                    0xa855e8
+                } else {
+                    0x5a5a5a
+                },
+                255,
+            ),
+        );
+        self.wardrobe.draw_face(&mut ui, face_x, face_y, face);
+        self.targets.push((
+            [face_x - 3.0, face_y - 3.0, face + 6.0, face + 6.0],
+            Action::Page(Page::Skins),
+        ));
+        let right = if w < 700.0 { 0.0 } else { face + 14.0 };
         button(
             &mut ui,
             &mut self.targets,
             [
-                if w < 700.0 { 32.0 } else { w - 320.0 },
+                if w < 700.0 { 32.0 } else { w - 320.0 - right },
                 if w < 700.0 { 47.0 } else { 24.0 },
                 if w < 700.0 {
                     w - 64.0 - settings_width - 6.0
@@ -505,7 +530,7 @@ impl Launcher {
             &mut ui,
             &mut self.targets,
             [
-                w - 32.0 - settings_width,
+                w - 32.0 - settings_width - right,
                 if w < 700.0 { 47.0 } else { 24.0 },
                 settings_width,
                 if w < 700.0 { 34.0 } else { 46.0 },
