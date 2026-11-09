@@ -10,6 +10,8 @@ mod login;
 #[path = "launcher_pages.rs"]
 mod pages;
 #[path = "wardrobe.rs"]
+#[path = "sunset.rs"]
+mod sunset;
 mod wardrobe;
 use horizon_client::{
     Result,
