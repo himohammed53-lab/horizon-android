@@ -410,7 +410,7 @@ fn section_chips(
             ui,
             targets,
             if wide {
-                [32.0 + i as f32 * (width + 8.0), 64.0, width, 36.0]
+                [32.0 + i as f32 * (width + 8.0), 70.0, width, 36.0]
             } else {
                 [32.0 + i as f32 * (width + 6.0), 134.0, width, 34.0]
             },
@@ -778,7 +778,7 @@ impl Launcher {
             let white = color::hex(0xffffff, 255);
             let gray = color::hex(0x8e8e8e, 255);
             // Top bar: the account on the left, settings on the right.
-            ui.rounded(0.0, 0.0, w, 58.0, 0.0, surface);
+            ui.rounded(0.0, 0.0, w, 64.0, 0.0, surface);
             let account = crate::account::Accounts::load().selected().cloned();
             let (who, provider) = match &account {
                 Some(a) => (
@@ -793,29 +793,29 @@ impl Launcher {
             };
             // The account on the left; on the right the name of the app, then the gear.
             let chip_w = (w * 0.4).min(260.0);
-            ui.rounded(10.0, 7.0, chip_w, 44.0, 22.0, card);
-            self.wardrobe.draw_face(&mut ui, 15.0, 12.0, 34.0);
+            ui.rounded(10.0, 10.0, chip_w, 44.0, 22.0, card);
+            self.wardrobe.draw_face(&mut ui, 15.0, 15.0, 34.0);
             let who = ui.fit_text(Face::Medium, 16.0, &who, chip_w - 56.0);
-            ui.text(Face::Medium, 16.0, 58.0, 11.0, white, &who);
-            ui.text(Face::Regular, 12.0, 58.0, 30.0, gray, provider);
+            ui.text(Face::Medium, 16.0, 58.0, 14.0, white, &who);
+            ui.text(Face::Regular, 12.0, 58.0, 33.0, gray, provider);
             self.targets
-                .push(([10.0, 7.0, chip_w, 44.0], Action::Account));
-            ui.rounded(w - 64.0, 7.0, 44.0, 44.0, 22.0, card);
-            gear_icon(&mut ui, w - 56.0, 15.0, 28.0);
+                .push(([10.0, 10.0, chip_w, 44.0], Action::Account));
+            ui.rounded(w - 64.0, 10.0, 44.0, 44.0, 22.0, card);
+            gear_icon(&mut ui, w - 56.0, 18.0, 28.0);
             self.targets
-                .push(([w - 64.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
+                .push(([w - 64.0, 10.0, 44.0, 44.0], Action::Page(Page::Settings)));
             let name_w = ui.measure(Face::Medium, 22.0, "Horizon");
             ui.text(
                 Face::Medium,
                 22.0,
                 w - 64.0 - 38.0 - name_w,
-                16.0,
+                19.0,
                 white,
                 "Horizon",
             );
             // Bottom bar: what is installed on the left, Play on the right.
-            ui.rounded(0.0, h - 76.0, w, 76.0, 0.0, color::hex(0x000000, 205));
-            ui.rounded(0.0, h - 76.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
+            ui.rounded(0.0, h - 68.0, w, 68.0, 0.0, color::hex(0x000000, 205));
+            ui.rounded(0.0, h - 68.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
             if !self.catalog.status.is_empty() {
                 let status = ui.fit_text(Face::Regular, 13.0, &self.catalog.status, w - 32.0);
                 ui.text(Face::Regular, 13.0, 16.0, h - 106.0, gray, &status);
@@ -826,12 +826,12 @@ impl Launcher {
                 Face::Medium,
                 20.0,
                 w - 16.0 - version_w,
-                h - 52.0,
+                h - 49.0,
                 gray,
                 &version,
             );
             let play_w = (w * 0.3).min(230.0);
-            let play = [14.0, h - 69.0, play_w, 62.0];
+            let play = [14.0, h - 60.0, play_w, 52.0];
             let starting = self.session_worker.is_some();
             ui.rounded(
                 play[0],
@@ -846,12 +846,12 @@ impl Launcher {
                 },
             );
             let label = if starting { "Starting..." } else { "PLAY" };
-            let lw = ui.measure(Face::Medium, 24.0, label);
+            let lw = ui.measure(Face::Medium, 20.0, label);
             ui.text(
                 Face::Medium,
-                24.0,
+                20.0,
                 play[0] + (play[2] - lw) / 2.0,
-                play[1] + 18.0,
+                play[1] + 11.0,
                 color::hex(0x111111, 255),
                 label,
             );
@@ -926,7 +926,7 @@ impl Launcher {
                 let card = color::hex(0x2b2930, 255);
                 let white = color::hex(0xffffff, 255);
                 let gray = color::hex(0x8e8e8e, 255);
-                ui.rounded(0.0, 0.0, w, 58.0, 0.0, color::hex(0x17161a, 255));
+                ui.rounded(0.0, 0.0, w, 64.0, 0.0, color::hex(0x17161a, 255));
                 let account = crate::account::Accounts::load().selected().cloned();
                 let (who, provider) = match &account {
                     Some(a) => (
@@ -940,28 +940,28 @@ impl Launcher {
                     None => (self.catalog.config.name.clone(), "Offline"),
                 };
                 let chip_w = (w * 0.4).min(260.0);
-                ui.rounded(10.0, 7.0, chip_w, 44.0, 22.0, card);
-                self.wardrobe.draw_face(&mut ui, 15.0, 12.0, 34.0);
+                ui.rounded(10.0, 10.0, chip_w, 44.0, 22.0, card);
+                self.wardrobe.draw_face(&mut ui, 15.0, 15.0, 34.0);
                 let who = ui.fit_text(Face::Medium, 16.0, &who, chip_w - 56.0);
-                ui.text(Face::Medium, 16.0, 58.0, 11.0, white, &who);
-                ui.text(Face::Regular, 12.0, 58.0, 30.0, gray, provider);
+                ui.text(Face::Medium, 16.0, 58.0, 14.0, white, &who);
+                ui.text(Face::Regular, 12.0, 58.0, 33.0, gray, provider);
                 self.targets
-                    .push(([10.0, 7.0, chip_w, 44.0], Action::Account));
-                ui.rounded(w - 64.0, 7.0, 44.0, 44.0, 22.0, card);
-                gear_icon(&mut ui, w - 56.0, 15.0, 28.0);
+                    .push(([10.0, 10.0, chip_w, 44.0], Action::Account));
+                ui.rounded(w - 64.0, 10.0, 44.0, 44.0, 22.0, card);
+                gear_icon(&mut ui, w - 56.0, 18.0, 28.0);
                 self.targets
-                    .push(([w - 64.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
+                    .push(([w - 64.0, 10.0, 44.0, 44.0], Action::Page(Page::Settings)));
                 let name_w = ui.measure(Face::Medium, 22.0, "Horizon");
                 ui.text(
                     Face::Medium,
                     22.0,
                     w - 64.0 - 38.0 - name_w,
-                    16.0,
+                    19.0,
                     white,
                     "Horizon",
                 );
                 self.targets.push((
-                    [w - 64.0 - 38.0 - name_w - 8.0, 8.0, name_w + 16.0, 42.0],
+                    [w - 64.0 - 38.0 - name_w - 8.0, 11.0, name_w + 16.0, 42.0],
                     Action::Page(Page::Play),
                 ));
                 if matches!(
@@ -969,26 +969,26 @@ impl Launcher {
                     Page::Mods | Page::Shaders | Page::Packs | Page::Skins
                 ) {
                     // The bottom bar: Eject (add a file) where the home screen has Play.
-                    ui.rounded(0.0, h - 76.0, w, 76.0, 0.0, color::hex(0x000000, 205));
-                    ui.rounded(0.0, h - 76.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
+                    ui.rounded(0.0, h - 68.0, w, 68.0, 0.0, color::hex(0x000000, 205));
+                    ui.rounded(0.0, h - 68.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
                     let version = format!("v{APP_VERSION}");
                     let version_w = ui.measure(Face::Medium, 20.0, &version);
                     ui.text(
                         Face::Medium,
                         20.0,
                         w - 16.0 - version_w,
-                        h - 52.0,
+                        h - 49.0,
                         gray,
                         &version,
                     );
-                    let eject = [14.0, h - 69.0, (w * 0.3).min(230.0), 62.0];
+                    let eject = [14.0, h - 60.0, (w * 0.3).min(230.0), 52.0];
                     ui.rounded(eject[0], eject[1], eject[2], eject[3], 20.0, white);
-                    let ew = ui.measure(Face::Medium, 24.0, "Eject");
+                    let ew = ui.measure(Face::Medium, 20.0, "Eject");
                     ui.text(
                         Face::Medium,
-                        24.0,
+                        20.0,
                         eject[0] + (eject[2] - ew) / 2.0,
-                        eject[1] + 18.0,
+                        eject[1] + 11.0,
                         color::hex(0x111111, 255),
                         "Eject",
                     );
@@ -1171,7 +1171,7 @@ impl Launcher {
                 let rect = if compact {
                     [32.0, 174.0, w - 214.0, 44.0]
                 } else {
-                    [32.0, 112.0, w - 216.0, 40.0]
+                    [32.0, 118.0, w - 216.0, 40.0]
                 };
                 // Inner dark field and a rim of the same dark grey on all four sides.
                 let rim = color::hex(GRAY, 255);
@@ -1210,7 +1210,7 @@ impl Launcher {
                 if compact {
                     [w - 176.0, 174.0, 120.0, 44.0]
                 } else {
-                    [w - 176.0, 112.0, 120.0, 40.0]
+                    [w - 176.0, 118.0, 120.0, 40.0]
                 },
                 if page == Page::Mods && self.catalog.query.trim().starts_with("https://") {
                     "Import .hmod"
@@ -1279,9 +1279,9 @@ impl Launcher {
                 Vec::new()
             };
             let row_count = bundled.len() + local_mods.len() + catalog_rows.len();
-            let top = if compact { 270.0 } else { 170.0 };
+            let top = if compact { 270.0 } else { 176.0 };
             let pitch = if compact { 86.0 } else { 66.0 };
-            let bottom = if compact { h - 112.0 } else { h - 76.0 };
+            let bottom = if compact { h - 112.0 } else { h - 68.0 };
             let tile_h = if compact { 76.0 } else { 56.0 };
             self.catalog.scroll = self
                 .catalog
@@ -1459,7 +1459,7 @@ impl Launcher {
         } else if page == Page::Installed {
             use horizon_client::content_files::Kind;
             section_chips(&mut ui, &mut self.targets, w, h, 0.0, page);
-            let top = if compact { 176.0 } else { 116.0 };
+            let top = if compact { 176.0 } else { 122.0 };
             let bottom = h - 100.0;
             let row_height = if compact { 124.0 } else { 80.0 };
             let total = Kind::ALL
