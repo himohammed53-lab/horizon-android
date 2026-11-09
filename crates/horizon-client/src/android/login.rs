@@ -661,9 +661,19 @@ impl Login {
                     ui,
                     targets,
                     [x + 20.0, at(c) + 20.0, field_w, 46.0],
-                    shown,
+                    "",
                     Action::Field(*name),
                     false,
+                );
+                // What is typed starts at the left, so the blinking line sits right after it.
+                let text = ui.fit_text(Face::Medium, 16.0, shown, field_w - 24.0);
+                ui.text(
+                    Face::Medium,
+                    16.0,
+                    x + 32.0,
+                    at(c) + 20.0 + (46.0 - 16.0 * 1.45) / 2.0,
+                    color::TEXT,
+                    &text,
                 );
                 button(
                     ui,
