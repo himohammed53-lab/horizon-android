@@ -387,24 +387,27 @@ impl Wardrobe {
             id.as_deref()
                 .and_then(|id| Library::image(&self.root, id).ok())
         };
-        let found = path(&selection.skin)
+        // The face in the corner shows only a skin the player has: a chosen one or the account's
+        // own. With none it stays the question mark, even once the game's files hold Steve's.
+        let chosen = path(&selection.skin)
             .or_else(|| self.cache.skin.clone())
             .and_then(|p| skins::read_file(&p).ok())
-            .and_then(|b| skins::read_skin(&b).ok())
-            .or_else(|| {
-                let bytes = skins::read_file(&self.default_skin).ok()?;
-                skins::read_skin(&bytes).ok()
-            });
-        // No skin yet (the game's files are not downloaded): the corner shows a plain avatar, and
-        // only the preview uses the mannequin.
-        let has_skin = found.is_some();
+            .and_then(|b| skins::read_skin(&b).ok());
+        let found = chosen.clone().or_else(|| {
+            let bytes = skins::read_file(&self.default_skin).ok()?;
+            skins::read_skin(&bytes).ok()
+        });
+        // No skin yet (the game's files are not downloaded): only the preview uses the mannequin.
         let skin = found.unwrap_or_else(preview::mannequin);
         self.face.clear();
-        if has_skin && skin.width() >= 64 && skin.height() >= 16 {
+        if let Some(own) = chosen.as_ref()
+            && own.width() >= 64
+            && own.height() >= 16
+        {
             for y in 0..8 {
                 for x in 0..8 {
-                    let base = skin.get_pixel(8 + x, 8 + y).0;
-                    let hat = skin.get_pixel(40 + x, 8 + y).0;
+                    let base = own.get_pixel(8 + x, 8 + y).0;
+                    let hat = own.get_pixel(40 + x, 8 + y).0;
                     let c = if hat[3] > 127 { hat } else { base };
                     self.face.push(rgba(c[0], c[1], c[2], 255));
                 }
