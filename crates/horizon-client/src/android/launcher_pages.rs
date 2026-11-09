@@ -1760,7 +1760,7 @@ impl Launcher {
             let px = w - pw * p;
             if p > 0.0 {
                 ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x000000, (130.0 * p) as u8));
-                ui.rounded(px, py, pw + 20.0, ph, 22.0, color::hex(0x1c1b1f, 240));
+                ui.rounded(px, py, pw + 20.0, ph, 22.0, color::hex(0x3b3b40, 245));
                 ui.rounded(px, py, 1.5, ph, 0.0, color::hex(0xffffff, 40));
                 for (i, (label, action)) in items.into_iter().enumerate() {
                     let y = py + 6.0 + i as f32 * row;
@@ -1780,21 +1780,22 @@ impl Launcher {
                     }
                 }
             }
-            let tab = [w - 30.0 - pw * p, h / 2.0 - 34.0, 34.0, 68.0];
+            let tab = [w - 30.0 - pw * p, h / 2.0 - 34.0, 30.0, 68.0];
+            // Flush with the right edge: the right corners run off screen.
             ui.rounded(
                 tab[0],
                 tab[1],
-                tab[2],
+                tab[2] + 24.0,
                 tab[3],
-                16.0,
-                color::hex(0x1c1b1f, 235),
+                18.0,
+                color::hex(0x3b3b40, 245),
             );
             let arrow = if self.menu_open { ">" } else { "<" };
             let aw = ui.measure(Face::Medium, 28.0, arrow);
             ui.text(
                 Face::Medium,
                 28.0,
-                tab[0] + 4.0 + (26.0 - aw) / 2.0,
+                tab[0] + (30.0 - aw) / 2.0,
                 tab[1] + 18.0,
                 color::hex(0xffffff, 255),
                 arrow,
