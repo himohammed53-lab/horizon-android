@@ -107,9 +107,6 @@ impl Launcher {
             }
         });
         let mut catalog = Catalog::new(&home);
-        if crate::diagnostics::previous_unclean(&home) {
-            catalog.status = crate::diagnostics::summary(&home);
-        }
         horizon_client::android_runtime::graphics_startup::configure(home.clone());
         if horizon_client::android_runtime::graphics_startup::recover(&home) {
             catalog.config.renderer = crate::catalog::RendererMode::OpenGl;
