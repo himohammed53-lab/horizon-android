@@ -124,7 +124,6 @@ fn glass_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, big: bool
         color::hex(base, 112)
     };
     ui.rounded(x, y, w, h, radius, body);
-    ui.border(x, y, w, h, radius, color::hex(0x0a0a0d, 255));
     ui.rounded(
         x + radius * 0.6,
         y + 1.5,
@@ -823,7 +822,7 @@ impl Launcher {
                 "Horizon",
             );
             // Bottom bar: what is installed on the left, Play on the right.
-            ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 120));
+            ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 150));
             ui.rounded(0.0, h - 84.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
             if !self.catalog.status.is_empty() {
                 let status = ui.fit_text(Face::Regular, 13.0, &self.catalog.status, w - 32.0);
@@ -978,7 +977,7 @@ impl Launcher {
                     Page::Mods | Page::Shaders | Page::Packs | Page::Skins
                 ) {
                     // The bottom bar: Eject (add a file) where the home screen has Play.
-                    ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 120));
+                    ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 150));
                     ui.rounded(0.0, h - 84.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
                     let version = format!("v{APP_VERSION}");
                     let version_w = ui.measure(Face::Medium, 20.0, &version);
@@ -1180,7 +1179,7 @@ impl Launcher {
                 let rect = if compact {
                     [32.0, 174.0, w - 214.0, 44.0]
                 } else {
-                    [32.0, 112.0, w - 350.0, 40.0]
+                    [32.0, 112.0, w - 216.0, 40.0]
                 };
                 // Inner dark field and a rim of the same dark grey on all four sides.
                 let rim = color::hex(GRAY, 255);
@@ -1195,7 +1194,7 @@ impl Launcher {
                 ui.border(rect[0], rect[1], rect[2], rect[3], 0.0, rim);
                 let shown = if self.catalog.query.is_empty() {
                     if page == Page::Mods {
-                        "Search / .hmod URL".to_string()
+                        "Search mod name".to_string()
                     } else {
                         "Search".to_string()
                     }
@@ -1236,18 +1235,17 @@ impl Launcher {
                 _ => horizon_client::content_files::Kind::Packs,
             };
             let file_button_width = ((w - 72.0) / 2.0).min(158.0);
-            button(
-                &mut ui,
-                &mut self.targets,
-                if compact {
-                    [32.0, 222.0, file_button_width, 38.0]
-                } else {
-                    [w - 304.0, 112.0, 120.0, 40.0]
-                },
-                "Import file",
-                Action::Import(kind),
-                false,
-            );
+            // On a wide screen the white Eject button at the bottom adds files instead.
+            if compact {
+                button(
+                    &mut ui,
+                    &mut self.targets,
+                    [32.0, 222.0, file_button_width, 38.0],
+                    "Import file",
+                    Action::Import(kind),
+                    false,
+                );
+            }
             let bundled: Vec<_> = if page == Page::Mods
                 && self.catalog.config.mod_source == crate::shader_catalog::Origin::Horizon
             {
@@ -2108,7 +2106,7 @@ impl Launcher {
                 tab[2] + 24.0 * (1.0 - p),
                 tab[3],
                 14.0,
-                color::hex(0x000000, 120),
+                color::hex(0x000000, 150),
             );
             let arrow = if self.home_menu { ">" } else { "<" };
             let aw = ui.measure(Face::Medium, 28.0, arrow);
