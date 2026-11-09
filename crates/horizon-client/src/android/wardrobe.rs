@@ -478,23 +478,16 @@ impl Wardrobe {
             color::MUTED,
             "Local choices change your view. Cloud buttons update your account.",
         );
-        let preview_width = if compact {
-            (width - 64.0).min(260.0)
-        } else {
-            300.0
-        };
+        let py = top + 66.0;
+        // A box just as wide as the skin needs, its left edge in line with the bottom bar's
+        // button and its bottom edge (with the buttons below it) just above that bar.
         let preview_height = if compact {
             (ui.h - 560.0).clamp(100.0, 190.0)
         } else {
-            // Fill the screen: as tall as fits above the controls.
-            (ui.h - top - 66.0 - 100.0).clamp(180.0, 380.0)
+            (ui.h - py - 84.0 - 62.0).clamp(180.0, 380.0)
         };
-        let px = if compact {
-            (width - preview_width) * 0.5
-        } else {
-            32.0
-        };
-        let py = top + 66.0;
+        let preview_width = (preview_height * 0.8).clamp(140.0, (width - 64.0).max(140.0));
+        let px = 14.0;
         self.rect = [px, py, preview_width, preview_height];
         ui.rounded(px, py, preview_width, preview_height, 4.0, color::RAISED);
         let scale = (preview_width / 160.0).min(preview_height / 200.0);
@@ -555,7 +548,11 @@ impl Wardrobe {
                 false,
             );
         }
-        let lx = if compact { 32.0 } else { 370.0 };
+        let lx = if compact {
+            32.0
+        } else {
+            px + preview_width + 24.0
+        };
         let lw = if compact {
             width - 64.0
         } else {
