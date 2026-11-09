@@ -692,7 +692,7 @@ impl Launcher {
                 .elapsed()
                 .as_secs_f32()
                 * 0.6;
-            let bands = 120;
+            let bands = 80;
             for i in 0..bands {
                 let f = i as f32 / (bands - 1) as f32;
                 let rgb = super::sunset::sky_at(f as f64 * 0.92);
@@ -718,7 +718,7 @@ impl Launcher {
                         + amp * 0.4 * (x * 0.026 - t * 0.35 + kf).sin();
                     let alpha = (edge * (150.0 - kf * 20.0)).max(0.0) as u8;
                     ui.rounded(x, y, 3.6, 1.6, 0.8, color::hex(super::sunset::WAVE, alpha));
-                    x += 3.0;
+                    x += 3.6;
                 }
             }
             for i in 0..16 {

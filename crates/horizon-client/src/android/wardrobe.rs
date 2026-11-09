@@ -21,7 +21,9 @@ pub(super) enum CloudAction {
     Upload,
     Cape(usize),
 }
-/// A button in clear purple glass; a lighter purple when it is the chosen one.
+/// A button in dark violet glass with no rim, the page showing through; a lighter violet when
+/// it is the chosen one. Its edges are exactly `rect`'s, so a row of them lines up with the
+/// box above.
 fn button(
     ui: &mut Ui,
     targets: &mut Vec<([f32; 4], Action)>,
@@ -30,15 +32,25 @@ fn button(
     action: Action,
     chosen: bool,
 ) {
-    button_as(
-        ui,
-        targets,
-        rect,
-        label,
-        action,
-        chosen,
-        Some((0x7b4fe0, 0xa855e8)),
+    let [x, y, w, h] = rect;
+    let body = if chosen {
+        color::hex(0x7b4fe0, 175)
+    } else {
+        color::hex(0x4a2486, 135)
+    };
+    ui.rounded(x, y, w, h, (h * 0.28).clamp(6.0, 12.0), body);
+    let size = 17.0;
+    let label = ui.fit_text(Face::Medium, size, label, w - 12.0);
+    let width = ui.measure(Face::Medium, size, &label);
+    ui.text(
+        Face::Medium,
+        size,
+        x + (w - width) / 2.0,
+        y + ((h - size * 1.45) / 2.0).max(3.0),
+        color::hex(0xffffff, 255),
+        &label,
     );
+    targets.push((rect, action));
 }
 
 pub(super) struct Wardrobe {
