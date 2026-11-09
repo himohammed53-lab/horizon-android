@@ -11,11 +11,20 @@ use std::{
 
 pub const FILE: &str = "horizon-mods.txt";
 /// Fixed native modules compiled into Android APKs, all opt-in.
-pub const ANDROID_BUNDLED: [(&str, &str, &str); 1] = [(
-    "zoom",
-    "Zoom",
-    "Hold Z to zoom up to 100x; configurable in Options > Mods",
-)];
+pub const ANDROID_BUNDLED: [(&str, &str, &str); 2] = [
+    (
+        "zoom",
+        "Zoom",
+        "Hold Z to zoom up to 100x; configurable in Options > Mods",
+    ),
+    (
+        "gravestones_logic",
+        "Gravestones",
+        "Your items and experience wait in a grave where you died",
+    ),
+];
+/// Bundled modules that are on until switched off, as they were before they had a row here.
+pub const ANDROID_BUNDLED_DEFAULT_ON: [&str; 1] = ["gravestones_logic"];
 
 /// The folder holding `.hmod` files, beside `options.txt`.
 pub const DIR: &str = "horizon-mods";
@@ -87,7 +96,7 @@ impl ModList {
         let disabled = {
             let mut disabled = disabled;
             for (id, _, _) in ANDROID_BUNDLED {
-                if !enabled.contains(id) {
+                if !enabled.contains(id) && !ANDROID_BUNDLED_DEFAULT_ON.contains(&id) {
                     disabled.insert(id.to_owned());
                 }
             }

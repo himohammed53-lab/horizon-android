@@ -387,17 +387,20 @@ impl Wardrobe {
             id.as_deref()
                 .and_then(|id| Library::image(&self.root, id).ok())
         };
-        let skin = path(&selection.skin)
+        let found = path(&selection.skin)
             .or_else(|| self.cache.skin.clone())
             .and_then(|p| skins::read_file(&p).ok())
             .and_then(|b| skins::read_skin(&b).ok())
             .or_else(|| {
                 let bytes = skins::read_file(&self.default_skin).ok()?;
                 skins::read_skin(&bytes).ok()
-            })
-            .unwrap_or_else(preview::mannequin);
+            });
+        // No skin yet (the game's files are not downloaded): the corner shows a plain avatar, and
+        // only the preview uses the mannequin.
+        let has_skin = found.is_some();
+        let skin = found.unwrap_or_else(preview::mannequin);
         self.face.clear();
-        if skin.width() >= 64 && skin.height() >= 16 {
+        if has_skin && skin.width() >= 64 && skin.height() >= 16 {
             for y in 0..8 {
                 for x in 0..8 {
                     let base = skin.get_pixel(8 + x, 8 + y).0;
@@ -439,6 +442,25 @@ impl Wardrobe {
     /// Draws the player's face (the skin in use, or the default skin) as a square.
     pub fn draw_face(&self, ui: &mut Ui, x: f32, y: f32, size: f32) {
         if self.face.len() != 64 {
+            // A plain head and shoulders until there is a skin to show.
+            let (back, front) = (color::hex(0x3d3a45, 255), color::hex(0x8e8e8e, 255));
+            ui.rounded(x, y, size, size, size * 0.2, back);
+            ui.rounded(
+                x + size * 0.3,
+                y + size * 0.16,
+                size * 0.4,
+                size * 0.4,
+                size * 0.2,
+                front,
+            );
+            ui.rounded(
+                x + size * 0.17,
+                y + size * 0.62,
+                size * 0.66,
+                size * 0.3,
+                size * 0.15,
+                front,
+            );
             return;
         }
         let cell = size / 8.0;

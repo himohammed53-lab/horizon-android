@@ -303,6 +303,11 @@ impl Catalog {
             .collect();
         let on = horizon_client::mod_list::ModList::load(&game);
         self.bundled_enabled = on.enabled.difference(&on.disabled).cloned().collect();
+        for id in horizon_client::mod_list::ANDROID_BUNDLED_DEFAULT_ON {
+            if !on.disabled.contains(id) {
+                self.bundled_enabled.insert(id.to_owned());
+            }
+        }
         let settings = horizon_client::settings::Settings::load(&game.join("options.txt"));
         self.local.clear();
         for kind in horizon_client::content_files::Kind::ALL {

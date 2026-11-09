@@ -791,7 +791,14 @@ impl Launcher {
                         "Microsoft"
                     },
                 ),
-                None => (self.catalog.config.name.clone(), "Offline"),
+                None => (
+                    if self.catalog.config.name.is_empty() {
+                        "Player".to_owned()
+                    } else {
+                        self.catalog.config.name.clone()
+                    },
+                    "Offline",
+                ),
             };
             // The account on the left; on the right the name of the app, then the gear.
             let chip_w = (w * 0.4).min(260.0);
@@ -881,7 +888,14 @@ impl Launcher {
                             "Microsoft"
                         },
                     ),
-                    None => (self.catalog.config.name.clone(), "Offline"),
+                    None => (
+                        if self.catalog.config.name.is_empty() {
+                            "Player".to_owned()
+                        } else {
+                            self.catalog.config.name.clone()
+                        },
+                        "Offline",
+                    ),
                 };
                 let chip_w = (w * 0.4).min(260.0);
                 ui.rounded(24.0, 13.0, chip_w, 44.0, 22.0, card);
@@ -995,14 +1009,16 @@ impl Launcher {
         if home {
         } else if page == Page::Play {
             use horizon_client::official_install::InstallStage;
-            // The version, bottom right, as on the other screens.
+            // The bottom bar and version as on the other screens.
+            ui.rounded(0.0, h - 80.0, w, 80.0, 0.0, color::hex(0x000000, 205));
+            ui.rounded(0.0, h - 80.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
             let version = format!("v{APP_VERSION}");
             let version_w = ui.measure(Face::Medium, 20.0, &version);
             ui.text(
                 Face::Medium,
                 20.0,
                 w - 16.0 - version_w,
-                h - 38.0,
+                h - 55.0,
                 color::hex(0x8e8e8e, 255),
                 &version,
             );
@@ -1273,14 +1289,24 @@ impl Launcher {
                 if y + tile_h <= top || y >= bottom {
                     continue;
                 }
-                // Zoom has its own picture, the same one the game's mod list shows.
-                if *id == "zoom" && !self.catalog.mod_icons.contains_key("bundled:zoom") {
-                    let squares = crate::catalog::icon_squares_from(include_bytes!(
-                        "../game/android_bundled/zoom/icon.png"
-                    ));
+                // The built-in mods have their own pictures, the ones the game's mod list shows.
+                let icon: Option<&[u8]> = match *id {
+                    "zoom" => Some(&include_bytes!("../game/android_bundled/zoom/icon.png")[..]),
+                    "gravestones_logic" => {
+                        Some(&include_bytes!("../game/android_bundled/gravestones/icon.png")[..])
+                    }
+                    _ => None,
+                };
+                if let Some(bytes) = icon
+                    && !self
+                        .catalog
+                        .mod_icons
+                        .contains_key(&format!("bundled:{id}"))
+                {
+                    let squares = crate::catalog::icon_squares_from(bytes);
                     self.catalog
                         .mod_icons
-                        .insert("bundled:zoom".into(), squares);
+                        .insert(format!("bundled:{id}"), squares);
                 }
                 let picture = self
                     .catalog
@@ -2325,7 +2351,9 @@ impl Launcher {
             Some(Action::ToggleBundled(id)) => {
                 let game = self.catalog.config.game_home(&self.home);
                 let mut list = horizon_client::mod_list::ModList::load(&game);
-                let enabled = list.enabled.contains(id) && !list.disabled.contains(id);
+                let enabled = (list.enabled.contains(id)
+                    || horizon_client::mod_list::ANDROID_BUNDLED_DEFAULT_ON.contains(&id.as_str()))
+                    && !list.disabled.contains(id);
                 if enabled {
                     list.enabled.remove(id);
                     list.disabled.insert(id.into());
