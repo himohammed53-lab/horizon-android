@@ -523,7 +523,9 @@ fn switch_button(
     on: bool,
     action: Action,
 ) {
-    // Just the word, thin and white: ON or OFF.
+    // The word, thin and white, inside a clear glass pill whose right edge is the rows' edge.
+    let (px, py, pw, ph) = plate_rect(rect, false);
+    block_plate(ui, px, py, pw, ph, GRAY, false);
     let [x, y, w, h] = rect;
     let label = if on { "ON" } else { "OFF" };
     let size = 22.0;
