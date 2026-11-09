@@ -380,6 +380,17 @@ impl<'a> Ui<'a> {
         self.batch.patches.extend(pending);
     }
 
+    /// How many vertices are drawn so far: what [`Ui::clip_since`] later cuts starts here.
+    pub fn mark(&self) -> usize {
+        self.batch.vertices.len()
+    }
+    /// Cuts everything drawn since `start` to the rectangle `x0,y0..x1,y1` (dp), so a list
+    /// row half outside its area shows only the half inside.
+    pub fn clip_since(&mut self, start: usize, x0: f32, y0: f32, x1: f32, y1: f32) {
+        let k = self.density / self.scale;
+        self.batch.clip_since(start, x0 * k, y0 * k, x1 * k, y1 * k);
+    }
+
     // ---- geometry, snapped to physical pixels ----
     fn px_x(&self, v: f32) -> f32 {
         (v * self.density).round()

@@ -31,6 +31,7 @@ pub(super) enum Action {
     Next,
     Previous,
     Profile,
+    #[allow(dead_code)]
     Logs,
     RecordPerformance,
     ExportPerformance,
@@ -38,6 +39,7 @@ pub(super) enum Action {
     Account,
     SignIn,
     ElySignIn,
+    ResetSettings,
     MicrosoftAccount,
     OfflineAccount,
     SubmitEly,
@@ -1309,9 +1311,11 @@ impl Launcher {
                 bottom,
                 (row_count as f32 * pitch - (bottom - top)).max(0.0),
             ]);
+            // A row half outside the list shows only its inside half.
+            let clip_from = ui.mark();
             for (row, (id, title, description)) in bundled.iter().enumerate() {
                 let y = top + row as f32 * pitch - self.catalog.scroll;
-                if y < top - 1.0 || y + tile_h > bottom {
+                if y + tile_h <= top || y >= bottom {
                     continue;
                 }
                 // Zoom has its own picture, the same one the game's mod list shows.
@@ -1374,7 +1378,7 @@ impl Launcher {
                 self.list_targets
                     .push(([w - 150.0, y, 118.0, 46.0], Action::ToggleLocal(i)));
                 self.list_targets.push((remove, Action::DeleteLocal(i)));
-                if y < top - 1.0 || y + tile_h > bottom {
+                if y + tile_h <= top || y >= bottom {
                     continue;
                 }
                 let item = &self.catalog.local[i];
@@ -1442,7 +1446,7 @@ impl Launcher {
                     self.list_targets
                         .push(([w - 150.0, y, 118.0, 78.0], Action::Install(i)));
                 }
-                if y < top || y + 78.0 > bottom {
+                if y + 78.0 <= top || y >= bottom {
                     continue;
                 }
                 // The project's picture, in a small framed square (a plain one until it arrives).
@@ -1507,6 +1511,7 @@ impl Launcher {
                     );
                 }
             }
+            ui.clip_since(clip_from, 0.0, top, w, bottom);
             button(
                 &mut ui,
                 &mut self.targets,
@@ -1924,26 +1929,13 @@ impl Launcher {
                 &mut ui,
                 &mut self.targets,
                 [
-                    w * 0.5 + 6.0,
-                    if compact { h - 114.0 } else { h - 62.0 },
-                    w * 0.5 - 38.0,
-                    42.0,
-                ],
-                "Microsoft / Xbox account",
-                Action::Account,
-                true,
-            );
-            button(
-                &mut ui,
-                &mut self.targets,
-                [
                     32.0,
                     if compact { h - 114.0 } else { h - 62.0 },
-                    w * 0.5 - 38.0,
+                    w - 64.0,
                     42.0,
                 ],
-                "Diagnostics",
-                Action::Logs,
+                "Reset settings",
+                Action::ResetSettings,
                 false,
             );
         }
@@ -2347,6 +2339,21 @@ impl Launcher {
                 self.catalog.config.save(&self.home)?;
                 self.configure_screen();
                 self.chooser = None;
+            }
+            Some(Action::ResetSettings) => {
+                // Back to the defaults of the settings on this page; the player's name, server,
+                // profile and add-on sources stay.
+                let old = std::mem::take(&mut self.catalog.config);
+                let config = &mut self.catalog.config;
+                config.name = old.name;
+                config.server = old.server;
+                config.profile = old.profile;
+                config.proxy = old.proxy;
+                config.microsoft_client_id = old.microsoft_client_id;
+                config.mod_source = old.mod_source;
+                config.shader_source = old.shader_source;
+                self.catalog.config.save(&self.home)?;
+                self.catalog.status = "Settings reset to defaults.".into();
             }
             Some(Action::CacheBudget) => self.open_chooser(chooser::Kind::CacheBudget),
             Some(Action::ChooseCacheBudget(mib)) => {
