@@ -1353,7 +1353,7 @@ impl Launcher {
                 let picture = self
                     .catalog
                     .mod_icons
-                    .get(&crate::catalog::clean_mod_name(&item.title))
+                    .get(&item.file)
                     .filter(|squares| !squares.is_empty());
                 if let Some(squares) = picture {
                     // The picture of the mod from its Modrinth page, in the same frame as the others.
@@ -1370,9 +1370,9 @@ impl Launcher {
                         );
                     }
                 } else {
-                    mod_tile(&mut ui, 32.0, y, &item.title);
+                    mod_tile(&mut ui, 32.0, y, &item.shown);
                 }
-                let title = ui.fit_text(Face::Medium, 22.0, &item.title, title_room - 72.0);
+                let title = ui.fit_text(Face::Medium, 22.0, &item.shown, title_room - 72.0);
                 ui.text(Face::Medium, 22.0, 104.0, y, color::TEXT, &title);
                 ui.text(
                     Face::Regular,

@@ -236,6 +236,8 @@ pub struct LocalItem {
     pub kind: horizon_client::content_files::Kind,
     pub file: String,
     pub title: String,
+    /// The mod's own name from its manifest (for mods), else the file name.
+    pub shown: String,
     pub enabled: bool,
 }
 impl Catalog {
@@ -327,10 +329,18 @@ impl Catalog {
                         .strip_suffix(".hmod")
                         .is_some_and(|id| on.enabled.contains(id)),
                 };
+                let shown = if kind == horizon_client::content_files::Kind::Mods {
+                    read_hmod(&entry.path())
+                        .and_then(|(manifest, _)| manifest_name(&manifest))
+                        .unwrap_or_else(|| name.clone())
+                } else {
+                    name.clone()
+                };
                 self.local.push(LocalItem {
                     kind,
                     file: name.clone(),
                     title: name,
+                    shown,
                     enabled,
                 });
             }
@@ -430,12 +440,12 @@ impl Catalog {
         self.poll_mod_icons(home);
         self.start_search();
     }
-    /// Looks up the picture of each mod added from a file, one at a time, off the screen thread.
+    /// Reads the picture inside each mod file (`icon.png`), one file at a time, off the screen thread.
     fn poll_mod_icons(&mut self, home: &Path) {
         if let Some(rx) = &self.mod_icon_worker {
             match rx.try_recv() {
-                Ok((name, rects)) => {
-                    self.mod_icons.insert(name, rects);
+                Ok((file, rects)) => {
+                    self.mod_icons.insert(file, rects);
                     self.mod_icon_worker = None;
                 }
                 Err(mpsc::TryRecvError::Disconnected) => self.mod_icon_worker = None,
@@ -449,22 +459,21 @@ impl Catalog {
             .local
             .iter()
             .filter(|e| e.kind == horizon_client::content_files::Kind::Mods)
-            .map(|e| clean_mod_name(&e.title))
-            .find(|n| !n.is_empty() && !self.mod_icons_tried.contains(n));
-        if let Some(name) = next {
-            self.mod_icons_tried.insert(name.clone());
+            .map(|e| e.file.clone())
+            .find(|f| !self.mod_icons_tried.contains(f));
+        if let Some(file) = next {
+            self.mod_icons_tried.insert(file.clone());
             let (tx, rx) = mpsc::channel();
-            let home = home.to_path_buf();
+            let path = self
+                .config
+                .game_home(home)
+                .join(horizon_client::content_files::Kind::Mods.folder())
+                .join(&file);
             std::thread::spawn(move || {
-                let mut query = Query::new(&name, Kind::Mod);
-                query.everything = true;
-                query.limit = 1;
-                let icon = browser::modrinth::Modrinth
-                    .search(&query)
-                    .ok()
-                    .and_then(|found| found.into_iter().find_map(|p| p.icon));
-                let rects = icon.map_or(vec![], |url| icon_squares(&home, &url));
-                let _ = tx.send((name, rects));
+                let rects = read_hmod(&path)
+                    .and_then(|(_, icon)| icon)
+                    .map_or(vec![], |bytes| icon_squares_from(&bytes));
+                let _ = tx.send((file, rects));
             });
             self.mod_icon_worker = Some(rx);
         }
@@ -840,6 +849,17 @@ fn icon_squares(home: &Path, url: &str) -> Vec<([f32; 4], u32)> {
     let Ok(image) = image::open(&file) else {
         return vec![];
     };
+    squares_of(&image)
+}
+
+/// The same from the bytes of a picture file.
+fn icon_squares_from(bytes: &[u8]) -> Vec<([f32; 4], u32)> {
+    image::load_from_memory(bytes)
+        .map(|image| squares_of(&image))
+        .unwrap_or_default()
+}
+
+fn squares_of(image: &image::DynamicImage) -> Vec<([f32; 4], u32)> {
     let small = image::imageops::resize(
         &image.to_rgba8(),
         32,
@@ -867,13 +887,47 @@ fn icon_squares(home: &Path, url: &str) -> Vec<([f32; 4], u32)> {
     out
 }
 
-/// The name a mod file is searched under: no extension, no "_file", spaces for separators.
-/// `falling_trees_file.hmod` becomes `falling trees`.
-pub fn clean_mod_name(title: &str) -> String {
-    let base = title
-        .strip_suffix(".hmod")
-        .or_else(|| title.strip_suffix(".jar"))
-        .unwrap_or(title);
-    let base = base.strip_suffix("_file").unwrap_or(base);
-    base.replace(['_', '-'], " ").trim().to_lowercase()
+/// A `.hmod` file: its manifest text and its picture (`icon.png` at the root, or
+/// `assets/<id>/icon.png` for a content mod), if it has one.
+fn read_hmod(path: &Path) -> Option<(String, Option<Vec<u8>>)> {
+    use std::io::Read;
+    let mut zip = zip::ZipArchive::new(std::fs::File::open(path).ok()?).ok()?;
+    let mut manifest = String::new();
+    zip.by_name("horizon-mod.toml")
+        .ok()?
+        .take(64 * 1024)
+        .read_to_string(&mut manifest)
+        .ok()?;
+    let icon_name = if zip.by_name("icon.png").is_ok() {
+        Some("icon.png".to_owned())
+    } else {
+        zip.file_names()
+            .find(|n| {
+                n.starts_with("assets/") && n.ends_with("/icon.png") && n.matches('/').count() == 2
+            })
+            .map(str::to_owned)
+    };
+    let icon = icon_name.and_then(|n| {
+        let mut bytes = Vec::new();
+        zip.by_name(&n)
+            .ok()?
+            .take(2 * 1024 * 1024)
+            .read_to_end(&mut bytes)
+            .ok()?;
+        Some(bytes)
+    });
+    Some((manifest, icon))
+}
+
+/// The `name = "..."` line of a mod manifest.
+fn manifest_name(manifest: &str) -> Option<String> {
+    manifest.lines().find_map(|line| {
+        let value = line
+            .trim()
+            .strip_prefix("name")?
+            .trim_start()
+            .strip_prefix('=')?;
+        let name = value.trim().trim_matches('"').trim();
+        (!name.is_empty()).then(|| name.to_owned())
+    })
 }
