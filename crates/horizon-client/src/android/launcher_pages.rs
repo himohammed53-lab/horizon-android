@@ -663,7 +663,8 @@ impl Launcher {
             let t = START
                 .get_or_init(std::time::Instant::now)
                 .elapsed()
-                .as_secs_f32();
+                .as_secs_f32()
+                * 0.6;
             let bands = 32;
             for i in 0..bands {
                 let f = i as f32 / (bands - 1) as f32;
