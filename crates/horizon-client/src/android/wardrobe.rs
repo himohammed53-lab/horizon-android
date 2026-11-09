@@ -21,7 +21,7 @@ pub(super) enum CloudAction {
     Upload,
     Cape(usize),
 }
-/// A button drawn as a very thin white outline (a faint fill when it is the chosen one).
+/// A button drawn as a very thin outline in the top bar's grey (a faint fill when it is the chosen one).
 fn button(
     ui: &mut Ui,
     targets: &mut Vec<([f32; 4], Action)>,
@@ -32,9 +32,9 @@ fn button(
 ) {
     let [x, y, w, h] = rect;
     if chosen {
-        ui.rounded(x, y, w, h, 0.0, color::hex(0xffffff, 40));
+        ui.rounded(x, y, w, h, 0.0, color::hex(0x1c1b1f, 150));
     }
-    let rim = color::hex(0xffffff, 235);
+    let rim = color::hex(0x1c1b1f, 255);
     let t = 1.0;
     ui.rounded(x, y, w, t, 0.0, rim);
     ui.rounded(x, y + h - t, w, t, 0.0, rim);
