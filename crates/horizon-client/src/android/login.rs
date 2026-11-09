@@ -606,7 +606,10 @@ impl Login {
             }
             const NOTE: f32 = 22.0;
             const ROW: f32 = 70.0;
-            let buttons_at = NOTE + fields.len() as f32 * ROW + 4.0;
+            // A refusal is told in a small red line under the last field, above the button.
+            let refusal = self.failed && !self.message.is_empty();
+            let buttons_at =
+                NOTE + fields.len() as f32 * ROW + 4.0 + if refusal { 18.0 } else { 0.0 };
             let total = buttons_at + 56.0 + 44.0 + 8.0;
             let maximum = (total - view_h).max(0.0);
             let mut scroll = scroll.clamp(0.0, maximum);
@@ -626,7 +629,7 @@ impl Login {
             let at = |c: f32| top + c - scroll;
             // The note: the last result, else what the page is for.
             if visible(0.0 - scroll, 22.0) {
-                let note = if self.message.is_empty() {
+                let note = if self.message.is_empty() || self.failed {
                     if self.ely {
                         "Credentials go only to authserver.ely.by."
                     } else {
@@ -641,10 +644,8 @@ impl Login {
                     14.0,
                     x + 20.0,
                     at(0.0) + 2.0,
-                    if self.message.is_empty() {
+                    if self.message.is_empty() || self.failed {
                         color::MUTED
-                    } else if self.failed {
-                        color::hex(0xff6b6b, 255)
                     } else {
                         color::TEXT
                     },
@@ -673,6 +674,20 @@ impl Login {
                     Action::PasteInto(*name),
                     false,
                 );
+            }
+            if refusal {
+                let at_y = at(NOTE + fields.len() as f32 * ROW - 2.0);
+                if visible(at_y - top, 16.0) {
+                    let line = ui.fit_text(Face::Regular, 13.0, &self.message, w - 40.0);
+                    ui.text(
+                        Face::Regular,
+                        13.0,
+                        x + 20.0,
+                        at_y,
+                        color::hex(0xff6b6b, 255),
+                        &line,
+                    );
+                }
             }
             let (main_label, main_action) = if self.ely {
                 (
