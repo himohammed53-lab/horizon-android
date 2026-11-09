@@ -615,9 +615,12 @@ impl Launcher {
         let (w, h) = (ui.w, ui.h);
         // The background: a plain, deep dark grey, no shapes.
         ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x13161b, 255));
-        // Only the Play page: an Enderman's eyes in the middle, drawn as a few rectangles
-        // (the picture is 2576 x 1449, cropped to fill the screen).
-        {
+        // An Enderman's eyes in the middle, drawn as a few rectangles (the picture is
+        // 2576 x 1449, cropped to fill the screen); the home screen has its own plain look.
+        let home = self.catalog.page == Page::Play
+            && horizon_client::official_install::ready(&self.home)
+            && self.worker.is_none();
+        if !home {
             let scale = ui.density / ui.batch.scale;
             ui.batch.fill(
                 &gui.atlas,
@@ -647,88 +650,222 @@ impl Launcher {
                 }
             }
         }
-        // The version, white, bottom right.
-        let version = format!("v{APP_VERSION}");
-        let version_width = ui.measure(Face::Medium, 22.0, &version);
-        shadow_text(
-            &mut ui,
-            Face::Medium,
-            22.0,
-            w - 32.0 - version_width,
-            h - 38.0,
-            &version,
-        );
-        shadow_text(
-            &mut ui,
-            Face::Medium,
-            if w < 400.0 {
-                22.0
-            } else if w < 700.0 {
-                26.0
-            } else {
-                36.0
-            },
-            32.0,
-            if w < 700.0 { 12.0 } else { 20.0 },
-            "Horizon Rust Edition",
-        );
-        // The player's face, top right: the skin in use, or the default skin. It opens the
-        // sign-in choices (Offline, Microsoft, Ely.by). Next to it, a gear opens Settings.
-        let face = if w < 700.0 { 34.0 } else { 66.0 };
-        let face_y = if w < 700.0 { 8.0 } else { 12.0 };
-        let face_x = w - 32.0 - face;
-        if self.wardrobe.needs_open() {
-            self.wardrobe.open(
-                &self.catalog.config.name,
-                &self.catalog.config.microsoft_client_id,
+        if home {
+            if self.wardrobe.needs_open() {
+                self.wardrobe.open(
+                    &self.catalog.config.name,
+                    &self.catalog.config.microsoft_client_id,
+                );
+            }
+            let surface = color::hex(0x1c1b1f, 255);
+            let card = color::hex(0x2b2930, 255);
+            let white = color::hex(0xffffff, 255);
+            let gray = color::hex(0x8e8e8e, 255);
+            // Top bar: the account on the left, settings on the right.
+            ui.rounded(0.0, 0.0, w, 58.0, 0.0, surface);
+            let account = crate::account::Accounts::load().selected().cloned();
+            let (who, provider) = match &account {
+                Some(a) => (
+                    a.name.clone(),
+                    if a.provider == crate::account::Provider::Ely {
+                        "Ely.by"
+                    } else {
+                        "Microsoft"
+                    },
+                ),
+                None => (self.catalog.config.name.clone(), "Offline"),
+            };
+            let chip_w = (w * 0.5).min(300.0);
+            ui.rounded(10.0, 7.0, chip_w, 44.0, 22.0, card);
+            ui.rounded(14.0, 11.0, 36.0, 36.0, 6.0, white);
+            self.wardrobe.draw_face(&mut ui, 15.0, 12.0, 34.0);
+            let who = ui.fit_text(Face::Medium, 17.0, &who, chip_w - 76.0);
+            ui.text(Face::Medium, 17.0, 60.0, 11.0, white, &who);
+            ui.text(Face::Regular, 12.0, 60.0, 31.0, gray, provider);
+            self.targets
+                .push(([10.0, 7.0, chip_w, 44.0], Action::Account));
+            ui.rounded(w - 54.0, 7.0, 44.0, 44.0, 22.0, card);
+            gear_icon(&mut ui, w - 46.0, 15.0, 28.0);
+            self.targets
+                .push(([w - 54.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
+            // The sections, as rounded cards in a grid.
+            let items: [(&str, Action); 7] = [
+                ("Mods", Action::Page(Page::Mods)),
+                ("Shaders", Action::Page(Page::Shaders)),
+                ("Packs", Action::Page(Page::Packs)),
+                ("Files", Action::Page(Page::Installed)),
+                ("Skins", Action::Page(Page::Skins)),
+                ("Worlds", Action::ImportWorld),
+                ("Settings", Action::Page(Page::Settings)),
+            ];
+            let cols = if w >= 560.0 { 3 } else { 2 };
+            let rows = items.len().div_ceil(cols);
+            let avail = h - 66.0 - 96.0;
+            let ch = ((avail - (rows as f32 - 1.0) * 8.0) / rows as f32).clamp(44.0, 72.0);
+            let cw = (w - 24.0 - (cols as f32 - 1.0) * 8.0) / cols as f32;
+            for (i, (label, action)) in items.into_iter().enumerate() {
+                let (cx, cy) = (
+                    12.0 + (i % cols) as f32 * (cw + 8.0),
+                    66.0 + (i / cols) as f32 * (ch + 8.0),
+                );
+                ui.rounded(cx, cy, cw, ch, 14.0, card);
+                let icon = (ch - 18.0).min(40.0);
+                ui.rounded(cx + 10.0, cy + (ch - icon) / 2.0, icon, icon, 10.0, surface);
+                let initial = label.chars().next().unwrap_or(' ').to_string();
+                let iw = ui.measure(Face::Medium, 20.0, &initial);
+                ui.text(
+                    Face::Medium,
+                    20.0,
+                    cx + 10.0 + (icon - iw) / 2.0,
+                    cy + (ch - 24.0) / 2.0,
+                    white,
+                    &initial,
+                );
+                let label = ui.fit_text(Face::Medium, 18.0, label, cw - icon - 34.0);
+                ui.text(
+                    Face::Medium,
+                    18.0,
+                    cx + icon + 22.0,
+                    cy + (ch - 22.0) / 2.0,
+                    white,
+                    &label,
+                );
+                self.targets.push(([cx, cy, cw, ch], action));
+            }
+            // Bottom bar: what is installed on the left, Play on the right.
+            ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 205));
+            ui.rounded(0.0, h - 84.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
+            if !self.catalog.status.is_empty() {
+                let status = ui.fit_text(Face::Regular, 13.0, &self.catalog.status, w - 32.0);
+                ui.text(Face::Regular, 13.0, 16.0, h - 106.0, gray, &status);
+            }
+            ui.text(
+                Face::Medium,
+                18.0,
+                16.0,
+                h - 68.0,
+                white,
+                "Horizon Rust Edition",
             );
-        }
-        // A very thin white outline around the face.
-        ui.rounded(
-            face_x - 1.5,
-            face_y - 1.5,
-            face + 3.0,
-            face + 3.0,
-            0.0,
-            color::hex(0xffffff, 255),
-        );
-        self.wardrobe.draw_face(&mut ui, face_x, face_y, face);
-        self.targets.push((
-            [face_x - 3.0, face_y - 3.0, face + 6.0, face + 6.0],
-            Action::Account,
-        ));
-        // The gear: white squares only, as tall as the face, no plate behind it.
-        let gear = face;
-        let gear_x = face_x - 28.0 - gear;
-        let gear_y = face_y;
-        gear_icon(&mut ui, gear_x, gear_y, gear);
-        self.targets
-            .push(([gear_x, gear_y, gear, gear], Action::Page(Page::Settings)));
-        let tabs = Page::ALL.len() as f32;
-        let tab_margin = if w < 700.0 { 16.0 } else { 32.0 };
-        let tab_width = ((w - 2.0 * tab_margin - 16.0) / tabs).min(150.0);
-        for (i, page) in Page::ALL.iter().enumerate() {
-            let x = tab_margin + i as f32 * (tab_width + 8.0);
-            button(
+            ui.text(
+                Face::Regular,
+                13.0,
+                16.0,
+                h - 42.0,
+                gray,
+                &format!("Minecraft 26.3  -  v{APP_VERSION}"),
+            );
+            let play_w = (w * 0.42).min(340.0);
+            let play = [w - 14.0 - play_w, h - 74.0, play_w, 62.0];
+            let starting = self.session_worker.is_some();
+            ui.rounded(
+                play[0],
+                play[1],
+                play[2],
+                play[3],
+                20.0,
+                if starting {
+                    color::hex(0xbdbdbd, 255)
+                } else {
+                    white
+                },
+            );
+            let label = if starting { "Starting..." } else { "PLAY" };
+            let lw = ui.measure(Face::Medium, 24.0, label);
+            ui.text(
+                Face::Medium,
+                24.0,
+                play[0] + (play[2] - lw) / 2.0,
+                play[1] + 18.0,
+                color::hex(0x111111, 255),
+                label,
+            );
+            self.targets.push((play, Action::Play));
+        } else {
+            // The version, white, bottom right.
+            let version = format!("v{APP_VERSION}");
+            let version_width = ui.measure(Face::Medium, 22.0, &version);
+            shadow_text(
                 &mut ui,
-                &mut self.targets,
-                if w < 700.0 {
-                    [x, 84.0, tab_width, 46.0]
-                } else {
-                    [x, 74.0, tab_width, 60.0]
-                },
-                page.name(),
-                Action::Page(*page),
-                if *page == Page::Mods {
-                    self.catalog.page.is_add_on()
-                } else {
-                    *page == self.catalog.page
-                },
+                Face::Medium,
+                22.0,
+                w - 32.0 - version_width,
+                h - 38.0,
+                &version,
             );
+            shadow_text(
+                &mut ui,
+                Face::Medium,
+                if w < 400.0 {
+                    22.0
+                } else if w < 700.0 {
+                    26.0
+                } else {
+                    36.0
+                },
+                32.0,
+                if w < 700.0 { 12.0 } else { 20.0 },
+                "Horizon Rust Edition",
+            );
+            // The player's face, top right: the skin in use, or the default skin. It opens the
+            // sign-in choices (Offline, Microsoft, Ely.by). Next to it, a gear opens Settings.
+            let face = if w < 700.0 { 34.0 } else { 66.0 };
+            let face_y = if w < 700.0 { 8.0 } else { 12.0 };
+            let face_x = w - 32.0 - face;
+            if self.wardrobe.needs_open() {
+                self.wardrobe.open(
+                    &self.catalog.config.name,
+                    &self.catalog.config.microsoft_client_id,
+                );
+            }
+            // A very thin white outline around the face.
+            ui.rounded(
+                face_x - 1.5,
+                face_y - 1.5,
+                face + 3.0,
+                face + 3.0,
+                0.0,
+                color::hex(0xffffff, 255),
+            );
+            self.wardrobe.draw_face(&mut ui, face_x, face_y, face);
+            self.targets.push((
+                [face_x - 3.0, face_y - 3.0, face + 6.0, face + 6.0],
+                Action::Account,
+            ));
+            // The gear: white squares only, as tall as the face, no plate behind it.
+            let gear = face;
+            let gear_x = face_x - 28.0 - gear;
+            let gear_y = face_y;
+            gear_icon(&mut ui, gear_x, gear_y, gear);
+            self.targets
+                .push(([gear_x, gear_y, gear, gear], Action::Page(Page::Settings)));
+            let tabs = Page::ALL.len() as f32;
+            let tab_margin = if w < 700.0 { 16.0 } else { 32.0 };
+            let tab_width = ((w - 2.0 * tab_margin - 16.0) / tabs).min(150.0);
+            for (i, page) in Page::ALL.iter().enumerate() {
+                let x = tab_margin + i as f32 * (tab_width + 8.0);
+                button(
+                    &mut ui,
+                    &mut self.targets,
+                    if w < 700.0 {
+                        [x, 84.0, tab_width, 46.0]
+                    } else {
+                        [x, 74.0, tab_width, 60.0]
+                    },
+                    page.name(),
+                    Action::Page(*page),
+                    if *page == Page::Mods {
+                        self.catalog.page.is_add_on()
+                    } else {
+                        *page == self.catalog.page
+                    },
+                );
+            }
         }
         let compact = w < 700.0;
         let page = self.catalog.page;
-        if page == Page::Play {
+        if home {
+        } else if page == Page::Play {
             use horizon_client::official_install::InstallStage;
             let installed = horizon_client::official_install::ready(&self.home);
             let installing = self.worker.is_some();
