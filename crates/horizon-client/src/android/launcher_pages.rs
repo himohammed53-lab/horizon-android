@@ -2001,7 +2001,7 @@ impl Launcher {
                 window.request_redraw();
             }
         }
-        if home {
+        if home || self.catalog.page.is_add_on() || self.catalog.page == Page::Skins {
             // A tab on the right edge; the sections slide in from the right.
             let raw = (self.menu_t.elapsed().as_secs_f32() / 0.26).min(1.0);
             let eased = 1.0 - (1.0 - raw) * (1.0 - raw) * (1.0 - raw);
