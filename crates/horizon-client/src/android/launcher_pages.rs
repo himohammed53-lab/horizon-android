@@ -2111,9 +2111,9 @@ impl Launcher {
                 }
             }
             let items: [(&str, Action); 5] = [
-                ("World", Action::ImportWorld),
-                ("Mods", Action::Page(Page::Mods)),
+                ("Worlds", Action::ImportWorld),
                 ("Packs", Action::Page(Page::Packs)),
+                ("Mods", Action::Page(Page::Mods)),
                 ("Skins", Action::Page(Page::Skins)),
                 ("Files", Action::Page(Page::Installed)),
             ];
