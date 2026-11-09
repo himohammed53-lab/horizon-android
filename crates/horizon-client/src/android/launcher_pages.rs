@@ -1696,7 +1696,7 @@ impl Launcher {
                 if compact { 32.0 } else { 156.0 },
                 if compact { 156.0 } else { 22.0 },
                 color::TEXT,
-                "Launch settings",
+                "Settings",
             );
             if compact {
                 ui.rounded(
@@ -2220,7 +2220,7 @@ impl Launcher {
                 self.targets.insert(0, (hit, Action::HomeMenu));
             }
         }
-        if self.session_worker.is_some() {
+        if self.session_worker.is_some() && !self.session_prefetch {
             // Pressing Play shows the loading screen at once; the account session and the skin
             // are prepared behind it, and the game opens when they are ready.
             self.targets.clear();
@@ -2299,7 +2299,7 @@ impl Launcher {
             self.home_menu = false;
             self.menu_t = std::time::Instant::now();
         }
-        if action.is_some() && horizon_client::official_install::ready(&self.home) {
+        if let Some(pressed) = action {
             let audio = self.audio.get_or_insert_with(|| {
                 let mut audio = horizon_client::audio::Audio::new(
                     &self.home.join(".local/horizon-client/26.3"),
@@ -2317,7 +2317,12 @@ impl Launcher {
                 horizon_client::settings::set_source_volumes(volumes);
                 audio
             });
-            audio.play_button_click();
+            // Changing the page has a soft swish of its own; every other button a tap.
+            if matches!(pressed, Action::Page(_)) {
+                audio.launcher_swipe();
+            } else {
+                audio.launcher_click();
+            }
         }
         match action {
             Some(Action::ConfirmExit) => {

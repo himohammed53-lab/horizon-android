@@ -262,6 +262,35 @@ pub struct Audio {
     #[cfg(feature = "audio")]
     device_probe: Option<std::sync::mpsc::Receiver<DeviceProbe>>,
 }
+const SYNTH_RATE: u32 = 44_100;
+/// A glass tap: two bright partials that fade fast, with a soft attack so it never clicks.
+fn synth_click() -> Vec<f32> {
+    let n = (SYNTH_RATE as f32 * 0.09) as usize;
+    (0..n)
+        .map(|i| {
+            let t = i as f32 / SYNTH_RATE as f32;
+            let attack = (t / 0.002).min(1.0);
+            let body = (std::f32::consts::TAU * 1480.0 * t).sin() * (-t * 55.0).exp();
+            let shine = (std::f32::consts::TAU * 2220.0 * t).sin() * (-t * 80.0).exp() * 0.5;
+            let low = (std::f32::consts::TAU * 740.0 * t).sin() * (-t * 40.0).exp() * 0.4;
+            0.32 * attack * (body + shine + low)
+        })
+        .collect()
+}
+/// A light swish: a soft tone gliding up, rising and falling smoothly.
+fn synth_swipe() -> Vec<f32> {
+    let n = (SYNTH_RATE as f32 * 0.17) as usize;
+    let mut phase = 0.0f32;
+    (0..n)
+        .map(|i| {
+            let x = i as f32 / n as f32;
+            let envelope = (std::f32::consts::PI * x).sin().powi(2);
+            let frequency = 520.0 + 700.0 * x * x;
+            phase += std::f32::consts::TAU * frequency / SYNTH_RATE as f32;
+            0.2 * envelope * (phase.sin() + 0.35 * (phase * 2.0).sin())
+        })
+        .collect()
+}
 fn decode(path: &Path) -> Option<(Vec<f32>, u32)> {
     use symphonia::core::{
         audio::SampleBuffer, codecs::DecoderOptions, formats::FormatOptions, io::MediaSourceStream,
@@ -1311,6 +1340,47 @@ impl Audio {
                 SoundEngine::unseeded(),
             ),
             false,
+        );
+    }
+    /// The Android launcher's own button sound: a short, soft glass tap.
+    pub fn launcher_click(&mut self) {
+        static CLICK: std::sync::OnceLock<Arc<Vec<f32>>> = std::sync::OnceLock::new();
+        let samples = CLICK.get_or_init(|| Arc::new(synth_click())).clone();
+        self.play_pcm(samples, SYNTH_RATE, 0.9);
+    }
+    /// The Android launcher's page-change sound: a light rising swish.
+    pub fn launcher_swipe(&mut self) {
+        static SWIPE: std::sync::OnceLock<Arc<Vec<f32>>> = std::sync::OnceLock::new();
+        let samples = SWIPE.get_or_init(|| Arc::new(synth_swipe())).clone();
+        self.play_pcm(samples, SYNTH_RATE, 0.8);
+    }
+    /// Plays mono `samples` once, centred, apart from the sound registry.
+    fn play_pcm(&mut self, samples: Arc<Vec<f32>>, rate: u32, volume: f32) {
+        // Their own ids, far from the engine's, so the engine never meets them.
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1 << 62);
+        let Ok(mut m) = self.backend.mixer.lock() else {
+            return;
+        };
+        // Finished ones are dropped here: nothing else would.
+        m.channels
+            .retain(|&id, c| id < (1 << 62) || c.state != State::Stopped);
+        let id = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        m.channels.insert(
+            id,
+            Channel {
+                samples: Some((samples, rate)),
+                position: 0.0,
+                state: State::Playing,
+                gain: volume * self.master.clamp(0.0, 1.0),
+                pitch: 1.0,
+                linear: None,
+                looping: false,
+                at: [0.0; 3],
+                relative: true,
+                owner: 0,
+                world: 0,
+                started: None,
+            },
         );
     }
     /// `SoundPreviewHandler.preview`: a category volume slider moved to

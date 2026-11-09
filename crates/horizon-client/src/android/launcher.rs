@@ -68,6 +68,11 @@ pub(super) struct Launcher {
     session_worker: Option<mpsc::Receiver<std::result::Result<PreparedAccount, String>>>,
     session_ready: bool,
     prepared_session: Option<PathBuf>,
+    /// The account session and skin, fetched in the background once the launcher is open, so
+    /// pressing Play does not wait for the network.
+    session_prefetch: bool,
+    prefetched: Option<PreparedAccount>,
+    prefetch_tried: bool,
     focus: Option<usize>,
     diagnostic_export: Option<mpsc::Receiver<std::result::Result<String, String>>>,
 }
@@ -151,6 +156,9 @@ impl Launcher {
             session_worker: None,
             session_ready: false,
             prepared_session: None,
+            session_prefetch: false,
+            prefetched: None,
+            prefetch_tried: false,
             focus: None,
             diagnostic_export: None,
         }
@@ -171,6 +179,8 @@ impl Launcher {
         horizon_client::auth::clear_current();
         self.session_ready = false;
         self.prepared_session = None;
+        self.prefetched = None;
+        self.prefetch_tried = false;
         horizon_client::discord_presence::stop();
         horizon_client::ui_theme::reset_atlas();
         self.cursor = (0.0, 0.0);
@@ -278,7 +288,94 @@ impl Launcher {
         }
     }
 
+    /// Starts the account session and skin fetch on a thread. A `prefetch` runs unseen while the
+    /// launcher is open; pressing Play turns it into the visible one.
+    fn spawn_session(&mut self, prefetch: bool) {
+        let id = self.catalog.config.microsoft_client_id.clone();
+        let game_home = self.catalog.config.game_home(&self.home);
+        let wardrobe_home = self.home.join("wardrobe");
+        let (sender, receiver) = mpsc::channel();
+        self.session_worker = Some(receiver);
+        self.session_prefetch = prefetch;
+        if !prefetch {
+            self.catalog.status = "Preparing account session and appearance...".into();
+        }
+        std::thread::spawn(move || {
+            let result = (|| {
+                let (account, secrets) = login::Login::session(&id)?
+                    .ok_or("The selected account changed. Choose Play again.")?;
+                let key = account.key();
+                let file = crate::account::write_session_file(
+                    &game_home.join("sessions"),
+                    &account,
+                    &secrets,
+                )?;
+                // The skin is fetched before the game starts, so it shows from the first frame.
+                let appearance = crate::skins::cloud::fetch(&account, &secrets, &wardrobe_home)
+                    .unwrap_or_default();
+                Ok(PreparedAccount {
+                    key,
+                    file,
+                    appearance,
+                })
+            })();
+            if let Err(unsent) = sender.send(result)
+                && let Ok(prepared) = unsent.0
+            {
+                let _ = std::fs::remove_file(prepared.file);
+            }
+        });
+    }
+    /// The fetched session is for the selected account: hands it to the game and starts it.
+    fn finish_prepared(&mut self, prepared: PreparedAccount, events: &ActiveEventLoop) {
+        // Only the current selection may publish the game handoff. A canceled
+        // worker downloads public cache images but cannot overwrite a new profile.
+        if crate::account::Accounts::load()
+            .selected()
+            .is_none_or(|a| a.key() != prepared.key)
+        {
+            let _ = std::fs::remove_file(prepared.file);
+            self.catalog.status = "The selected account changed. Choose Play again.".into();
+            return;
+        }
+        let root = self.home.join("wardrobe");
+        let cloud = prepared.appearance.skin.as_deref().map(|p| {
+            (
+                p,
+                prepared.appearance.slim,
+                prepared.appearance.cape.as_deref(),
+            )
+        });
+        let appearance = crate::skins::library::Library::load(&root).and_then(|library| {
+            library.prepare_game(
+                &root,
+                &prepared.key,
+                &self.catalog.config.game_home(&self.home),
+                cloud,
+            )
+        });
+        match appearance {
+            Ok(()) => {
+                self.prepared_session = Some(prepared.file);
+                self.session_ready = true;
+                if let Err(e) = self.action(events) {
+                    self.fail(e);
+                }
+            }
+            Err(error) => {
+                let _ = std::fs::remove_file(prepared.file);
+                self.fail(error);
+            }
+        }
+    }
+
     fn action(&mut self, events: &ActiveEventLoop) -> Result<()> {
+        if self.session_worker.is_some() && self.session_prefetch {
+            // Play was pressed while the background fetch runs: wait for it, visibly.
+            self.session_prefetch = false;
+            self.catalog.status = "Preparing account session and appearance...".into();
+            return Ok(());
+        }
         if self.exit_confirmation
             || self.chooser.is_some()
             || self.worker.is_some()
@@ -328,37 +425,20 @@ impl Launcher {
             self.catalog.config.keypad_controls = false;
             let game_home = self.catalog.config.game_home(&self.home);
             if !self.session_ready && crate::account::Accounts::load().selected().is_some() {
-                let id = self.catalog.config.microsoft_client_id.clone();
-                let wardrobe_home = self.home.join("wardrobe");
-                let (sender, receiver) = mpsc::channel();
-                self.session_worker = Some(receiver);
-                self.catalog.status = "Preparing account session and appearance...".into();
-                std::thread::spawn(move || {
-                    let result = (|| {
-                        let (account, secrets) = login::Login::session(&id)?
-                            .ok_or("The selected account changed. Choose Play again.")?;
-                        let key = account.key();
-                        let file = crate::account::write_session_file(
-                            &game_home.join("sessions"),
-                            &account,
-                            &secrets,
-                        )?;
-                        // The skin is fetched before the game starts, so it shows from the first frame.
-                        let appearance =
-                            crate::skins::cloud::fetch(&account, &secrets, &wardrobe_home)
-                                .unwrap_or_default();
-                        Ok(PreparedAccount {
-                            key,
-                            file,
-                            appearance,
-                        })
-                    })();
-                    if let Err(unsent) = sender.send(result)
-                        && let Ok(prepared) = unsent.0
-                    {
-                        let _ = std::fs::remove_file(prepared.file);
+                let fresh = self.prefetched.take().filter(|p| {
+                    let same = crate::account::Accounts::load()
+                        .selected()
+                        .is_some_and(|a| a.key() == p.key);
+                    if !same {
+                        let _ = std::fs::remove_file(&p.file);
                     }
+                    same
                 });
+                if let Some(prepared) = fresh {
+                    self.finish_prepared(prepared, events);
+                } else {
+                    self.spawn_session(false);
+                }
                 return Ok(());
             }
             self.session_ready = false;
@@ -663,58 +743,32 @@ impl ApplicationHandler for Launcher {
         }
         if self.login.poll() {
             self.session_worker = None;
+            self.session_prefetch = false;
             self.prepared_session = None;
+            self.prefetched = None;
+            self.prefetch_tried = false;
             self.session_ready = false;
             self.refresh_wardrobe_account();
         }
         if let Some(result) = self.session_worker.as_ref().and_then(|w| w.try_recv().ok()) {
             self.session_worker = None;
+            let prefetch = std::mem::take(&mut self.session_prefetch);
             match result {
-                Ok(prepared) => {
-                    // Only the current selection may publish the game handoff. A canceled
-                    // worker downloads public cache images but cannot overwrite a new profile.
-                    if crate::account::Accounts::load()
-                        .selected()
-                        .is_none_or(|a| a.key() != prepared.key)
-                    {
-                        let _ = std::fs::remove_file(prepared.file);
-                        self.catalog.status =
-                            "The selected account changed. Choose Play again.".into();
-                    } else {
-                        let root = self.home.join("wardrobe");
-                        let cloud = prepared.appearance.skin.as_deref().map(|p| {
-                            (
-                                p,
-                                prepared.appearance.slim,
-                                prepared.appearance.cape.as_deref(),
-                            )
-                        });
-                        let appearance =
-                            crate::skins::library::Library::load(&root).and_then(|library| {
-                                library.prepare_game(
-                                    &root,
-                                    &prepared.key,
-                                    &self.catalog.config.game_home(&self.home),
-                                    cloud,
-                                )
-                            });
-                        match appearance {
-                            Ok(()) => {
-                                self.prepared_session = Some(prepared.file);
-                                self.session_ready = true;
-                                if let Err(e) = self.action(events) {
-                                    self.fail(e);
-                                }
-                            }
-                            Err(error) => {
-                                let _ = std::fs::remove_file(prepared.file);
-                                self.fail(error);
-                            }
-                        }
-                    }
-                }
+                Ok(prepared) if prefetch => self.prefetched = Some(prepared),
+                // A failed background fetch is not shown: Play tries again and reports then.
+                Err(_) if prefetch => {}
+                Ok(prepared) => self.finish_prepared(prepared, events),
                 Err(e) => self.fail(e),
             }
+        }
+        if !self.prefetch_tried
+            && self.session_worker.is_none()
+            && self.worker.is_none()
+            && !self.login.pending()
+            && crate::account::Accounts::load().selected().is_some()
+        {
+            self.prefetch_tried = true;
+            self.spawn_session(true);
         }
 
         if let Some(window) = &self.window {
