@@ -1657,7 +1657,7 @@ impl Launcher {
             let bot = if compact { 130.0 } else { 80.0 };
             if !compact {
                 self.targets.clear();
-                super::sunset::draw_dimmed(&mut ui, w, h);
+                super::sunset::draw(&mut ui, w, h);
                 ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x0f1013, 200));
                 button(
                     &mut ui,
