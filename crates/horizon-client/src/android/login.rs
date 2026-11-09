@@ -15,6 +15,8 @@ pub(super) struct Login {
     pub otp: String,
     /// Ely.by asked for the two-factor code: the field shows, and the password waits for it.
     pub otp_needed: bool,
+    /// The last sign-in was refused: the note shows in red.
+    pub failed: bool,
     pub visible: bool,
     pub signed_in: bool,
     pub profile: Option<String>,
@@ -65,6 +67,7 @@ impl Login {
             password: String::new(),
             otp: String::new(),
             otp_needed: false,
+            failed: false,
             visible: false,
             signed_in: false,
             profile: None,
@@ -103,6 +106,11 @@ impl Login {
 
     pub fn pending(&self) -> bool {
         self.task.is_some()
+    }
+    /// Forget the last result line (green or red) when a page is opened afresh.
+    pub fn clear_note(&mut self) {
+        self.message.clear();
+        self.failed = false;
     }
     pub fn hide(&mut self) {
         self.password.clear();
@@ -167,6 +175,15 @@ impl Login {
                 if !self.otp_needed {
                     self.password.clear();
                 }
+                self.failed = matches!(result, Err(_));
+                // A sign-in that worked goes back to the accounts list, where the new account
+                // shows with its mark; a refusal stays here with the reason in red.
+                if !self.failed && self.ely {
+                    self.ely = false;
+                    self.offline = false;
+                    self.choosing = false;
+                    self.providers = true;
+                }
                 self.task = None;
                 self.refresh_status();
                 completed = true;
@@ -183,6 +200,7 @@ impl Login {
             task.cancel();
         }
         self.message.clear();
+        self.failed = false;
         self.task = Some(SignIn::start_ely(
             self.username.clone(),
             self.password.clone(),
@@ -296,6 +314,18 @@ impl Login {
                 color::TEXT,
                 "Accounts",
             );
+            if !self.message.is_empty() && !self.failed {
+                let note = ui.fit_text(Face::Medium, 15.0, &self.message, w - 200.0);
+                let nw = ui.measure(Face::Medium, 15.0, &note);
+                ui.text(
+                    Face::Medium,
+                    15.0,
+                    x + w - 20.0 - nw,
+                    y + 25.0,
+                    color::hex(0x6bdc8b, 255),
+                    &note,
+                );
+            }
             let half = (w - 52.0) / 2.0;
             for (index, (label, action)) in [
                 ("Offline (name only)", Action::OfflineAccount),
@@ -613,6 +643,8 @@ impl Login {
                     at(0.0) + 2.0,
                     if self.message.is_empty() {
                         color::MUTED
+                    } else if self.failed {
+                        color::hex(0xff6b6b, 255)
                     } else {
                         color::TEXT
                     },

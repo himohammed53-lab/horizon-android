@@ -2289,6 +2289,7 @@ impl Launcher {
             Some(Action::Account) => {
                 self.catalog.editing = None;
                 crate::platform::hide();
+                self.login.clear_note();
                 self.login.providers = true;
                 self.login.offline = false;
                 self.login.ely = false;
@@ -2355,6 +2356,7 @@ impl Launcher {
                 self.catalog.scroll = 0.0;
                 self.login.providers = false;
                 self.login.close();
+                self.login.clear_note();
                 self.login.ely = true;
                 self.login.visible = true;
             }
