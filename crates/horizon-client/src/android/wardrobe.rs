@@ -21,8 +21,8 @@ pub(super) enum CloudAction {
     Upload,
     Cape(usize),
 }
-/// A button in dark violet glass with no rim, the page showing through; a lighter violet when
-/// it is the chosen one. Its edges are exactly `rect`'s, so a row of them lines up with the
+/// A button in clear grey glass with no rim, the page showing through; violet when it is the
+/// chosen one. Its edges are exactly `rect`'s, so a row of them lines up with the
 /// box above.
 fn button(
     ui: &mut Ui,
@@ -33,10 +33,11 @@ fn button(
     chosen: bool,
 ) {
     let [x, y, w, h] = rect;
+    // The same clear grey glass as the Mods and Packs pages; purple only for the chosen one.
     let body = if chosen {
-        color::hex(0x7b4fe0, 175)
+        color::hex(0x7b4fe0, 112)
     } else {
-        color::hex(0x4a2486, 135)
+        color::hex(0xffffff, 26)
     };
     ui.rounded(x, y, w, h, (h * 0.28).clamp(6.0, 12.0), body);
     let size = 17.0;
@@ -527,7 +528,7 @@ impl Wardrobe {
             preview_width,
             preview_height,
             14.0,
-            color::hex(0x7b4fe0, 46),
+            color::hex(0xffffff, 20),
         );
         let scale = (preview_width / 160.0).min(preview_height / 200.0);
         let ox = px + (preview_width - 160.0 * scale) * 0.5;

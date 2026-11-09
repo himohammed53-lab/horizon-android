@@ -636,7 +636,7 @@ impl Mods {
         let (engine, _) = self.engine()?;
         let component = match cached {
             Some(component) => component,
-            None => Component::new(engine, wasm).map_err(|e| format!("not a component: {e}"))?,
+            None => compile_cached(engine, path, wasm, changed)?,
         };
         self.compiled
             .insert(path.to_path_buf(), (changed, component.clone()));
@@ -1415,6 +1415,47 @@ fn check_arguments(arguments: &[Argument]) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// Compiles `wasm`, or loads the machine code an earlier run saved beside the mod: compiling
+/// every mod each time the game started was what made it slow to open on a phone. The saved file
+/// is named after the mod file's change time and size, so a changed mod is compiled again.
+fn compile_cached(
+    engine: &Engine,
+    path: &Path,
+    wasm: &[u8],
+    modified: Option<SystemTime>,
+) -> Result<Component, String> {
+    let file = modified
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| {
+            let name = path.file_name().unwrap_or_default().to_string_lossy();
+            path.parent()
+                .unwrap_or(Path::new("."))
+                .join(".horizon-mod-cache")
+                .join(format!("{name}.{}-{}.cwasm", d.as_secs(), wasm.len()))
+        });
+    if let Some(file) = &file
+        && let Ok(bytes) = std::fs::read(file)
+    {
+        // SAFETY: the bytes are what `Component::serialize` of this same engine configuration
+        // wrote below; wasmtime refuses a file from another version or configuration.
+        if let Ok(component) = unsafe { Component::deserialize(engine, &bytes) } {
+            return Ok(component);
+        }
+    }
+    let component = Component::new(engine, wasm).map_err(|e| format!("not a component: {e}"))?;
+    if let Some(file) = &file
+        && let Ok(bytes) = component.serialize()
+        && let Some(dir) = file.parent()
+        && std::fs::create_dir_all(dir).is_ok()
+    {
+        let temporary = file.with_extension("tmp");
+        if std::fs::write(&temporary, bytes).is_ok() {
+            let _ = std::fs::rename(&temporary, file);
+        }
+    }
+    Ok(component)
 }
 
 fn modified(path: &Path) -> Option<SystemTime> {
