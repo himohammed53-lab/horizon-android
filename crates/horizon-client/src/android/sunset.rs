@@ -164,8 +164,6 @@ impl Scene {
                 cool,
             });
         }
-        // The website draws its clouds from the same generator, after the stars; the
-        // ridges' trees come after them, so the draws are replayed to land on the same trees.
         let cols = w + MARGIN * 2;
         let ridge = |seed: i32,
                      base: f64,
@@ -227,8 +225,6 @@ impl Scene {
                 0.6,
             ),
         ];
-        // Cloud draws (three big, five low) use the generator before the trees do.
-        let _ = &mut rand;
         let mut col = MARGIN + (rand.next() * 12.).floor() as i32;
         while col < cols - 8 {
             let sprite = (rand.next() * TREES.len() as f64).floor() as usize;
