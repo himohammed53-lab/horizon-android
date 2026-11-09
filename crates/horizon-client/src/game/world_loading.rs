@@ -114,6 +114,17 @@ impl WorldRequest {
                 .unwrap_or_default();
         let existing = Level::read(&save_root);
         let created = existing.is_none();
+        // What the world says about its own generator, for a diagnostics ZIP.
+        {
+            let text = horizon_client::save::world_gen_settings(&save_root)
+                .map_or_else(|| "none".to_owned(), |s| format!("{s:?}"));
+            let cut = text.char_indices().nth(1500).map_or(text.len(), |(i, _)| i);
+            log::info!(
+                "Horizon: world \"{folder}\": level read={}, generator settings: {}",
+                !created,
+                &text[..cut]
+            );
+        }
         let level = existing.unwrap_or_else(|| Level {
             name: name.unwrap_or(&folder).to_owned(),
             // WorldOptions.randomSeed when no seed was given.
