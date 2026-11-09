@@ -147,7 +147,10 @@ impl Launcher {
             exit_confirmation: false,
             login: login::Login::new(),
             home_menu: false,
-            menu_t: Instant::now(),
+            // Long ago, so the menu does not slide at start-up.
+            menu_t: Instant::now()
+                .checked_sub(std::time::Duration::from_secs(5))
+                .unwrap_or_else(Instant::now),
             session_worker: None,
             session_ready: false,
             prepared_session: None,

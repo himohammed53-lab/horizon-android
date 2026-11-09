@@ -2002,6 +2002,11 @@ impl Launcher {
         }
         if home || self.catalog.page.is_add_on() || self.catalog.page == Page::Skins {
             // A tab on the right edge; the sections slide in from the right.
+            // While the menu is open only the menu answers taps: not the buttons behind it.
+            if self.home_menu {
+                self.targets.clear();
+                self.list_targets.clear();
+            }
             let raw = (self.menu_t.elapsed().as_secs_f32() / 0.26).min(1.0);
             let eased = 1.0 - (1.0 - raw) * (1.0 - raw) * (1.0 - raw);
             let p = if self.home_menu { eased } else { 1.0 - eased };
