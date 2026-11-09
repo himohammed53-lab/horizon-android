@@ -954,7 +954,7 @@ impl Launcher {
                         gray,
                         &version,
                     );
-                    let eject = [14.0, h - 74.0, (w * 0.42).min(340.0), 62.0];
+                    let eject = [14.0, h - 74.0, (w * 0.3).min(230.0), 62.0];
                     ui.rounded(eject[0], eject[1], eject[2], eject[3], 20.0, white);
                     let ew = ui.measure(Face::Medium, 24.0, "Eject");
                     ui.text(

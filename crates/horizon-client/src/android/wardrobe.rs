@@ -556,7 +556,7 @@ impl Wardrobe {
         let lw = if compact {
             width - 64.0
         } else {
-            width - lx - 32.0
+            width - lx - 60.0
         };
         let listtop = if compact { controls + 82.0 } else { top + 66.0 };
         let (import_y, import_h, first, rh, pitch) = if compact {
