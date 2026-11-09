@@ -1,7 +1,7 @@
 //! The launcher's pixel sunset behind the section pages: the same scene as Horizon's own
 //! launcher (its seeds, palette, sky stops, ridges, trees and sun slices), drawn still, as plain
 //! rectangles. The scene's code is MIT-licensed; this is a small port of its still parts: no
-//! clouds, meteor or fireflies, and the glow is a few soft ellipses.
+//! clouds, meteor or fireflies, and the glow is one round halo around the sun.
 use horizon_client::ui_theme::{Ui, color};
 use std::sync::Mutex;
 
@@ -113,7 +113,7 @@ impl Scene {
     fn new(width: f64, height: f64) -> Scene {
         let land_height = clamp(height * 0.3, 180., 320.);
         let (sun_x, sun_scale, sun_rise) = if width >= 1024. {
-            (0.72, 1.1, 0.1)
+            (0.72, 1.1, -0.1)
         } else {
             (0.5, 1., 0.)
         };
@@ -288,21 +288,7 @@ pub fn draw(ui: &mut Ui, w: f32, h: f32) {
         let c = scene.sky_row(y as f64 + px as f64 / 2.);
         ui.rounded(0.0, y, w, px + 1.0, 0.0, color::hex(c, 255));
     }
-    // The glow of the sun on the horizon: a few soft ellipses.
-    let (sx, hz) = (scene.sun.0 as f32 * px, scene.horizon as f32 * px);
-    let ry = hz * 0.32;
-    for k in 0..8 {
-        let f = 1.0 - k as f32 / 8.0;
-        let (rw, rh) = (w * 0.3 * f, ry * f);
-        ui.rounded(
-            sx - rw,
-            hz - rh,
-            rw * 2.0,
-            rh * 2.0,
-            rh,
-            color::hex(SKY[14], (14.0 + k as f32 * 4.0) as u8),
-        );
-    }
+    let hz = scene.horizon as f32 * px;
     // The stars.
     for s in &scene.stars {
         let sky_height = hz as f64;
@@ -327,15 +313,17 @@ pub fn draw(ui: &mut Ui, w: f32, h: f32) {
         scene.sun.1 as f32 * px,
         scene.sun.2 as f32 * px,
     );
-    for k in 0..6 {
-        let rr = r * (2.4 - k as f32 * 0.3);
+    // One round glow: many very faint discs, so no ring shows.
+    const GLOW_DISCS: usize = 36;
+    for k in 0..GLOW_DISCS {
+        let rr = r * (1.0 + 1.6 * (1.0 - k as f32 / GLOW_DISCS as f32));
         ui.rounded(
             cx - rr,
             cy - rr,
             rr * 2.0,
             rr * 2.0,
             rr,
-            color::hex(HALO, 16),
+            color::hex(HALO, 3),
         );
     }
     let (sx, sy, sr) = (scene.sun.0 as f64, scene.sun.1 as f64, scene.sun.2 as f64);
