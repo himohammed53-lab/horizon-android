@@ -375,7 +375,7 @@ fn section_chips(
         w,
         (h - 197.0 - dy).max(0.0),
         0.0,
-        color::hex(0x0f1013, 110),
+        color::hex(0x0f1013, 255),
     );
     ui.rounded(
         16.0,
