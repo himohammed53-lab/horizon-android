@@ -116,15 +116,15 @@ fn glass_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, big: bool
         (h * 0.3).clamp(8.0, 18.0)
     };
     let neutral = base == 0x5a5a5a;
-    // Clear glass: what is behind shows through. A faint tint, a light rim all round, and one
-    // thin bright line along the top edge where the light catches; no hard bands.
-    ui.rounded(x, y, w, h, radius, color::hex(0x1c1b1f, 255));
+    // Clear glass: what is behind shows through. A faint tint, a one-pixel rim in the top bar's
+    // dark grey, and one thin bright line along the top edge where the light catches.
     let body = if neutral {
         color::hex(0xffffff, 26)
     } else {
         color::hex(base, 112)
     };
-    ui.rounded(x + 1.0, y + 1.0, w - 2.0, h - 2.0, radius - 1.0, body);
+    ui.rounded(x, y, w, h, radius, body);
+    ui.border(x, y, w, h, radius, color::hex(0x1c1b1f, 255));
     ui.rounded(
         x + radius * 0.6,
         y + 1.5,
