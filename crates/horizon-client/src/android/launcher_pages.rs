@@ -695,23 +695,7 @@ impl Launcher {
             let bands = 32;
             for i in 0..bands {
                 let f = i as f32 / (bands - 1) as f32;
-                let mix = |a: f32, b: f32, k: f32| a + (b - a) * k;
-                let (from, to, k) = if f < 0.6 {
-                    (
-                        [0x1a as f32, 0x0b as f32, 0x33 as f32],
-                        [0x4b as f32, 0x1d as f32, 0x8f as f32],
-                        f / 0.6,
-                    )
-                } else {
-                    (
-                        [0x4b as f32, 0x1d as f32, 0x8f as f32],
-                        [0x24 as f32, 0x0e as f32, 0x52 as f32],
-                        (f - 0.6) / 0.4,
-                    )
-                };
-                let rgb = ((mix(from[0], to[0], k) as u32) << 16)
-                    | ((mix(from[1], to[1], k) as u32) << 8)
-                    | mix(from[2], to[2], k) as u32;
+                let rgb = super::sunset::sky_at(f as f64 * 0.92);
                 let band = h / bands as f32;
                 ui.rounded(
                     0.0,
@@ -733,7 +717,7 @@ impl Launcher {
                         + amp * (x * 0.011 + t * (0.5 + 0.06 * kf) + kf * 0.9).sin()
                         + amp * 0.4 * (x * 0.026 - t * 0.35 + kf).sin();
                     let alpha = (edge * (210.0 - kf * 28.0)).max(0.0) as u8;
-                    ui.rounded(x, y, 7.0, 2.2, 1.1, color::hex(0xd9c2ff, alpha));
+                    ui.rounded(x, y, 7.0, 2.2, 1.1, color::hex(super::sunset::WAVE, alpha));
                     x += 6.0;
                 }
             }
@@ -745,7 +729,14 @@ impl Launcher {
                 let fade = (std::f32::consts::PI * y / h).sin();
                 let alpha = ((0.5 + 0.5 * (t * 1.2 + fi * 1.7).sin()) * 200.0 * fade) as u8;
                 let size = 2.0 + (i % 2) as f32;
-                ui.rounded(x, y, size, size, size / 2.0, color::hex(0xe6d8ff, alpha));
+                ui.rounded(
+                    x,
+                    y,
+                    size,
+                    size,
+                    size / 2.0,
+                    color::hex(super::sunset::DUST, alpha),
+                );
             }
             if let Some(window) = &self.window {
                 window.request_redraw();

@@ -263,6 +263,18 @@ impl Scene {
     }
 }
 
+/// The sky's colour a share `t` (0 top, 1 horizon) of the way down: the same gradient as the
+/// scene, for the home screen's hologram.
+pub fn sky_at(t: f64) -> u32 {
+    let f = clamp(t, 0., 1.).powf(2.3) * SKY_STEPS as f64;
+    let i = (f.floor() as usize).min(SKY_STEPS);
+    mix(SKY[i], SKY[(i + 1).min(SKY.len() - 1)], f - i as f64)
+}
+
+/// The scene's warm light and star colours, for the hologram's waves and dust.
+pub const WAVE: u32 = 0xf3a6bd;
+pub const DUST: u32 = 0xfff3e4;
+
 static CACHE: Mutex<Option<((u32, u32), Scene)>> = Mutex::new(None);
 
 /// Draws the sunset over the whole `w` × `h` window.
