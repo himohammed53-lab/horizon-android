@@ -124,14 +124,6 @@ fn glass_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, big: bool
         color::hex(base, 112)
     };
     ui.rounded(x, y, w, h, radius, body);
-    ui.rounded(
-        x + radius * 0.6,
-        y + 1.5,
-        (w - radius * 1.2).max(2.0),
-        1.5,
-        0.7,
-        color::hex(0xffffff, if neutral { 120 } else { 150 }),
-    );
 }
 
 /// A Minecraft-style block plate: a black outline, a speckled face, a light top and left edge and
@@ -808,22 +800,22 @@ impl Launcher {
             ui.text(Face::Regular, 12.0, 58.0, 30.0, gray, provider);
             self.targets
                 .push(([10.0, 7.0, chip_w, 44.0], Action::Account));
-            ui.rounded(w - 54.0, 7.0, 44.0, 44.0, 22.0, card);
-            gear_icon(&mut ui, w - 46.0, 15.0, 28.0);
+            ui.rounded(w - 64.0, 7.0, 44.0, 44.0, 22.0, card);
+            gear_icon(&mut ui, w - 56.0, 15.0, 28.0);
             self.targets
-                .push(([w - 54.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
+                .push(([w - 64.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
             let name_w = ui.measure(Face::Medium, 22.0, "Horizon");
             ui.text(
                 Face::Medium,
                 22.0,
-                w - 54.0 - 38.0 - name_w,
+                w - 64.0 - 38.0 - name_w,
                 16.0,
                 white,
                 "Horizon",
             );
             // Bottom bar: what is installed on the left, Play on the right.
-            ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 150));
-            ui.rounded(0.0, h - 84.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
+            ui.rounded(0.0, h - 76.0, w, 76.0, 0.0, color::hex(0x000000, 205));
+            ui.rounded(0.0, h - 76.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
             if !self.catalog.status.is_empty() {
                 let status = ui.fit_text(Face::Regular, 13.0, &self.catalog.status, w - 32.0);
                 ui.text(Face::Regular, 13.0, 16.0, h - 106.0, gray, &status);
@@ -834,12 +826,12 @@ impl Launcher {
                 Face::Medium,
                 20.0,
                 w - 16.0 - version_w,
-                h - 50.0,
+                h - 52.0,
                 gray,
                 &version,
             );
             let play_w = (w * 0.3).min(230.0);
-            let play = [14.0, h - 74.0, play_w, 62.0];
+            let play = [14.0, h - 69.0, play_w, 62.0];
             let starting = self.session_worker.is_some();
             ui.rounded(
                 play[0],
@@ -955,21 +947,21 @@ impl Launcher {
                 ui.text(Face::Regular, 12.0, 58.0, 30.0, gray, provider);
                 self.targets
                     .push(([10.0, 7.0, chip_w, 44.0], Action::Account));
-                ui.rounded(w - 54.0, 7.0, 44.0, 44.0, 22.0, card);
-                gear_icon(&mut ui, w - 46.0, 15.0, 28.0);
+                ui.rounded(w - 64.0, 7.0, 44.0, 44.0, 22.0, card);
+                gear_icon(&mut ui, w - 56.0, 15.0, 28.0);
                 self.targets
-                    .push(([w - 54.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
+                    .push(([w - 64.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
                 let name_w = ui.measure(Face::Medium, 22.0, "Horizon");
                 ui.text(
                     Face::Medium,
                     22.0,
-                    w - 54.0 - 38.0 - name_w,
+                    w - 64.0 - 38.0 - name_w,
                     16.0,
                     white,
                     "Horizon",
                 );
                 self.targets.push((
-                    [w - 54.0 - 38.0 - name_w - 8.0, 8.0, name_w + 16.0, 42.0],
+                    [w - 64.0 - 38.0 - name_w - 8.0, 8.0, name_w + 16.0, 42.0],
                     Action::Page(Page::Play),
                 ));
                 if matches!(
@@ -977,19 +969,19 @@ impl Launcher {
                     Page::Mods | Page::Shaders | Page::Packs | Page::Skins
                 ) {
                     // The bottom bar: Eject (add a file) where the home screen has Play.
-                    ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 150));
-                    ui.rounded(0.0, h - 84.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
+                    ui.rounded(0.0, h - 76.0, w, 76.0, 0.0, color::hex(0x000000, 205));
+                    ui.rounded(0.0, h - 76.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
                     let version = format!("v{APP_VERSION}");
                     let version_w = ui.measure(Face::Medium, 20.0, &version);
                     ui.text(
                         Face::Medium,
                         20.0,
                         w - 16.0 - version_w,
-                        h - 50.0,
+                        h - 52.0,
                         gray,
                         &version,
                     );
-                    let eject = [14.0, h - 74.0, (w * 0.3).min(230.0), 62.0];
+                    let eject = [14.0, h - 69.0, (w * 0.3).min(230.0), 62.0];
                     ui.rounded(eject[0], eject[1], eject[2], eject[3], 20.0, white);
                     let ew = ui.measure(Face::Medium, 24.0, "Eject");
                     ui.text(
@@ -1289,7 +1281,7 @@ impl Launcher {
             let row_count = bundled.len() + local_mods.len() + catalog_rows.len();
             let top = if compact { 270.0 } else { 170.0 };
             let pitch = if compact { 86.0 } else { 66.0 };
-            let bottom = if compact { h - 112.0 } else { h - 84.0 };
+            let bottom = if compact { h - 112.0 } else { h - 76.0 };
             let tile_h = if compact { 76.0 } else { 56.0 };
             self.catalog.scroll = self
                 .catalog
