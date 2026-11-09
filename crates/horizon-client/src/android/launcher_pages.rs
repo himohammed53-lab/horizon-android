@@ -2347,7 +2347,7 @@ impl Launcher {
                 let game = self.catalog.config.game_home(&self.home);
                 let mut list = horizon_client::mod_list::ModList::load(&game);
                 let enabled = (list.enabled.contains(id)
-                    || horizon_client::mod_list::ANDROID_BUNDLED_DEFAULT_ON.contains(&id.as_str()))
+                    || horizon_client::mod_list::ANDROID_BUNDLED_DEFAULT_ON.contains(&id))
                     && !list.disabled.contains(id);
                 if enabled {
                     list.enabled.remove(id);
