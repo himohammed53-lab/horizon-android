@@ -1,8 +1,5 @@
 //! Thin native view over the shared account and wardrobe APIs.
-use super::{
-    login::Login,
-    pages::{Action, button},
-};
+use super::{login::Login, pages::Action};
 use crate::{
     account::{Accounts, Provider},
     skins::{
@@ -24,6 +21,39 @@ pub(super) enum CloudAction {
     Upload,
     Cape(usize),
 }
+/// A button drawn as a very thin white outline (a faint fill when it is the chosen one).
+fn button(
+    ui: &mut Ui,
+    targets: &mut Vec<([f32; 4], Action)>,
+    rect: [f32; 4],
+    label: &str,
+    action: Action,
+    chosen: bool,
+) {
+    let [x, y, w, h] = rect;
+    if chosen {
+        ui.rounded(x, y, w, h, 0.0, color::hex(0xffffff, 40));
+    }
+    let rim = color::hex(0xffffff, 235);
+    let t = 1.0;
+    ui.rounded(x, y, w, t, 0.0, rim);
+    ui.rounded(x, y + h - t, w, t, 0.0, rim);
+    ui.rounded(x, y, t, h, 0.0, rim);
+    ui.rounded(x + w - t, y, t, h, 0.0, rim);
+    let size = 17.0;
+    let label = ui.fit_text(Face::Medium, size, label, w - 16.0);
+    let width = ui.measure(Face::Medium, size, &label);
+    ui.text(
+        Face::Medium,
+        size,
+        x + (w - width) / 2.0,
+        y + ((h - size * 1.45) / 2.0).max(3.0),
+        color::hex(0xffffff, 255),
+        &label,
+    );
+    targets.push((rect, action));
+}
+
 pub(super) struct Wardrobe {
     pub root: PathBuf,
     default_skin: PathBuf,
@@ -565,19 +595,19 @@ impl Wardrobe {
         let lw = if compact {
             width - 64.0
         } else {
-            width - lx - 88.0
+            width - lx - 72.0
         };
         let listtop = if compact { controls + 82.0 } else { top + 66.0 };
         let (import_y, import_h, first, rh, pitch) = if compact {
-            (listtop + 40.0, 34.0, 80.0, 44.0, 50.0)
+            (listtop + 44.0, 36.0, 88.0, 44.0, 50.0)
         } else {
-            (listtop + 62.0, 52.0, 128.0, 52.0, 60.0)
+            (listtop + 54.0, 46.0, 112.0, 52.0, 58.0)
         };
         if compact {
             button(
                 ui,
                 targets,
-                [lx, listtop, (lw - 8.0) * 0.5, 32.0],
+                [lx, listtop, (lw - 8.0) * 0.5, 36.0],
                 "Skins",
                 Action::WardrobeKind(false),
                 !self.capes,
@@ -585,7 +615,7 @@ impl Wardrobe {
             button(
                 ui,
                 targets,
-                [lx + (lw + 8.0) * 0.5, listtop, (lw - 8.0) * 0.5, 32.0],
+                [lx + (lw + 8.0) * 0.5, listtop, (lw - 8.0) * 0.5, 36.0],
                 "Capes",
                 Action::WardrobeKind(true),
                 self.capes,
@@ -596,7 +626,7 @@ impl Wardrobe {
             button(
                 ui,
                 targets,
-                [lx, listtop, third, 52.0],
+                [lx, listtop, third, 46.0],
                 "Skins",
                 Action::WardrobeKind(false),
                 !self.capes,
@@ -604,7 +634,7 @@ impl Wardrobe {
             button(
                 ui,
                 targets,
-                [lx + third + 8.0, listtop, third, 52.0],
+                [lx + third + 8.0, listtop, third, 46.0],
                 "Capes",
                 Action::WardrobeKind(true),
                 self.capes,
@@ -612,7 +642,7 @@ impl Wardrobe {
             button(
                 ui,
                 targets,
-                [lx + 2.0 * (third + 8.0), listtop, third, 52.0],
+                [lx + 2.0 * (third + 8.0), listtop, third, 46.0],
                 model_label,
                 Action::WardrobeModel,
                 false,
