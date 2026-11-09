@@ -270,6 +270,76 @@ fn mod_tile(ui: &mut Ui, x: f32, y: f32, name: &str) {
     );
 }
 
+/// A pixel sunset for the section pages: the sky's bands from night violet to dusk orange,
+/// stars, a sun cut in slices and two ridges. The colours are the launcher's own palette; the
+/// drawing is a few hundred plain rectangles and never moves, so it costs nothing at rest.
+fn draw_sunset(ui: &mut Ui, w: f32, h: f32) {
+    const SKY: [u32; 12] = [
+        0x0a0919, 0x0f0c28, 0x151136, 0x1d1444, 0x281850, 0x361b5b, 0x481e66, 0x5d236e, 0x752873,
+        0x902f76, 0xab3a75, 0xc64a71,
+    ];
+    const SUN: [u32; 4] = [0xfff5d2, 0xffe4a0, 0xffca78, 0xffac5f];
+    let horizon = h * 0.74;
+    let bands = 40;
+    for i in 0..bands {
+        let f = i as f32 / (bands - 1) as f32 * (SKY.len() - 1) as f32;
+        let (a, b) = (SKY[f as usize], SKY[(f as usize + 1).min(SKY.len() - 1)]);
+        let k = f.fract();
+        let ch = |s: u32| {
+            let (x, y) = (((a >> s) & 255) as f32, ((b >> s) & 255) as f32);
+            (x + (y - x) * k) as u32
+        };
+        let rgb = (ch(16) << 16) | (ch(8) << 8) | ch(0);
+        let band = h / bands as f32;
+        ui.rounded(
+            0.0,
+            i as f32 * band,
+            w,
+            band + 1.0,
+            0.0,
+            color::hex(rgb, 255),
+        );
+    }
+    // Stars in the dark top.
+    for i in 0..28 {
+        let fi = i as f32;
+        let x = (fi * 0.618_034 % 1.0) * w;
+        let y = (fi * 0.381_966 % 1.0) * horizon * 0.55;
+        let alpha = if i % 3 == 0 { 230 } else { 140 };
+        ui.rounded(x, y, 2.0, 2.0, 0.0, color::hex(0xd2c8ff, alpha));
+    }
+    // The sun, in square rings.
+    let (sx, sy) = (w * 0.72, horizon - 6.0);
+    for (ring, c) in SUN.iter().enumerate() {
+        let r = 30.0 - ring as f32 * 6.0;
+        ui.rounded(sx - r, sy - r, r * 2.0, r * 2.0, 0.0, color::hex(*c, 255));
+    }
+    ui.rounded(
+        sx - 44.0,
+        sy - 44.0,
+        88.0,
+        88.0,
+        0.0,
+        color::hex(0xff8d6a, 40),
+    );
+    // Two ridges, far then near.
+    for (base, amp, c, seed) in [
+        (0.0_f32, 26.0_f32, 0x3a1c5a_u32, 1.3_f32),
+        (14.0, 20.0, 0x150a26, 3.1),
+    ] {
+        let mut x = 0.0;
+        while x < w {
+            let y = horizon + base - amp * 0.5
+                + amp * (x * 0.013 + seed).sin()
+                + amp * 0.5 * (x * 0.031 + seed * 2.0).sin();
+            ui.rounded(x, y, 6.0, h - y, 0.0, color::hex(c, 255));
+            x += 6.0;
+        }
+    }
+    // A veil, so the text on top stays easy to read.
+    ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x000000, 70));
+}
+
 fn gear_icon(ui: &mut Ui, x: f32, y: f32, size: f32) {
     const GEAR: [&str; 11] = [
         "....###....",
@@ -644,7 +714,11 @@ impl Launcher {
         let home = self.catalog.page == Page::Play
             && horizon_client::official_install::ready(&self.home)
             && self.worker.is_none();
-        if !home {
+        let sunset = !home && self.catalog.page != Page::Play;
+        if sunset {
+            draw_sunset(&mut ui, w, h);
+        }
+        if !home && !sunset {
             let scale = ui.density / ui.batch.scale;
             ui.batch.fill(
                 &gui.atlas,
