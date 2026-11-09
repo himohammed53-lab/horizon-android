@@ -124,7 +124,7 @@ fn glass_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, big: bool
         color::hex(base, 112)
     };
     ui.rounded(x, y, w, h, radius, body);
-    ui.border(x, y, w, h, radius, color::hex(0x1c1b1f, 255));
+    ui.border(x, y, w, h, radius, color::hex(0x0a0a0d, 255));
     ui.rounded(
         x + radius * 0.6,
         y + 1.5,
