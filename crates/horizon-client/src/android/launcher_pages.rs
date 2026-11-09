@@ -369,41 +369,57 @@ fn section_chips(
     // Under the sections: a thin white rule, and a slightly darker ground for what belongs to them.
     let wide = w >= 700.0;
     let dy = if wide { 20.0 } else { 0.0 };
-    ui.rounded(
-        0.0,
-        169.0 + dy,
-        w,
-        (h - 197.0 - dy).max(0.0),
-        0.0,
-        color::hex(0x0f1013, 255),
-    );
-    ui.rounded(
-        16.0,
-        168.0 + dy,
-        w - 32.0,
-        0.8,
-        0.0,
-        color::hex(0xb9bac2, 235),
-    );
+    if !wide {
+        ui.rounded(
+            0.0,
+            169.0 + dy,
+            w,
+            (h - 197.0 - dy).max(0.0),
+            0.0,
+            color::hex(0x0f1013, 255),
+        );
+        ui.rounded(
+            16.0,
+            168.0 + dy,
+            w - 32.0,
+            0.8,
+            0.0,
+            color::hex(0xb9bac2, 235),
+        );
+    }
     let space = (w - 64.0 - right_reserved - 8.0).max(120.0);
-    let width = ((space - 24.0) / 5.0).clamp(44.0, if wide { 132.0 } else { 96.0 });
-    for (i, label, action, chosen) in [
-        ("Mods", Page::Mods),
-        ("Shaders", Page::Shaders),
-        ("Packs", Page::Packs),
-        ("Files", Page::Installed),
-    ]
-    .into_iter()
-    .map(|(label, page)| (label, Action::Page(page), page == current))
-    .chain([("Worlds", Action::ImportWorld, false)])
-    .enumerate()
-    .map(|(i, (label, action, chosen))| (i, label, action, chosen))
+    let width = ((space - 24.0) / 5.0).clamp(44.0, if wide { 100.0 } else { 96.0 });
+    let first = if wide {
+        [("Play", Page::Play)]
+    } else {
+        [("Mods", Page::Mods)]
+    };
+    for (i, label, action, chosen) in first
+        .into_iter()
+        .chain(
+            [
+                ("Mods", Page::Mods),
+                ("Shaders", Page::Shaders),
+                ("Packs", Page::Packs),
+                ("Files", Page::Installed),
+            ]
+            .into_iter()
+            .skip(if wide { 0 } else { 1 }),
+        )
+        .map(|(label, page)| (label, Action::Page(page), page == current))
+        .chain(if wide {
+            None
+        } else {
+            Some(("Worlds", Action::ImportWorld, false))
+        })
+        .enumerate()
+        .map(|(i, (label, action, chosen))| (i, label, action, chosen))
     {
         button_as(
             ui,
             targets,
             if wide {
-                [32.0 + i as f32 * (width + 8.0), 138.0, width, 46.0]
+                [32.0 + i as f32 * (width + 8.0), 64.0, width, 36.0]
             } else {
                 [32.0 + i as f32 * (width + 6.0), 134.0, width, 34.0]
             },
@@ -1161,7 +1177,11 @@ impl Launcher {
             section_chips(&mut ui, &mut self.targets, w, h, 0.0, page);
             // The search field: a plain outlined box (white rim, the dark page inside).
             {
-                let rect = [32.0, if compact { 174.0 } else { 196.0 }, w - 214.0, 44.0];
+                let rect = if compact {
+                    [32.0, 174.0, w - 214.0, 44.0]
+                } else {
+                    [32.0, 112.0, w - 350.0, 40.0]
+                };
                 // Inner dark field and a rim of the same dark grey on all four sides.
                 let rim = color::hex(GRAY, 255);
                 ui.rounded(
@@ -1196,7 +1216,11 @@ impl Launcher {
             button_as(
                 &mut ui,
                 &mut self.targets,
-                [w - 176.0, if compact { 174.0 } else { 196.0 }, 120.0, 44.0],
+                if compact {
+                    [w - 176.0, 174.0, 120.0, 44.0]
+                } else {
+                    [w - 176.0, 112.0, 120.0, 40.0]
+                },
                 if page == Page::Mods && self.catalog.query.trim().starts_with("https://") {
                     "Import .hmod"
                 } else {
@@ -1218,7 +1242,7 @@ impl Launcher {
                 if compact {
                     [32.0, 222.0, file_button_width, 38.0]
                 } else {
-                    [w - 176.0, 138.0, 120.0, 46.0]
+                    [w - 304.0, 112.0, 120.0, 40.0]
                 },
                 "Import file",
                 Action::Import(kind),
@@ -1265,19 +1289,20 @@ impl Launcher {
                 Vec::new()
             };
             let row_count = bundled.len() + local_mods.len() + catalog_rows.len();
-            let top = if compact { 270.0 } else { 254.0 };
+            let top = if compact { 270.0 } else { 170.0 };
+            let pitch = if compact { 86.0 } else { 66.0 };
             let bottom = h - 112.0;
             self.catalog.scroll = self
                 .catalog
                 .scroll
-                .clamp(0.0, (row_count as f32 * 86.0 - (bottom - top)).max(0.0));
+                .clamp(0.0, (row_count as f32 * pitch - (bottom - top)).max(0.0));
             self.list_view = Some([
                 top,
                 bottom,
-                (row_count as f32 * 86.0 - (bottom - top)).max(0.0),
+                (row_count as f32 * pitch - (bottom - top)).max(0.0),
             ]);
             for (row, (id, title, description)) in bundled.iter().enumerate() {
-                let y = top + row as f32 * 86.0 - self.catalog.scroll;
+                let y = top + row as f32 * pitch - self.catalog.scroll;
                 if y < top - 1.0 || y + 76.0 > bottom {
                     continue;
                 }
@@ -1301,7 +1326,7 @@ impl Launcher {
                 more_dots(&mut ui, &mut self.targets, dots, Action::BuiltInInfo);
             }
             for (row, i) in local_mods.iter().copied().enumerate() {
-                let y = top + (row + bundled.len()) as f32 * 86.0 - self.catalog.scroll;
+                let y = top + (row + bundled.len()) as f32 * pitch - self.catalog.scroll;
                 // The three dots open the "Remove add-on?" question; on a narrow screen they sit under the switch.
                 let remove = if w < 700.0 {
                     [w - 150.0, y + 50.0, 56.0, 30.0]
@@ -1348,7 +1373,7 @@ impl Launcher {
                 more_dots(&mut ui, &mut self.targets, remove, Action::DeleteLocal(i));
             }
             for (row, (i, p)) in catalog_rows.into_iter().enumerate() {
-                let y = top + (row + bundled.len() + local_mods.len()) as f32 * 86.0
+                let y = top + (row + bundled.len() + local_mods.len()) as f32 * pitch
                     - self.catalog.scroll;
                 let download = self.catalog.download_label(p);
                 if download.is_none()
@@ -1443,7 +1468,7 @@ impl Launcher {
         } else if page == Page::Installed {
             use horizon_client::content_files::Kind;
             section_chips(&mut ui, &mut self.targets, w, h, 0.0, page);
-            let top = if compact { 176.0 } else { 198.0 };
+            let top = if compact { 176.0 } else { 116.0 };
             let bottom = h - 100.0;
             let row_height = if compact { 124.0 } else { 80.0 };
             let total = Kind::ALL
