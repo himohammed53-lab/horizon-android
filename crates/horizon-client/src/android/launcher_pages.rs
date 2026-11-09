@@ -247,6 +247,29 @@ fn block_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, cracks: b
 }
 
 /// A white gear made of squares, centred on a square button.
+/// A small framed tile for a mod without a picture: its colour comes from its name, its first letter in the middle.
+fn mod_tile(ui: &mut Ui, x: f32, y: f32, name: &str) {
+    let hash = name
+        .bytes()
+        .fold(7u32, |a, b| a.wrapping_mul(31).wrapping_add(b as u32));
+    let tint = [0x6a4cc4, 0x3f8f6b, 0xb5683a, 0x3a7fb5, 0xa84a7a][(hash % 5) as usize];
+    ui.rounded(x, y + 2.0, 60.0, 60.0, 0.0, color::hex(0xb9bac2, 255));
+    ui.rounded(x + 1.0, y + 3.0, 58.0, 58.0, 0.0, color::hex(tint, 255));
+    let letter = name
+        .chars()
+        .next()
+        .map_or(String::new(), |c| c.to_uppercase().to_string());
+    let width = ui.measure(Face::Medium, 30.0, &letter);
+    ui.text(
+        Face::Medium,
+        30.0,
+        x + (60.0 - width) / 2.0,
+        y + 17.0,
+        color::hex(0xffffff, 255),
+        &letter,
+    );
+}
+
 fn gear_icon(ui: &mut Ui, x: f32, y: f32, size: f32) {
     const GEAR: [&str; 11] = [
         "....###....",
@@ -1148,10 +1171,11 @@ impl Launcher {
                 if y < top - 1.0 || y + 76.0 > bottom {
                     continue;
                 }
-                let title = ui.fit_text(Face::Medium, 22.0, title, w - 214.0);
-                let summary = ui.fit_text(Face::Regular, 16.0, description, w - 214.0);
-                ui.text(Face::Medium, 22.0, 32.0, y, color::TEXT, &title);
-                ui.text(Face::Regular, 14.0, 32.0, y + 33.0, color::MUTED, &summary);
+                mod_tile(&mut ui, 32.0, y, title);
+                let shown = ui.fit_text(Face::Medium, 22.0, title, w - 286.0);
+                let summary = ui.fit_text(Face::Regular, 16.0, description, w - 286.0);
+                ui.text(Face::Medium, 22.0, 104.0, y, color::TEXT, &shown);
+                ui.text(Face::Regular, 14.0, 104.0, y + 33.0, color::MUTED, &summary);
                 switch_button(
                     &mut ui,
                     &mut self.targets,
@@ -1182,12 +1206,13 @@ impl Launcher {
                     continue;
                 }
                 let item = &self.catalog.local[i];
-                let title = ui.fit_text(Face::Medium, 22.0, &item.title, title_room);
-                ui.text(Face::Medium, 22.0, 32.0, y, color::TEXT, &title);
+                mod_tile(&mut ui, 32.0, y, &item.title);
+                let title = ui.fit_text(Face::Medium, 22.0, &item.title, title_room - 72.0);
+                ui.text(Face::Medium, 22.0, 104.0, y, color::TEXT, &title);
                 ui.text(
                     Face::Regular,
                     14.0,
-                    32.0,
+                    104.0,
                     y + 33.0,
                     color::MUTED,
                     "Added mod",
