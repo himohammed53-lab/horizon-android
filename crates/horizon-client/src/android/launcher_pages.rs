@@ -830,63 +830,142 @@ impl Launcher {
             );
             self.targets.push((play, Action::Play));
         } else {
-            // The version, white, bottom right.
-            let version = format!("v{APP_VERSION}");
-            let version_width = ui.measure(Face::Medium, 22.0, &version);
-            shadow_text(
-                &mut ui,
-                Face::Medium,
-                22.0,
-                w - 32.0 - version_width,
-                h - 38.0,
-                &version,
-            );
-            shadow_text(
-                &mut ui,
-                Face::Medium,
-                if w < 400.0 {
-                    22.0
-                } else if w < 700.0 {
-                    26.0
-                } else {
-                    36.0
-                },
-                32.0,
-                if w < 700.0 { 12.0 } else { 20.0 },
-                "Horizon Rust Edition",
-            );
-            // The player's face, top right: the skin in use, or the default skin. It opens the
-            // sign-in choices (Offline, Microsoft, Ely.by). Next to it, a gear opens Settings.
-            let face = if w < 700.0 { 34.0 } else { 66.0 };
-            let face_y = if w < 700.0 { 8.0 } else { 12.0 };
-            let face_x = w - 32.0 - face;
-            if self.wardrobe.needs_open() {
-                self.wardrobe.open(
-                    &self.catalog.config.name,
-                    &self.catalog.config.microsoft_client_id,
+            if self.catalog.page == Page::Play {
+                // The version, white, bottom right.
+                let version = format!("v{APP_VERSION}");
+                let version_width = ui.measure(Face::Medium, 22.0, &version);
+                shadow_text(
+                    &mut ui,
+                    Face::Medium,
+                    22.0,
+                    w - 32.0 - version_width,
+                    h - 38.0,
+                    &version,
                 );
+                shadow_text(
+                    &mut ui,
+                    Face::Medium,
+                    if w < 400.0 {
+                        22.0
+                    } else if w < 700.0 {
+                        26.0
+                    } else {
+                        36.0
+                    },
+                    32.0,
+                    if w < 700.0 { 12.0 } else { 20.0 },
+                    "Horizon Rust Edition",
+                );
+                // The player's face, top right: the skin in use, or the default skin. It opens the
+                // sign-in choices (Offline, Microsoft, Ely.by). Next to it, a gear opens Settings.
+                let face = if w < 700.0 { 34.0 } else { 66.0 };
+                let face_y = if w < 700.0 { 8.0 } else { 12.0 };
+                let face_x = w - 32.0 - face;
+                if self.wardrobe.needs_open() {
+                    self.wardrobe.open(
+                        &self.catalog.config.name,
+                        &self.catalog.config.microsoft_client_id,
+                    );
+                }
+                // A very thin white outline around the face.
+                ui.rounded(
+                    face_x - 1.5,
+                    face_y - 1.5,
+                    face + 3.0,
+                    face + 3.0,
+                    0.0,
+                    color::hex(0xffffff, 255),
+                );
+                self.wardrobe.draw_face(&mut ui, face_x, face_y, face);
+                self.targets.push((
+                    [face_x - 3.0, face_y - 3.0, face + 6.0, face + 6.0],
+                    Action::Account,
+                ));
+                // The gear: white squares only, as tall as the face, no plate behind it.
+                let gear = face;
+                let gear_x = face_x - 28.0 - gear;
+                let gear_y = face_y;
+                gear_icon(&mut ui, gear_x, gear_y, gear);
+                self.targets
+                    .push(([gear_x, gear_y, gear, gear], Action::Page(Page::Settings)));
+            } else {
+                // The same top bar as the home screen: account, the name, settings.
+                if self.wardrobe.needs_open() {
+                    self.wardrobe.open(
+                        &self.catalog.config.name,
+                        &self.catalog.config.microsoft_client_id,
+                    );
+                }
+                let card = color::hex(0x2b2930, 255);
+                let white = color::hex(0xffffff, 255);
+                let gray = color::hex(0x8e8e8e, 255);
+                ui.rounded(0.0, 0.0, w, 58.0, 0.0, color::hex(0x1c1b1f, 255));
+                let account = crate::account::Accounts::load().selected().cloned();
+                let (who, provider) = match &account {
+                    Some(a) => (
+                        a.name.clone(),
+                        if a.provider == crate::account::Provider::Ely {
+                            "Ely.by"
+                        } else {
+                            "Microsoft"
+                        },
+                    ),
+                    None => (self.catalog.config.name.clone(), "Offline"),
+                };
+                let chip_w = (w * 0.4).min(260.0);
+                ui.rounded(10.0, 7.0, chip_w, 44.0, 22.0, card);
+                self.wardrobe.draw_face(&mut ui, 15.0, 12.0, 34.0);
+                let who = ui.fit_text(Face::Medium, 16.0, &who, chip_w - 56.0);
+                ui.text(Face::Medium, 16.0, 58.0, 11.0, white, &who);
+                ui.text(Face::Regular, 12.0, 58.0, 30.0, gray, provider);
+                self.targets
+                    .push(([10.0, 7.0, chip_w, 44.0], Action::Account));
+                ui.rounded(w - 54.0, 7.0, 44.0, 44.0, 22.0, card);
+                gear_icon(&mut ui, w - 46.0, 15.0, 28.0);
+                self.targets
+                    .push(([w - 54.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
+                let name_w = ui.measure(Face::Medium, 22.0, "Horizon");
+                ui.text(
+                    Face::Medium,
+                    22.0,
+                    w - 54.0 - 14.0 - name_w,
+                    16.0,
+                    white,
+                    "Horizon",
+                );
+                if matches!(self.catalog.page, Page::Mods | Page::Shaders | Page::Packs) {
+                    // The bottom bar: Eject (add a file) where the home screen has Play.
+                    ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 205));
+                    ui.rounded(0.0, h - 84.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
+                    let version = format!("v{APP_VERSION}");
+                    let version_w = ui.measure(Face::Medium, 20.0, &version);
+                    ui.text(
+                        Face::Medium,
+                        20.0,
+                        w - 16.0 - version_w,
+                        h - 50.0,
+                        gray,
+                        &version,
+                    );
+                    let eject = [14.0, h - 74.0, (w * 0.42).min(340.0), 62.0];
+                    ui.rounded(eject[0], eject[1], eject[2], eject[3], 20.0, white);
+                    let ew = ui.measure(Face::Medium, 24.0, "Eject");
+                    ui.text(
+                        Face::Medium,
+                        24.0,
+                        eject[0] + (eject[2] - ew) / 2.0,
+                        eject[1] + 18.0,
+                        color::hex(0x111111, 255),
+                        "Eject",
+                    );
+                    let kind = match self.catalog.page {
+                        Page::Mods => horizon_client::content_files::Kind::Mods,
+                        Page::Shaders => horizon_client::content_files::Kind::Shaders,
+                        _ => horizon_client::content_files::Kind::Packs,
+                    };
+                    self.targets.push((eject, Action::Import(kind)));
+                }
             }
-            // A very thin white outline around the face.
-            ui.rounded(
-                face_x - 1.5,
-                face_y - 1.5,
-                face + 3.0,
-                face + 3.0,
-                0.0,
-                color::hex(0xffffff, 255),
-            );
-            self.wardrobe.draw_face(&mut ui, face_x, face_y, face);
-            self.targets.push((
-                [face_x - 3.0, face_y - 3.0, face + 6.0, face + 6.0],
-                Action::Account,
-            ));
-            // The gear: white squares only, as tall as the face, no plate behind it.
-            let gear = face;
-            let gear_x = face_x - 28.0 - gear;
-            let gear_y = face_y;
-            gear_icon(&mut ui, gear_x, gear_y, gear);
-            self.targets
-                .push(([gear_x, gear_y, gear, gear], Action::Page(Page::Settings)));
             let tabs = Page::ALL.len() as f32;
             let tab_margin = if w < 700.0 { 16.0 } else { 32.0 };
             let tab_width = ((w - 2.0 * tab_margin - 16.0) / tabs).min(150.0);
