@@ -7,6 +7,7 @@ use winit::{
 
 #[derive(Clone, Copy, PartialEq)]
 pub(super) enum Action {
+    HomeMenu,
     Page(Page),
     Play,
     Search,
@@ -688,58 +689,39 @@ impl Launcher {
             gear_icon(&mut ui, w - 46.0, 15.0, 28.0);
             self.targets
                 .push(([w - 54.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
+            let menu_btn = [w - 104.0, 7.0, 44.0, 44.0];
+            ui.rounded(
+                menu_btn[0],
+                menu_btn[1],
+                menu_btn[2],
+                menu_btn[3],
+                22.0,
+                if self.home_menu { white } else { card },
+            );
+            for k in 0..3 {
+                ui.rounded(
+                    menu_btn[0] + 12.0,
+                    menu_btn[1] + 14.0 + k as f32 * 7.0,
+                    20.0,
+                    3.0,
+                    1.5,
+                    if self.home_menu {
+                        color::hex(0x111111, 255)
+                    } else {
+                        white
+                    },
+                );
+            }
+            self.targets.push((menu_btn, Action::HomeMenu));
             let name_w = ui.measure(Face::Medium, 22.0, "Horizon");
             ui.text(
                 Face::Medium,
                 22.0,
-                w - 54.0 - 14.0 - name_w,
+                w - 104.0 - 14.0 - name_w,
                 16.0,
                 white,
                 "Horizon",
             );
-            // The sections, as rounded cards in a grid.
-            let items: [(&str, Action); 6] = [
-                ("Mods", Action::Page(Page::Mods)),
-                ("Shaders", Action::Page(Page::Shaders)),
-                ("Packs", Action::Page(Page::Packs)),
-                ("Files", Action::Page(Page::Installed)),
-                ("Skins", Action::Page(Page::Skins)),
-                ("Worlds", Action::ImportWorld),
-            ];
-            let cols = if w >= 560.0 { 3 } else { 2 };
-            let rows = items.len().div_ceil(cols);
-            let avail = h - 66.0 - 96.0;
-            let ch = ((avail - (rows as f32 - 1.0) * 8.0) / rows as f32).clamp(44.0, 72.0);
-            let cw = (w - 24.0 - (cols as f32 - 1.0) * 8.0) / cols as f32;
-            for (i, (label, action)) in items.into_iter().enumerate() {
-                let (cx, cy) = (
-                    12.0 + (i % cols) as f32 * (cw + 8.0),
-                    66.0 + (i / cols) as f32 * (ch + 8.0),
-                );
-                ui.rounded(cx, cy, cw, ch, 14.0, card);
-                let icon = (ch - 18.0).min(40.0);
-                ui.rounded(cx + 10.0, cy + (ch - icon) / 2.0, icon, icon, 10.0, surface);
-                let initial = label.chars().next().unwrap_or(' ').to_string();
-                let iw = ui.measure(Face::Medium, 20.0, &initial);
-                ui.text(
-                    Face::Medium,
-                    20.0,
-                    cx + 10.0 + (icon - iw) / 2.0,
-                    cy + (ch - 24.0) / 2.0,
-                    white,
-                    &initial,
-                );
-                let label = ui.fit_text(Face::Medium, 18.0, label, cw - icon - 34.0);
-                ui.text(
-                    Face::Medium,
-                    18.0,
-                    cx + icon + 22.0,
-                    cy + (ch - 22.0) / 2.0,
-                    white,
-                    &label,
-                );
-                self.targets.push(([cx, cy, cw, ch], action));
-            }
             // Bottom bar: what is installed on the left, Play on the right.
             ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 205));
             ui.rounded(0.0, h - 84.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
@@ -783,6 +765,37 @@ impl Launcher {
                 label,
             );
             self.targets.push((play, Action::Play));
+            if self.home_menu {
+                // The menu: a scrim that closes it, and the sections in a card under the button.
+                let items: [(&str, Action); 6] = [
+                    ("Mods", Action::Page(Page::Mods)),
+                    ("Shaders", Action::Page(Page::Shaders)),
+                    ("Packs", Action::Page(Page::Packs)),
+                    ("Files", Action::Page(Page::Installed)),
+                    ("Skins", Action::Page(Page::Skins)),
+                    ("Worlds", Action::ImportWorld),
+                ];
+                self.targets.clear();
+                let (mw, row) = (210.0_f32.min(w - 20.0), 50.0);
+                let mx = w - 10.0 - mw;
+                let my = 62.0;
+                let mh = items.len() as f32 * row + 12.0;
+                ui.rounded(0.0, 58.0, w, h - 58.0, 0.0, color::hex(0x000000, 120));
+                ui.rounded(mx, my, mw, mh, 18.0, card);
+                for (i, (label, action)) in items.into_iter().enumerate() {
+                    let y = my + 6.0 + i as f32 * row;
+                    if i > 0 {
+                        ui.rounded(mx + 16.0, y, mw - 32.0, 1.0, 0.0, color::hex(0xffffff, 24));
+                    }
+                    ui.text(Face::Medium, 19.0, mx + 20.0, y + 13.0, white, label);
+                    self.targets.push(([mx, y, mw, row], action));
+                }
+                self.targets.push((
+                    [menu_btn[0], menu_btn[1], menu_btn[2], menu_btn[3]],
+                    Action::HomeMenu,
+                ));
+                self.targets.push(([0.0, 0.0, w, h], Action::HomeMenu));
+            }
         } else {
             // The version, white, bottom right.
             let version = format!("v{APP_VERSION}");
@@ -1912,6 +1925,11 @@ impl Launcher {
         }
         self.feedback = action.map(|action| (action, std::time::Instant::now()));
         self.focus = None;
+        let was_menu = std::mem::replace(&mut self.home_menu, false);
+        if action == Some(Action::HomeMenu) {
+            self.home_menu = !was_menu;
+            return Ok(());
+        }
         if action.is_some() && horizon_client::official_install::ready(&self.home) {
             let audio = self.audio.get_or_insert_with(|| {
                 let mut audio = horizon_client::audio::Audio::new(
