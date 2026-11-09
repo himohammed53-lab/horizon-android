@@ -794,7 +794,10 @@ impl Wardrobe {
             bottom,
             (row + scroll + pitch - bottom).max(0.0),
         ];
-        let note = ui.fit_text(Face::Regular, 12.0, &self.note, width - 64.0);
-        ui.text(Face::Regular, 12.0, 32.0, ui.h - 60.0, color::MUTED, &note);
+        // On a wide screen the bottom bar is there instead of this line.
+        if ui.w < 700.0 {
+            let note = ui.fit_text(Face::Regular, 12.0, &self.note, width - 64.0);
+            ui.text(Face::Regular, 12.0, 32.0, ui.h - 60.0, color::MUTED, &note);
+        }
     }
 }

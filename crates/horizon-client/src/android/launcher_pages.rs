@@ -380,23 +380,24 @@ fn section_chips(
     }
     let space = (w - 64.0 - right_reserved - 8.0).max(120.0);
     let width = ((space - 24.0) / 5.0).clamp(44.0, if wide { 100.0 } else { 96.0 });
-    let first = if wide {
-        [("Play", Page::Play)]
+    let pages: Vec<(&str, Page)> = if wide {
+        vec![
+            ("Play", Page::Play),
+            ("Mods", Page::Mods),
+            ("Packs", Page::Packs),
+            ("Skins", Page::Skins),
+            ("Files", Page::Installed),
+        ]
     } else {
-        [("Mods", Page::Mods)]
+        vec![
+            ("Mods", Page::Mods),
+            ("Shaders", Page::Shaders),
+            ("Packs", Page::Packs),
+            ("Files", Page::Installed),
+        ]
     };
-    for (i, label, action, chosen) in first
+    for (i, label, action, chosen) in pages
         .into_iter()
-        .chain(
-            [
-                ("Mods", Page::Mods),
-                ("Shaders", Page::Shaders),
-                ("Packs", Page::Packs),
-                ("Files", Page::Installed),
-            ]
-            .into_iter()
-            .skip(if wide { 0 } else { 1 }),
-        )
         .map(|(label, page)| (label, Action::Page(page), page == current))
         .chain(if wide {
             None
@@ -1008,7 +1009,9 @@ impl Launcher {
                 }
             }
             let chips_page = w >= 700.0
-                && (self.catalog.page.is_catalog() || self.catalog.page == Page::Installed);
+                && (self.catalog.page.is_catalog()
+                    || self.catalog.page == Page::Installed
+                    || self.catalog.page == Page::Skins);
             let tabs = Page::ALL.len() as f32;
             let tab_margin = if w < 700.0 { 16.0 } else { 32.0 };
             let tab_width = ((w - 2.0 * tab_margin - 16.0) / tabs).min(150.0);
@@ -1162,6 +1165,9 @@ impl Launcher {
                 );
             }
         } else if page == Page::Skins {
+            if !compact {
+                section_chips(&mut ui, &mut self.targets, w, h, 0.0, page);
+            }
             self.wardrobe
                 .draw(&mut ui, &mut self.targets, self.catalog.scroll);
             self.list_view = Some(self.wardrobe.view);
@@ -1883,7 +1889,9 @@ impl Launcher {
             );
         }
         let status = self.error.as_deref().unwrap_or(&self.catalog.status);
-        let status = if page == Page::Play && self.error.is_none() && self.worker.is_none() {
+        let status = if (page == Page::Play && self.error.is_none() && self.worker.is_none())
+            || (page == Page::Skins && w >= 700.0)
+        {
             ""
         } else {
             status
