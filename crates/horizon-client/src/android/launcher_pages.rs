@@ -375,7 +375,7 @@ fn section_chips(
         w,
         (h - 197.0 - dy).max(0.0),
         0.0,
-        color::hex(0x0f1013, 255),
+        color::hex(0x0f1013, 110),
     );
     ui.rounded(
         16.0,
@@ -807,7 +807,7 @@ impl Launcher {
                 "Horizon",
             );
             // Bottom bar: what is installed on the left, Play on the right.
-            ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 205));
+            ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 120));
             ui.rounded(0.0, h - 84.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
             if !self.catalog.status.is_empty() {
                 let status = ui.fit_text(Face::Regular, 13.0, &self.catalog.status, w - 32.0);
@@ -962,7 +962,7 @@ impl Launcher {
                     Page::Mods | Page::Shaders | Page::Packs | Page::Skins
                 ) {
                     // The bottom bar: Eject (add a file) where the home screen has Play.
-                    ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 205));
+                    ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 120));
                     ui.rounded(0.0, h - 84.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
                     let version = format!("v{APP_VERSION}");
                     let version_w = ui.measure(Face::Medium, 20.0, &version);
