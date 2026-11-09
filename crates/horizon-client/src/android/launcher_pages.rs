@@ -715,7 +715,8 @@ impl Launcher {
                 let x = (fi * 0.618_034 % 1.0) * w;
                 let speed = 5.0 + (i % 3) as f32 * 4.0;
                 let y = ((fi * 0.381_966 % 1.0) * h - t * speed).rem_euclid(h);
-                let alpha = ((0.5 + 0.5 * (t * 1.2 + fi * 1.7).sin()) * 200.0) as u8;
+                let fade = (std::f32::consts::PI * y / h).sin();
+                let alpha = ((0.5 + 0.5 * (t * 1.2 + fi * 1.7).sin()) * 200.0 * fade) as u8;
                 let size = 2.0 + (i % 2) as f32;
                 ui.rounded(x, y, size, size, size / 2.0, color::hex(0xe6d8ff, alpha));
             }
