@@ -164,6 +164,22 @@ impl Scene {
                 cool,
             });
         }
+        // A few more small stars from their own sequence, so the ridges and trees keep their places.
+        let mut more = Rng(99);
+        for _ in 0..star_count * 3 / 4 {
+            let x = more.next() * width;
+            let y = 2. + more.next().powf(1.8) * sky_height * 0.75;
+            let size = 1. + more.next() * 0.4;
+            let b = 0.3 + more.next() * 0.4;
+            let cool = more.next() < 0.35;
+            stars.push(Star {
+                x,
+                y,
+                size,
+                b,
+                cool,
+            });
+        }
         let cols = w + MARGIN * 2;
         let ridge = |seed: i32,
                      base: f64,
