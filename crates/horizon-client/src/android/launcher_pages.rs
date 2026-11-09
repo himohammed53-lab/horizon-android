@@ -612,7 +612,80 @@ impl Launcher {
         true
     }
 
+    /// Draws the launcher and notes how long frames take on each page, so a diagnostics report
+    /// shows which page is slow (`launcher frames:` lines in the log, one per page every 5 s).
     pub(super) fn draw_pages(&mut self) -> Result<()> {
+        use std::time::{Duration, Instant};
+        struct Stats {
+            page: &'static str,
+            since: Instant,
+            last: Option<Instant>,
+            frames: u32,
+            gap_sum: Duration,
+            gap_max: Duration,
+            draw_sum: Duration,
+            draw_max: Duration,
+        }
+        static STATS: std::sync::Mutex<Option<Stats>> = std::sync::Mutex::new(None);
+        let page = self.catalog.page.name();
+        let started = Instant::now();
+        let result = self.draw_pages_frame();
+        let done = Instant::now();
+        let Ok(mut guard) = STATS.lock() else {
+            return result;
+        };
+        let stats = guard.get_or_insert_with(|| Stats {
+            page,
+            since: started,
+            last: None,
+            frames: 0,
+            gap_sum: Duration::ZERO,
+            gap_max: Duration::ZERO,
+            draw_sum: Duration::ZERO,
+            draw_max: Duration::ZERO,
+        });
+        if stats.page != page || done.duration_since(stats.since) >= Duration::from_secs(5) {
+            if stats.frames > 0 {
+                let ms = |d: Duration| d.as_secs_f64() * 1000.0;
+                let n = f64::from(stats.frames);
+                log::info!(
+                    "Horizon: launcher frames: page={} frames={} avg_gap={:.1}ms max_gap={:.1}ms avg_draw={:.1}ms max_draw={:.1}ms",
+                    stats.page,
+                    stats.frames,
+                    ms(stats.gap_sum) / n,
+                    ms(stats.gap_max),
+                    ms(stats.draw_sum) / n,
+                    ms(stats.draw_max),
+                );
+            }
+            *stats = Stats {
+                page,
+                since: done,
+                last: None,
+                frames: 0,
+                gap_sum: Duration::ZERO,
+                gap_max: Duration::ZERO,
+                draw_sum: Duration::ZERO,
+                draw_max: Duration::ZERO,
+            };
+        }
+        let draw = done.duration_since(started);
+        if let Some(last) = stats.last {
+            let gap = started.duration_since(last);
+            // A long pause (the screen idle or off) is not a frame.
+            if gap < Duration::from_secs(1) {
+                stats.frames += 1;
+                stats.gap_sum += gap;
+                stats.gap_max = stats.gap_max.max(gap);
+                stats.draw_sum += draw;
+                stats.draw_max = stats.draw_max.max(draw);
+            }
+        }
+        stats.last = Some(started);
+        result
+    }
+
+    fn draw_pages_frame(&mut self) -> Result<()> {
         let (Some(r), Some(gui)) = (&mut self.renderer, &self.gui) else {
             return Ok(());
         };
