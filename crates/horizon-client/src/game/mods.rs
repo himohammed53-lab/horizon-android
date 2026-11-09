@@ -440,7 +440,8 @@ impl Game<'_> {
             (enabled.contains(id) || dev_ids.iter().any(|d| d == id))
                 && !native.iter().any(|n| n.id == id)
         };
-        let mods = Mods::load_for(self.mod_runs(), &paths, on, vanilla_command);
+        let previous = std::mem::take(&mut self.mods.mods);
+        let mods = Mods::load_for_reusing(previous, self.mod_runs(), &paths, on, vanilla_command);
         self.mods.mods = mods;
         self.mods.started = self.wanted_mod_ids();
         let chosen = &self.settings.mods;

@@ -455,6 +455,9 @@ struct State {
 #[derive(Default)]
 pub struct Mods {
     engine: Option<(Engine, Linker<State>)>,
+    /// Components compiled so far, by the mod's path and the file's change time: turning
+    /// one mod on or off reloads them all, and recompiling each took seconds on a phone.
+    compiled: std::collections::HashMap<PathBuf, (Option<SystemTime>, Component)>,
     entries: Vec<Entry>,
     snapshot: Arc<Snapshot>,
     out: Vec<Output>,
@@ -510,7 +513,22 @@ impl Mods {
         enabled: impl Fn(&str) -> bool,
         reserved: impl Fn(&str) -> bool,
     ) -> Mods {
-        let mut mods = Mods::default();
+        Mods::load_for_reusing(Mods::default(), runs, paths, enabled, reserved)
+    }
+    /// [`Mods::load_for`] that keeps `previous`'s engine and compiled components, so mods
+    /// whose files did not change start without compiling again.
+    pub fn load_for_reusing(
+        previous: Mods,
+        runs: Runs,
+        paths: &[PathBuf],
+        enabled: impl Fn(&str) -> bool,
+        reserved: impl Fn(&str) -> bool,
+    ) -> Mods {
+        let mut mods = Mods {
+            engine: previous.engine,
+            compiled: previous.compiled,
+            ..Mods::default()
+        };
         for path in paths {
             let modified = modified(path);
             let mut entry = Entry {
@@ -608,9 +626,21 @@ impl Mods {
             .collect();
         let snapshot = self.snapshot.clone();
         let world = self.world.clone();
-        let (engine, linker) = self.engine()?;
-        let component =
-            Component::new(engine, wasm).map_err(|e| format!("not a component: {e}"))?;
+        let changed = modified(path);
+        let cached = match self.compiled.get(path) {
+            Some((time, component)) if *time == changed && changed.is_some() => {
+                Some(component.clone())
+            }
+            _ => None,
+        };
+        let (engine, _) = self.engine()?;
+        let component = match cached {
+            Some(component) => component,
+            None => Component::new(engine, wasm).map_err(|e| format!("not a component: {e}"))?,
+        };
+        self.compiled
+            .insert(path.to_path_buf(), (changed, component.clone()));
+        let (engine, linker) = self.engine.as_ref().expect("made above");
         let ty = component.component_type();
         let imports: Vec<String> = ty
             .imports(engine)
@@ -2042,7 +2072,9 @@ impl ui::Host for State {
     fn set_slider(&mut self, id: u32, min: u32, max: u32, value: u32) {
         if self.ui.sliders.len() < 16 || self.ui.sliders.contains_key(&id) {
             let max = max.max(min);
-            self.ui.sliders.insert(id, (min, max, value.clamp(min, max)));
+            self.ui
+                .sliders
+                .insert(id, (min, max, value.clamp(min, max)));
         }
     }
     fn request_text(&mut self, id: u32, title: String, initial: String) {

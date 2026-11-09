@@ -1315,7 +1315,36 @@ impl Launcher {
                 if y < top - 1.0 || y + tile_h > bottom {
                     continue;
                 }
-                mod_tile(&mut ui, 32.0, y, title);
+                // Zoom has its own picture, the same one the game's mod list shows.
+                if *id == "zoom" && !self.catalog.mod_icons.contains_key("bundled:zoom") {
+                    let squares = crate::catalog::icon_squares_from(include_bytes!(
+                        "../game/android_bundled/zoom/icon.png"
+                    ));
+                    self.catalog
+                        .mod_icons
+                        .insert("bundled:zoom".into(), squares);
+                }
+                let picture = self
+                    .catalog
+                    .mod_icons
+                    .get(&format!("bundled:{id}"))
+                    .filter(|squares| !squares.is_empty());
+                if let Some(squares) = picture {
+                    ui.rounded(32.0, y + 2.0, 60.0, 60.0, 0.0, color::hex(0xffffff, 255));
+                    ui.rounded(33.0, y + 3.0, 58.0, 58.0, 0.0, color::hex(0x0f1013, 255));
+                    for ([sx, sy, sw, sh], c) in squares {
+                        ui.rounded(
+                            33.0 + sx * 1.8125,
+                            y + 3.0 + sy * 1.8125,
+                            sw * 1.8125 + 0.3,
+                            sh * 1.8125 + 0.3,
+                            0.0,
+                            *c,
+                        );
+                    }
+                } else {
+                    mod_tile(&mut ui, 32.0, y, title);
+                }
                 let shown = ui.fit_text(Face::Medium, 22.0, title, w - 286.0);
                 let summary = ui.fit_text(Face::Regular, 16.0, description, w - 286.0);
                 ui.text(Face::Medium, 22.0, 104.0, y, color::TEXT, &shown);
@@ -1639,35 +1668,38 @@ impl Launcher {
                 }
             }
         } else {
+            // On a wide screen Settings covers the whole screen above the Back bar.
+            let off = if compact { 0.0 } else { -130.0 };
             if !compact {
-                section_chips(&mut ui, &mut self.targets, w, h, 0.0, page);
+                self.targets.retain(|t| t.0[1] >= h - 80.0);
+                ui.rounded(0.0, 0.0, w, h - 80.0, 0.0, color::hex(0x0b0b0e, 255));
             }
             let c = &self.catalog.config;
             ui.text(
                 Face::Medium,
                 24.0,
                 32.0,
-                156.0,
+                156.0 + off,
                 color::TEXT,
                 "Launch settings",
             );
             ui.rounded(
                 16.0,
-                186.0,
+                186.0 + off,
                 w - 32.0,
-                h - 130.0 - 186.0,
+                h - 130.0 - (186.0 + off),
                 18.0,
                 color::hex(0x0f1013, 200),
             );
             let row_height = if compact { 82.0 } else { 66.0 };
-            self.catalog.scroll = self
-                .catalog
-                .scroll
-                .clamp(0.0, (19.0 * row_height - (h - 130.0 - 195.0)).max(0.0));
+            self.catalog.scroll = self.catalog.scroll.clamp(
+                0.0,
+                (19.0 * row_height - (h - 130.0 - (195.0 + off))).max(0.0),
+            );
             self.list_view = Some([
-                195.0,
+                195.0 + off,
                 h - 130.0,
-                (18.0 * row_height - (h - 130.0 - 195.0)).max(0.0),
+                (18.0 * row_height - (h - 130.0 - (195.0 + off))).max(0.0),
             ]);
             for (i, (title, value, action)) in [
                 ("Rendering", c.renderer.label().to_owned(), Action::Renderer),
@@ -1793,7 +1825,7 @@ impl Launcher {
             .into_iter()
             .enumerate()
             {
-                let y = 195.0 + i as f32 * row_height - self.catalog.scroll;
+                let y = 195.0 + off + i as f32 * row_height - self.catalog.scroll;
                 self.list_targets.push((
                     [
                         if compact { 32.0 } else { w * 0.36 },
@@ -1803,7 +1835,7 @@ impl Launcher {
                     ],
                     action,
                 ));
-                if y < 185.0 || y + if compact { 70.0 } else { 46.0 } > h - 130.0 {
+                if y < 185.0 + off || y + if compact { 70.0 } else { 46.0 } > h - 130.0 {
                     continue;
                 }
                 ui.text(

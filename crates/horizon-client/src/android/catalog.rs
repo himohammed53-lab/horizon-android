@@ -325,13 +325,12 @@ impl Catalog {
                     horizon_client::content_files::Kind::Shaders => {
                         settings.horizon.shader_pack == name
                     }
-                    horizon_client::content_files::Kind::Mods => name
-                        .strip_suffix(".hmod")
-                        .is_some_and(|id| {
+                    horizon_client::content_files::Kind::Mods => {
+                        name.strip_suffix(".hmod").is_some_and(|id| {
                             // A mod with its own native logic is on only when both parts are.
-                            on.enabled.contains(id)
-                                && !on.disabled.contains(&format!("{id}_logic"))
-                        }),
+                            on.enabled.contains(id) && !on.disabled.contains(&format!("{id}_logic"))
+                        })
+                    }
                 };
                 let shown = if kind == horizon_client::content_files::Kind::Mods {
                     read_hmod(&entry.path())
@@ -862,7 +861,7 @@ fn icon_squares(home: &Path, url: &str) -> Vec<([f32; 4], u32)> {
 }
 
 /// The same from the bytes of a picture file.
-fn icon_squares_from(bytes: &[u8]) -> Vec<([f32; 4], u32)> {
+pub fn icon_squares_from(bytes: &[u8]) -> Vec<([f32; 4], u32)> {
     image::load_from_memory(bytes)
         .map(|image| squares_of(&image))
         .unwrap_or_default()
