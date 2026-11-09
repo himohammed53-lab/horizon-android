@@ -1291,7 +1291,8 @@ impl Launcher {
             let row_count = bundled.len() + local_mods.len() + catalog_rows.len();
             let top = if compact { 270.0 } else { 170.0 };
             let pitch = if compact { 86.0 } else { 66.0 };
-            let bottom = h - 112.0;
+            let bottom = if compact { h - 112.0 } else { h - 84.0 };
+            let tile_h = if compact { 76.0 } else { 56.0 };
             self.catalog.scroll = self
                 .catalog
                 .scroll
@@ -1303,7 +1304,7 @@ impl Launcher {
             ]);
             for (row, (id, title, description)) in bundled.iter().enumerate() {
                 let y = top + row as f32 * pitch - self.catalog.scroll;
-                if y < top - 1.0 || y + 76.0 > bottom {
+                if y < top - 1.0 || y + tile_h > bottom {
                     continue;
                 }
                 mod_tile(&mut ui, 32.0, y, title);
@@ -1337,7 +1338,7 @@ impl Launcher {
                 self.list_targets
                     .push(([w - 150.0, y, 118.0, 46.0], Action::ToggleLocal(i)));
                 self.list_targets.push((remove, Action::DeleteLocal(i)));
-                if y < top - 1.0 || y + 76.0 > bottom {
+                if y < top - 1.0 || y + tile_h > bottom {
                     continue;
                 }
                 let item = &self.catalog.local[i];
