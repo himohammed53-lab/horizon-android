@@ -16,6 +16,9 @@ pub struct DataPack {
     /// `file/<name>` in `/datapack` and level.dat.
     pub id: String,
     source: Source,
+    /// The `overlays` folders of `pack.mcmeta` that apply to this game's data pack format,
+    /// read on first use: their files lie over the pack's own (`OverlayMetadataSection`).
+    overlays: std::sync::OnceLock<Vec<String>>,
 }
 enum Source {
     Dir(PathBuf),
@@ -24,6 +27,30 @@ enum Source {
 impl DataPack {
     /// Every file path under `prefix` (relative to the pack root).
     pub fn list(&self, prefix: &str) -> Vec<String> {
+        let overlays = self.overlays();
+        if !overlays.is_empty() {
+            let mut all = self.list_in(prefix);
+            for dir in overlays {
+                let inside = format!("{dir}/{prefix}");
+                all.extend(
+                    self.list_in(&inside)
+                        .into_iter()
+                        .filter_map(|p| p.strip_prefix(&format!("{dir}/")).map(str::to_owned)),
+                );
+            }
+            all.sort();
+            all.dedup();
+            return all;
+        }
+        self.list_in(prefix)
+    }
+    /// The overlay folders that apply to this pack (see the field).
+    fn overlays(&self) -> &[String] {
+        self.overlays.get_or_init(|| {
+            crate::packs::overlays_for(&self.mcmeta(), horizon_core::version::DATA_PACK_FORMAT)
+        })
+    }
+    fn list_in(&self, prefix: &str) -> Vec<String> {
         match &self.source {
             Source::Zip(z) => z
                 .names()
@@ -45,6 +72,9 @@ impl DataPack {
         let Source::Dir(root) = &self.source else {
             return self.list("data/");
         };
+        if !self.overlays().is_empty() {
+            return self.list("data/");
+        }
         let Ok(entries) = std::fs::read_dir(root.join("data")) else {
             return Vec::new();
         };
@@ -59,6 +89,17 @@ impl DataPack {
         out
     }
     pub fn read(&self, path: &str) -> Option<Vec<u8>> {
+        // The last overlay that has the file wins over the earlier ones and the pack itself.
+        if path != "pack.mcmeta" {
+            for dir in self.overlays().iter().rev() {
+                if let Some(bytes) = self.read_in(&format!("{dir}/{path}")) {
+                    return Some(bytes);
+                }
+            }
+        }
+        self.read_in(path)
+    }
+    fn read_in(&self, path: &str) -> Option<Vec<u8>> {
         match &self.source {
             Source::Zip(z) => z.read(path).ok(),
             Source::Dir(root) => std::fs::read(root.join(path)).ok(),
@@ -116,6 +157,7 @@ impl DataPack {
         DataPack {
             id: "vanilla".into(),
             source: Source::Dir(root.to_path_buf()),
+            overlays: Default::default(),
         }
     }
 }
@@ -132,6 +174,7 @@ pub fn discover(world: &Path) -> Vec<DataPack> {
             packs.push(DataPack {
                 id: format!("file/{name}"),
                 source: Source::Dir(path),
+                overlays: Default::default(),
             });
         } else if name.ends_with(".zip")
             && let Ok(z) = Zip::open(&path)
@@ -140,6 +183,7 @@ pub fn discover(world: &Path) -> Vec<DataPack> {
             packs.push(DataPack {
                 id: format!("file/{name}"),
                 source: Source::Zip(Box::new(z)),
+                overlays: Default::default(),
             });
         }
     }
@@ -162,6 +206,7 @@ pub fn feature_packs(resources: &Path) -> Vec<DataPack> {
             packs.push(DataPack {
                 id: e.file_name().to_string_lossy().into_owned(),
                 source: Source::Dir(path),
+                overlays: Default::default(),
             });
         }
     }
@@ -1182,5 +1227,58 @@ mod tests {
             serde_json::json!({"enabled": selected, "disabled": ["file/off"]})
         );
         let _ = std::fs::remove_dir_all(&root);
+    }
+}
+
+#[cfg(test)]
+mod overlay_tests {
+    use super::*;
+
+    /// A pack's `overlays` whose format range holds the game's data pack format lie over the
+    /// pack's own files; one for another format is left out (Voidblock keeps its world generator
+    /// only in overlays).
+    #[test]
+    fn overlay_folders_of_the_current_format_lie_over_the_pack() {
+        let world = std::env::temp_dir().join(format!("horizon-overlay-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&world);
+        let pack = world.join("datapacks/p");
+        let write = |rel: &str, body: &str| {
+            let path = pack.join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, body).unwrap();
+        };
+        let (major, _) = horizon_core::version::DATA_PACK_FORMAT;
+        write(
+            "pack.mcmeta",
+            &format!(
+                r#"{{"pack":{{"min_format":[1,0],"max_format":[{hi},0],"description":"x"}},
+                "overlays":{{"entries":[
+                  {{"directory":"now","min_format":[{major},0],"max_format":[{major},0]}},
+                  {{"directory":"later","min_format":[{next},0],"max_format":[{next},0]}}]}}}}"#,
+                hi = major + 5,
+                next = major + 1,
+            ),
+        );
+        write("data/a/tags/x.json", "root");
+        write("data/a/tags/y.json", "root-y");
+        write("now/data/a/tags/x.json", "overlay");
+        write("now/data/b/worldgen/z.json", "only-overlay");
+        write("later/data/a/tags/y.json", "wrong-format");
+
+        let packs = discover(&world);
+        assert_eq!(packs.len(), 1);
+        let p = &packs[0];
+        assert_eq!(p.read("data/a/tags/x.json").unwrap(), b"overlay");
+        assert_eq!(p.read("data/a/tags/y.json").unwrap(), b"root-y");
+        assert_eq!(p.read("data/b/worldgen/z.json").unwrap(), b"only-overlay");
+        assert_eq!(
+            p.list("data/"),
+            [
+                "data/a/tags/x.json",
+                "data/a/tags/y.json",
+                "data/b/worldgen/z.json"
+            ]
+        );
+        let _ = std::fs::remove_dir_all(&world);
     }
 }

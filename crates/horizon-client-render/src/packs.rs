@@ -378,8 +378,7 @@ pub fn compatibility_for(meta: &serde_json::Value, current: Format) -> crate::pa
 /// Whether an `overlays.entries[]` item applies to the current format
 /// (OverlayMetadataSection: `formats` as an int, `[min, max]` or
 /// `{min_inclusive, max_inclusive}`, or `min_format`/`max_format`).
-fn overlay_applies(entry: &serde_json::Value) -> bool {
-    let current = RESOURCE_FORMAT;
+fn overlay_applies(entry: &serde_json::Value, current: Format) -> bool {
     if let (Some(min), Some(max)) = (
         format_of(&entry["min_format"]),
         format_of(&entry["max_format"]),
@@ -408,11 +407,15 @@ fn overlay_applies(entry: &serde_json::Value) -> bool {
     }
 }
 fn overlays_of(meta: &serde_json::Value) -> Vec<String> {
+    overlays_for(meta, RESOURCE_FORMAT)
+}
+/// The overlay folders of `meta` that apply to `current` (the resource or the data pack format).
+pub(crate) fn overlays_for(meta: &serde_json::Value, current: Format) -> Vec<String> {
     meta["overlays"]["entries"]
         .as_array()
         .into_iter()
         .flatten()
-        .filter(|e| overlay_applies(e))
+        .filter(|e| overlay_applies(e, current))
         .filter_map(|e| e["directory"].as_str().map(str::to_owned))
         // OverlayMetadataSection's DIR_VALIDATOR: one folder of the pack, `[-_a-zA-Z0-9.]+`.
         .filter(|d| {
