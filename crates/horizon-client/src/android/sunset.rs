@@ -291,6 +291,16 @@ static CACHE: Mutex<Option<((u32, u32), Scene)>> = Mutex::new(None);
 
 /// Draws the sunset over the whole `w` × `h` window.
 pub fn draw(ui: &mut Ui, w: f32, h: f32) {
+    draw_scene(ui, w, h, true);
+}
+
+/// The sunset without the sun's halo, for a screen that covers it with a dark veil (the glow
+/// would show through as almost nothing, and costs the most to draw).
+pub fn draw_dimmed(ui: &mut Ui, w: f32, h: f32) {
+    draw_scene(ui, w, h, false);
+}
+
+fn draw_scene(ui: &mut Ui, w: f32, h: f32, glow: bool) {
     let key = (w.round() as u32, h.round() as u32);
     let mut cache = CACHE.lock().unwrap();
     if cache.as_ref().map(|c| c.0) != Some(key) {
@@ -329,17 +339,17 @@ pub fn draw(ui: &mut Ui, w: f32, h: f32) {
         scene.sun.1 as f32 * px,
         scene.sun.2 as f32 * px,
     );
-    // One round glow: many very faint discs, so no ring shows.
-    const GLOW_DISCS: usize = 36;
-    for k in 0..GLOW_DISCS {
-        let rr = r * (1.0 + 1.6 * (1.0 - k as f32 / GLOW_DISCS as f32));
+    // One round glow: a score of very faint discs, so no ring shows.
+    const GLOW_DISCS: usize = 20;
+    for k in 0..if glow { GLOW_DISCS } else { 0 } {
+        let rr = r * (1.0 + 1.4 * (1.0 - k as f32 / GLOW_DISCS as f32));
         ui.rounded(
             cx - rr,
             cy - rr,
             rr * 2.0,
             rr * 2.0,
             rr,
-            color::hex(HALO, 3),
+            color::hex(HALO, 5),
         );
     }
     let (sx, sy, sr) = (scene.sun.0 as f64, scene.sun.1 as f64, scene.sun.2 as f64);
