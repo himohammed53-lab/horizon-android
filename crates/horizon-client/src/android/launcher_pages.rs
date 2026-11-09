@@ -2082,7 +2082,7 @@ impl Launcher {
                 tab[2] + 24.0 * (1.0 - p),
                 tab[3],
                 14.0,
-                color::hex(0x000000, 205),
+                color::hex(0x000000, 120),
             );
             let arrow = if self.home_menu { ">" } else { "<" };
             let aw = ui.measure(Face::Medium, 28.0, arrow);
@@ -2091,7 +2091,7 @@ impl Launcher {
                 28.0,
                 tab[0] + (30.0 - aw) / 2.0,
                 tab[1] + 18.0,
-                color::hex(0xffffff, 255),
+                color::hex(0xffffff, 200),
                 arrow,
             );
             let hit = if self.home_menu {
