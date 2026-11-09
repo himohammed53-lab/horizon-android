@@ -2183,6 +2183,38 @@ impl Launcher {
                 self.targets.insert(0, (hit, Action::HomeMenu));
             }
         }
+        if self.session_worker.is_some() {
+            // Pressing Play shows the loading screen at once; the account session and the skin
+            // are prepared behind it, and the game opens when they are ready.
+            self.targets.clear();
+            self.list_targets.clear();
+            self.list_view = None;
+            super::sunset::draw(&mut ui, w, h);
+            ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x000000, 110));
+            let title = "Horizon";
+            let tw = ui.measure(Face::Medium, 64.0, title);
+            ui.text(
+                Face::Medium,
+                64.0,
+                (w - tw) / 2.0,
+                h * 0.38,
+                color::hex(0xffffff, 255),
+                title,
+            );
+            let note = "Getting your game ready...";
+            let nw = ui.measure(Face::Regular, 18.0, note);
+            ui.text(
+                Face::Regular,
+                18.0,
+                (w - nw) / 2.0,
+                h * 0.38 + 64.0 * 1.45 + 8.0,
+                color::hex(0xffffff, 190),
+                note,
+            );
+            if let Some(window) = &self.window {
+                window.request_redraw();
+            }
+        }
         crate::documents::draw_ui(&mut ui);
         ui.finish();
 

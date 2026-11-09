@@ -346,23 +346,10 @@ impl Launcher {
                             &account,
                             &secrets,
                         )?;
-                        let appearance = if account.provider == crate::account::Provider::Ely {
-                            // Ely.by keeps the skin on its own site: wait for it only briefly, so
-                            // a slow connection never delays entering the game.
-                            let (done, finished) = mpsc::channel();
-                            std::thread::spawn(move || {
-                                let _ = done.send(
-                                    crate::skins::cloud::fetch(&account, &secrets, &wardrobe_home)
-                                        .unwrap_or_default(),
-                                );
-                            });
-                            finished
-                                .recv_timeout(Duration::from_millis(1200))
-                                .unwrap_or_default()
-                        } else {
+                        // The skin is fetched before the game starts, so it shows from the first frame.
+                        let appearance =
                             crate::skins::cloud::fetch(&account, &secrets, &wardrobe_home)
-                                .unwrap_or_default()
-                        };
+                                .unwrap_or_default();
                         Ok(PreparedAccount {
                             key,
                             file,
