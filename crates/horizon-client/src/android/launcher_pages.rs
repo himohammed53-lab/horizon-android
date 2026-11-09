@@ -1905,7 +1905,7 @@ impl Launcher {
                 Face::Regular,
                 14.0,
                 32.0 + side,
-                if w >= 700.0 { h - 58.0 } else { h - 47.0 } + i as f32 * 18.0,
+                (if w >= 700.0 { h - 58.0 } else { h - 47.0 }) + i as f32 * 18.0,
                 color::MUTED,
                 &ui.fit_text(
                     Face::Regular,
