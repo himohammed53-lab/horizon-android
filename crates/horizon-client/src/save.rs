@@ -194,6 +194,30 @@ impl SessionLock {
 /// POI chunk, player, saved data, advancements and statistics file. Vanilla runs
 /// the latter as it reads each file; Horizon runs them all on opening, which reads
 /// the same data. Worlds older than the ported fixes (1.17) are refused.
+/// A world that arrived with read-only files or folders (a copy that kept the source's modes)
+/// cannot be upgraded or saved: the owner gets read and write on all of it again.
+#[cfg(target_os = "android")]
+fn make_writable(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    let Ok(meta) = std::fs::symlink_metadata(path) else {
+        return;
+    };
+    if meta.file_type().is_symlink() {
+        return;
+    }
+    let mode = meta.permissions().mode();
+    let wanted = mode | if meta.is_dir() { 0o700 } else { 0o600 };
+    if wanted != mode {
+        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(wanted));
+    }
+    if meta.is_dir()
+        && let Ok(entries) = std::fs::read_dir(path)
+    {
+        for entry in entries.flatten() {
+            make_writable(&entry.path());
+        }
+    }
+}
 pub fn upgrade_older_world(world: &Path) -> Result<()> {
     upgrade_older_world_with(
         world,
@@ -205,6 +229,8 @@ pub fn upgrade_older_world_with(
     world: &Path,
     progress: &horizon_world::datafix::progress::UpgradeProgress,
 ) -> Result<()> {
+    #[cfg(target_os = "android")]
+    make_writable(world);
     let Some(root) = read_dat(&world.join("level.dat")) else {
         return Ok(());
     };

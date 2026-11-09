@@ -71,7 +71,7 @@ pub fn write_dat(path: &Path, tag: &Tag) -> io::Result<()> {
         tag: tag.clone(),
     };
     let raw = nbt::write_named(&root, Limits::default()).map_err(|e| invalid(e.to_string()))?;
-    fs::write(path, Compression::Gzip.encode(&raw)?)
+    fs::write(path, Compression::Gzip.encode(&raw)?).map_err(|e| with_path(e, "write", path))
 }
 
 /// `NbtUtils.getDataVersion`.
@@ -117,9 +117,14 @@ fn move_file(base: &Path, from: &str, to: &str) -> io::Result<()> {
         ));
     }
     if let Some(parent) = to.parent() {
-        fs::create_dir_all(parent)?;
+        fs::create_dir_all(parent).map_err(|e| with_path(e, "create", parent))?;
     }
-    fs::rename(from, to)
+    fs::rename(&from, &to).map_err(|e| with_path(e, &format!("move {} to", from.display()), &to))
+}
+
+/// `error` with the operation and path that failed, so a log says where.
+fn with_path(error: io::Error, what: &str, path: &Path) -> io::Error {
+    io::Error::new(error.kind(), format!("{what} {}: {error}", path.display()))
 }
 
 /// `FileFixUtil.deleteFileOrEmptyDirectory`.
@@ -754,15 +759,16 @@ fn upgrade_regions(
         }
         drop(region);
         let staging = folder.join(".datafix");
-        fs::create_dir_all(&staging)?;
+        fs::create_dir_all(&staging).map_err(|e| with_path(e, "create", &staging))?;
         let temporary = staging.join(path.file_name().unwrap_or_default());
         let _ = fs::remove_file(&temporary);
-        let mut writer = RegionWriter::create(&temporary)?;
+        let mut writer = RegionWriter::create(&temporary)
+            .map_err(|e| with_path(e, "create region", &temporary))?;
         for (pos, record) in &records {
             writer.write(*pos, record)?;
         }
         writer.finish()?;
-        fs::rename(&temporary, &path)?;
+        fs::rename(&temporary, &path).map_err(|e| with_path(e, "replace region", &path))?;
         fs::remove_dir(&staging)?;
         progress.progress.increment_finished_operations();
     }

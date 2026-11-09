@@ -316,13 +316,18 @@ impl RegionStorageUpgrader {
             let out = ChunkRecord::from_nbt(&root, Compression::Zlib, timestamp, limits)?;
             let target = if self.builder.recreate_region_files {
                 let dir = resolve_recreate_directory(&self.region_folder);
-                fs::create_dir_all(&dir)?;
+                fs::create_dir_all(&dir).map_err(|e| {
+                    std::io::Error::new(e.kind(), format!("create {}: {e}", dir.display()))
+                })?;
                 dir.join(file.file_name().unwrap_or_default())
             } else {
                 file.to_path_buf()
             };
             if self.writer.as_ref().is_none_or(|(path, _)| *path != target) {
-                self.writer = Some((target.clone(), RegionFile::open_writable(&target, true)?));
+                let opened = RegionFile::open_writable(&target, true).map_err(|e| {
+                    std::io::Error::new(e.kind(), format!("open {}: {e}", target.display()))
+                })?;
+                self.writer = Some((target.clone(), opened));
             }
             if let Some((_, writer)) = self.writer.as_mut() {
                 writer.write(pos, &out)?;
