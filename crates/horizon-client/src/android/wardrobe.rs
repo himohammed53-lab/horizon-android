@@ -498,17 +498,32 @@ impl Wardrobe {
     pub fn draw(&mut self, ui: &mut Ui, targets: &mut Vec<([f32; 4], Action)>, scroll: f32) {
         let width = ui.w;
         let compact = width < 700.0;
-        let top = if compact { 160.0 } else { 146.0 };
-        ui.text(Face::Medium, 26.0, 32.0, top, color::TEXT, "Skins & Capes");
-        ui.text(
-            Face::Regular,
-            13.0,
-            32.0,
-            top + 36.0,
-            color::MUTED,
-            "Local choices change your view. Cloud buttons update your account.",
-        );
-        let list_top = top + 66.0;
+        // On a wide screen the title and its note share one line high up, so the skin and the
+        // buttons start higher and the preview is taller.
+        let top = if compact { 160.0 } else { 118.0 };
+        if compact {
+            ui.text(Face::Medium, 26.0, 32.0, top, color::TEXT, "Skins & Capes");
+            ui.text(
+                Face::Regular,
+                13.0,
+                32.0,
+                top + 36.0,
+                color::MUTED,
+                "Local choices change your view. Cloud buttons update your account.",
+            );
+        } else {
+            let title_w = ui.measure(Face::Medium, 22.0, "Skins & Capes");
+            ui.text(Face::Medium, 22.0, 32.0, top, color::TEXT, "Skins & Capes");
+            ui.text(
+                Face::Regular,
+                13.0,
+                32.0 + title_w + 16.0,
+                top + 9.0,
+                color::MUTED,
+                "Local choices change your view. Cloud buttons update your account.",
+            );
+        }
+        let list_top = if compact { top + 66.0 } else { 152.0 };
         // A box just as wide as the skin needs, its left edge in line with the bottom bar's
         // button and its bottom edge (with the buttons below it) just above that bar.
         let preview_height = if compact {
@@ -604,7 +619,7 @@ impl Wardrobe {
         } else {
             width - lx - 72.0
         };
-        let listtop = if compact { controls + 82.0 } else { top + 66.0 };
+        let listtop = if compact { controls + 82.0 } else { list_top };
         let (import_y, import_h, first, rh, pitch) = if compact {
             (listtop + 44.0, 36.0, 88.0, 44.0, 50.0)
         } else {
@@ -663,6 +678,8 @@ impl Wardrobe {
             Action::WardrobeImport,
             true,
         );
+        // A row half outside the list shows only its inside half.
+        let clip_from = ui.mark();
         let mut row = listtop + first + 4.0 - scroll;
         let bottom = ui.h - 80.0;
         let selection = self
@@ -678,7 +695,7 @@ impl Wardrobe {
         };
         if self.capes && self.provider.is_some() {
             for (index, cape) in self.cache.snapshot.capes.iter().enumerate() {
-                if row >= listtop + first && row + rh <= bottom {
+                if row + rh > listtop + first && row < bottom {
                     let label = ui.fit_text(
                         Face::Medium,
                         17.0,
@@ -712,7 +729,7 @@ impl Wardrobe {
             .enumerate()
             .filter(|(_, e)| e.kind == self.kind())
         {
-            if row >= listtop + first && row + rh <= bottom {
+            if row + rh > listtop + first && row < bottom {
                 let label = ui.fit_text(
                     Face::Medium,
                     17.0,
@@ -739,7 +756,7 @@ impl Wardrobe {
             row += pitch;
         }
         if self.provider.is_none() {
-            if row >= listtop + first && row + rh <= bottom {
+            if row + rh > listtop + first && row < bottom {
                 button(
                     ui,
                     targets,
@@ -756,13 +773,13 @@ impl Wardrobe {
                 ("Use current cloud appearance", Action::WardrobeUseCloud),
                 ("Refresh cloud profile", Action::WardrobeCloud),
             ] {
-                if row >= listtop + first && row + rh <= bottom {
+                if row + rh > listtop + first && row < bottom {
                     button(ui, targets, [lx, row, lw, rh], label, action, false);
                 }
                 row += pitch;
             }
             if !self.capes {
-                if row >= listtop + first && row + rh <= bottom {
+                if row + rh > listtop + first && row < bottom {
                     button(
                         ui,
                         targets,
@@ -780,7 +797,7 @@ impl Wardrobe {
             } else {
             }
         }
-        if self.capes && row >= listtop + first && row + rh <= bottom {
+        if self.capes && row + rh > listtop + first && row < bottom {
             button(
                 ui,
                 targets,
@@ -790,6 +807,7 @@ impl Wardrobe {
                 false,
             );
         }
+        ui.clip_since(clip_from, 0.0, listtop + first, width, bottom);
         self.view = [
             listtop + first,
             bottom,

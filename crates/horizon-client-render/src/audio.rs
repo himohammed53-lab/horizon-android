@@ -263,31 +263,41 @@ pub struct Audio {
     device_probe: Option<std::sync::mpsc::Receiver<DeviceProbe>>,
 }
 const SYNTH_RATE: u32 = 44_100;
-/// A glass tap: two bright partials that fade fast, with a soft attack so it never clicks.
+/// A soft, round tap: a low sine that drops a little as it fades, with a faint overtone. No
+/// bright ring, so it sounds like a modern touch response and not a game's coin.
 fn synth_click() -> Vec<f32> {
-    let n = (SYNTH_RATE as f32 * 0.09) as usize;
+    let n = (SYNTH_RATE as f32 * 0.085) as usize;
+    let mut phase = 0.0f32;
+    let mut overtone = 0.0f32;
     (0..n)
         .map(|i| {
             let t = i as f32 / SYNTH_RATE as f32;
-            let attack = (t / 0.002).min(1.0);
-            let body = (std::f32::consts::TAU * 1480.0 * t).sin() * (-t * 55.0).exp();
-            let shine = (std::f32::consts::TAU * 2220.0 * t).sin() * (-t * 80.0).exp() * 0.5;
-            let low = (std::f32::consts::TAU * 740.0 * t).sin() * (-t * 40.0).exp() * 0.4;
-            0.32 * attack * (body + shine + low)
+            let attack = (t / 0.003).min(1.0);
+            let frequency = 300.0 + 240.0 * (-t * 70.0).exp();
+            phase += std::f32::consts::TAU * frequency / SYNTH_RATE as f32;
+            overtone += std::f32::consts::TAU * frequency * 2.0 / SYNTH_RATE as f32;
+            let body = phase.sin() * (-t * 55.0).exp();
+            let air = overtone.sin() * (-t * 120.0).exp() * 0.25;
+            0.4 * attack * (body + air)
         })
         .collect()
 }
-/// A light swish: a soft tone gliding up, rising and falling smoothly.
+/// A soft swish for changing page: air that brightens as it passes, with no pitch to it.
 fn synth_swipe() -> Vec<f32> {
-    let n = (SYNTH_RATE as f32 * 0.17) as usize;
-    let mut phase = 0.0f32;
+    let n = (SYNTH_RATE as f32 * 0.15) as usize;
+    let mut seed = 0x1234_5678u32;
+    let mut low = 0.0f32;
     (0..n)
         .map(|i| {
             let x = i as f32 / n as f32;
+            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            let noise = (seed >> 8) as f32 / (1u32 << 24) as f32 * 2.0 - 1.0;
+            // A one-pole low-pass whose cut-off rises as the swish goes by.
+            let cutoff = 500.0 + 2600.0 * x;
+            let k = 1.0 - (-std::f32::consts::TAU * cutoff / SYNTH_RATE as f32).exp();
+            low += k * (noise - low);
             let envelope = (std::f32::consts::PI * x).sin().powi(2);
-            let frequency = 520.0 + 700.0 * x * x;
-            phase += std::f32::consts::TAU * frequency / SYNTH_RATE as f32;
-            0.2 * envelope * (phase.sin() + 0.35 * (phase * 2.0).sin())
+            1.1 * envelope * low
         })
         .collect()
 }

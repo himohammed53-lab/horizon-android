@@ -653,7 +653,7 @@ impl Launcher {
         let home = self.catalog.page == Page::Play
             && horizon_client::official_install::ready(&self.home)
             && self.worker.is_none();
-        let sunset = !home && self.catalog.page != Page::Play;
+        let sunset = !home;
         if sunset {
             super::sunset::draw(&mut ui, w, h);
         }
@@ -859,65 +859,7 @@ impl Launcher {
             );
             self.targets.push((play, Action::Play));
         } else {
-            if self.catalog.page == Page::Play {
-                // The version, white, bottom right.
-                let version = format!("v{APP_VERSION}");
-                let version_width = ui.measure(Face::Medium, 22.0, &version);
-                shadow_text(
-                    &mut ui,
-                    Face::Medium,
-                    22.0,
-                    w - 32.0 - version_width,
-                    h - 38.0,
-                    &version,
-                );
-                shadow_text(
-                    &mut ui,
-                    Face::Medium,
-                    if w < 400.0 {
-                        22.0
-                    } else if w < 700.0 {
-                        26.0
-                    } else {
-                        36.0
-                    },
-                    32.0,
-                    if w < 700.0 { 12.0 } else { 20.0 },
-                    "Horizon",
-                );
-                // The player's face, top right: the skin in use, or the default skin. It opens the
-                // sign-in choices (Offline, Microsoft, Ely.by). Next to it, a gear opens Settings.
-                let face = if w < 700.0 { 34.0 } else { 66.0 };
-                let face_y = if w < 700.0 { 8.0 } else { 12.0 };
-                let face_x = w - 32.0 - face;
-                if self.wardrobe.needs_open() {
-                    self.wardrobe.open(
-                        &self.catalog.config.name,
-                        &self.catalog.config.microsoft_client_id,
-                    );
-                }
-                // A very thin white outline around the face.
-                ui.rounded(
-                    face_x - 1.5,
-                    face_y - 1.5,
-                    face + 3.0,
-                    face + 3.0,
-                    0.0,
-                    color::hex(0xffffff, 255),
-                );
-                self.wardrobe.draw_face(&mut ui, face_x, face_y, face);
-                self.targets.push((
-                    [face_x - 3.0, face_y - 3.0, face + 6.0, face + 6.0],
-                    Action::Account,
-                ));
-                // The gear: white squares only, as tall as the face, no plate behind it.
-                let gear = face;
-                let gear_x = face_x - 28.0 - gear;
-                let gear_y = face_y;
-                gear_icon(&mut ui, gear_x, gear_y, gear);
-                self.targets
-                    .push(([gear_x, gear_y, gear, gear], Action::Page(Page::Settings)));
-            } else {
+            {
                 // The same top bar as the home screen: account, the name, settings.
                 if self.wardrobe.needs_open() {
                     self.wardrobe.open(
@@ -1018,11 +960,13 @@ impl Launcher {
                     ));
                 }
             }
-            let chips_page = w >= 700.0
-                && (self.catalog.page.is_catalog()
-                    || self.catalog.page == Page::Installed
-                    || self.catalog.page == Page::Skins
-                    || self.catalog.page == Page::Settings);
+            // The install screen has the new top bar and no old section row.
+            let chips_page = self.catalog.page == Page::Play
+                || w >= 700.0
+                    && (self.catalog.page.is_catalog()
+                        || self.catalog.page == Page::Installed
+                        || self.catalog.page == Page::Skins
+                        || self.catalog.page == Page::Settings);
             let tabs = Page::ALL.len() as f32;
             let tab_margin = if w < 700.0 { 16.0 } else { 32.0 };
             let tab_width = ((w - 2.0 * tab_margin - 16.0) / tabs).min(150.0);
@@ -1051,6 +995,17 @@ impl Launcher {
         if home {
         } else if page == Page::Play {
             use horizon_client::official_install::InstallStage;
+            // The version, bottom right, as on the other screens.
+            let version = format!("v{APP_VERSION}");
+            let version_w = ui.measure(Face::Medium, 20.0, &version);
+            ui.text(
+                Face::Medium,
+                20.0,
+                w - 16.0 - version_w,
+                h - 38.0,
+                color::hex(0x8e8e8e, 255),
+                &version,
+            );
             let installed = horizon_client::official_install::ready(&self.home);
             let installing = self.worker.is_some();
             let progress = *self.install.lock().unwrap();
@@ -2156,11 +2111,11 @@ impl Launcher {
                 }
             }
             let items: [(&str, Action); 5] = [
+                ("World", Action::ImportWorld),
                 ("Mods", Action::Page(Page::Mods)),
                 ("Packs", Action::Page(Page::Packs)),
-                ("Files", Action::Page(Page::Installed)),
                 ("Skins", Action::Page(Page::Skins)),
-                ("Worlds", Action::ImportWorld),
+                ("Files", Action::Page(Page::Installed)),
             ];
             let (pw, row) = (200.0_f32.min(w * 0.6), 54.0);
             // The panel keeps its size (six rows); the five rows sit together at the top.
