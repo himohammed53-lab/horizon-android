@@ -974,12 +974,18 @@ impl ChunkWork {
 type BiomeCache = Mutex<HashMap<(i32, i32), Arc<BiomeChunk<BiomeId>>>>;
 
 fn state(registry: &BlockRegistry, raw: &Value) -> Result<BlockStateId, GeneratorError> {
+    // A block state is `{"Name", "Properties"}` in the game's own data and `{"id", "properties"}`
+    // in the data packs of 26.3.
     let name = raw
         .get("Name")
+        .or_else(|| raw.get("id"))
         .and_then(Value::as_str)
         .or_else(|| raw.as_str())
         .ok_or_else(|| resource("block state"))?;
-    let properties = raw.get("Properties").and_then(Value::as_object);
+    let properties = raw
+        .get("Properties")
+        .or_else(|| raw.get("properties"))
+        .and_then(Value::as_object);
     match properties {
         Some(properties) if !properties.is_empty() => {
             let descriptor = crate::chunk::BlockState {
@@ -1069,8 +1075,24 @@ where
             .filter(|v| !v.is_null())
             .map(|v| AquiferConfig::from_json(&v.to_string(), &mut densities))
             .transpose()?;
+        // A noise settings file may hold its material rule inline (a data pack's usually does);
+        // it joins the registered ones under a name of its own.
+        const INLINE_RULE: &str = "horizon:inline_material_rule";
+        let inline_rule = settings_json["material_rule"]
+            .is_object()
+            .then(|| settings_json["material_rule"].to_string());
+        let with_inline;
+        let rules = match &inline_rule {
+            Some(json) => {
+                let mut all = data.rules.clone();
+                all.insert(INLINE_RULE.to_owned(), json.clone());
+                with_inline = all;
+                &with_inline
+            }
+            None => &data.rules,
+        };
         let mut library = MaterialRuleLibrary::from_json(
-            &data.rules,
+            rules,
             &data.conditions,
             &codec,
             densities,
@@ -1086,9 +1108,13 @@ where
             .map(|config| library.compile_aquifer(config))
             .transpose()?
             .map(|samplers| AquiferField::ALL.map(|field| samplers.get(field).clone()));
-        let rule_name = settings_json["material_rule"]
-            .as_str()
-            .ok_or_else(|| resource("material_rule"))?;
+        let rule_name = if inline_rule.is_some() {
+            INLINE_RULE
+        } else {
+            settings_json["material_rule"]
+                .as_str()
+                .ok_or_else(|| resource("material_rule"))?
+        };
         let rule = library.rule(rule_name)?;
         let preliminary = router.get(RouterField::ChunkSurfaceLevel).clone();
         let spawn_target = match settings_json.get("spawn_target") {
