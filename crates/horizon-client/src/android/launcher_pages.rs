@@ -794,13 +794,13 @@ impl Launcher {
             };
             // The account on the left; on the right the name of the app, then the gear.
             let chip_w = (w * 0.4).min(260.0);
-            ui.rounded(10.0, 13.0, chip_w, 44.0, 22.0, card);
-            self.wardrobe.draw_face(&mut ui, 15.0, 18.0, 34.0);
+            ui.rounded(24.0, 13.0, chip_w, 44.0, 22.0, card);
+            self.wardrobe.draw_face(&mut ui, 29.0, 18.0, 34.0);
             let who = ui.fit_text(Face::Medium, 16.0, &who, chip_w - 56.0);
-            ui.text(Face::Medium, 16.0, 58.0, 17.0, white, &who);
-            ui.text(Face::Regular, 12.0, 58.0, 36.0, gray, provider);
+            ui.text(Face::Medium, 16.0, 72.0, 17.0, white, &who);
+            ui.text(Face::Regular, 12.0, 72.0, 36.0, gray, provider);
             self.targets
-                .push(([10.0, 13.0, chip_w, 44.0], Action::Account));
+                .push(([24.0, 13.0, chip_w, 44.0], Action::Account));
             ui.rounded(w - 64.0, 13.0, 44.0, 44.0, 22.0, card);
             gear_icon(&mut ui, w - 56.0, 21.0, 28.0);
             self.targets
@@ -941,13 +941,13 @@ impl Launcher {
                     None => (self.catalog.config.name.clone(), "Offline"),
                 };
                 let chip_w = (w * 0.4).min(260.0);
-                ui.rounded(10.0, 13.0, chip_w, 44.0, 22.0, card);
-                self.wardrobe.draw_face(&mut ui, 15.0, 18.0, 34.0);
+                ui.rounded(24.0, 13.0, chip_w, 44.0, 22.0, card);
+                self.wardrobe.draw_face(&mut ui, 29.0, 18.0, 34.0);
                 let who = ui.fit_text(Face::Medium, 16.0, &who, chip_w - 56.0);
-                ui.text(Face::Medium, 16.0, 58.0, 17.0, white, &who);
-                ui.text(Face::Regular, 12.0, 58.0, 36.0, gray, provider);
+                ui.text(Face::Medium, 16.0, 72.0, 17.0, white, &who);
+                ui.text(Face::Regular, 12.0, 72.0, 36.0, gray, provider);
                 self.targets
-                    .push(([10.0, 13.0, chip_w, 44.0], Action::Account));
+                    .push(([24.0, 13.0, chip_w, 44.0], Action::Account));
                 ui.rounded(w - 64.0, 13.0, 44.0, 44.0, 22.0, card);
                 gear_icon(&mut ui, w - 56.0, 21.0, 28.0);
                 self.targets
@@ -968,7 +968,8 @@ impl Launcher {
                 if matches!(
                     self.catalog.page,
                     Page::Mods | Page::Shaders | Page::Packs | Page::Skins
-                ) {
+                ) || (self.catalog.page == Page::Settings && w >= 700.0)
+                {
                     // The bottom bar: Eject (add a file) where the home screen has Play.
                     ui.rounded(0.0, h - 80.0, w, 80.0, 0.0, color::hex(0x000000, 205));
                     ui.rounded(0.0, h - 80.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
@@ -984,14 +985,20 @@ impl Launcher {
                     );
                     let eject = [14.0, h - 66.0, (w * 0.3).min(230.0), 52.0];
                     ui.rounded(eject[0], eject[1], eject[2], eject[3], 20.0, white);
-                    let ew = ui.measure(Face::Medium, 20.0, "Eject");
+                    // Settings has "Back" in the white button; the others add a file.
+                    let word = if self.catalog.page == Page::Settings {
+                        "Back"
+                    } else {
+                        "Eject"
+                    };
+                    let ew = ui.measure(Face::Medium, 20.0, word);
                     ui.text(
                         Face::Medium,
                         20.0,
                         eject[0] + (eject[2] - ew) / 2.0,
                         eject[1] + 11.0,
                         color::hex(0x111111, 255),
-                        "Eject",
+                        word,
                     );
                     let kind = match self.catalog.page {
                         Page::Mods => horizon_client::content_files::Kind::Mods,
@@ -1000,7 +1007,9 @@ impl Launcher {
                     };
                     self.targets.push((
                         eject,
-                        if self.catalog.page == Page::Skins {
+                        if self.catalog.page == Page::Settings {
+                            Action::Page(Page::Play)
+                        } else if self.catalog.page == Page::Skins {
                             Action::WardrobeImport
                         } else {
                             Action::Import(kind)
@@ -1870,7 +1879,12 @@ impl Launcher {
             button(
                 &mut ui,
                 &mut self.targets,
-                [w * 0.5 + 6.0, h - 114.0, w * 0.5 - 38.0, 42.0],
+                [
+                    w * 0.5 + 6.0,
+                    if compact { h - 114.0 } else { h - 124.0 },
+                    w * 0.5 - 38.0,
+                    42.0,
+                ],
                 "Microsoft / Xbox account",
                 Action::Account,
                 true,
@@ -1878,7 +1892,12 @@ impl Launcher {
             button(
                 &mut ui,
                 &mut self.targets,
-                [32.0, h - 114.0, w * 0.5 - 38.0, 42.0],
+                [
+                    32.0,
+                    if compact { h - 114.0 } else { h - 124.0 },
+                    w * 0.5 - 38.0,
+                    42.0,
+                ],
                 "Diagnostics",
                 Action::Logs,
                 false,
