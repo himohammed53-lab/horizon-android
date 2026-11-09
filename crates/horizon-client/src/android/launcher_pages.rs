@@ -1921,7 +1921,7 @@ impl Launcher {
             let px = w - pw * p;
             if p > 0.0 {
                 ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x000000, (130.0 * p) as u8));
-                ui.rounded(px, py, pw + 20.0, ph, 22.0, color::hex(0x3b3b40, 245));
+                ui.rounded(px, py, pw + 20.0, ph, 22.0, color::hex(0x000000, 205));
                 ui.rounded(px, py, 1.5, ph, 0.0, color::hex(0xffffff, 40));
                 for (i, (label, action)) in items.into_iter().enumerate() {
                     let y = py + 6.0 + i as f32 * row;
@@ -1949,7 +1949,7 @@ impl Launcher {
                 tab[2] + 24.0,
                 tab[3],
                 18.0,
-                color::hex(0x3b3b40, 245),
+                color::hex(0x000000, 205),
             );
             let arrow = if self.home_menu { ">" } else { "<" };
             let aw = ui.measure(Face::Medium, 28.0, arrow);
