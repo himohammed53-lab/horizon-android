@@ -560,8 +560,27 @@ impl Game<'_> {
         // the ones running: server mods and native takeovers never run in
         // this window, so that comparison differed on every click in the
         // options and reloaded (recompiled) every mod each time.
-        if self.mods.started != self.wanted_mod_ids() {
-            self.start_mods();
+        let wanted = self.wanted_mod_ids();
+        if self.mods.started != wanted {
+            // A mod with no code (content only) has nothing to start or stop here: its content
+            // is read when the game starts. Reloading every mod for it froze the game.
+            let changed: Vec<&String> = wanted
+                .iter()
+                .filter(|id| !self.mods.started.contains(id))
+                .chain(self.mods.started.iter().filter(|id| !wanted.contains(id)))
+                .collect();
+            let only_content = !changed.is_empty()
+                && changed.iter().all(|id| {
+                    self.mods.mods.entries().iter().any(|e| {
+                        e.manifest.as_ref().is_some_and(|m| &m.id == *id)
+                            && !horizon_mods::has_code(&e.path)
+                    })
+                });
+            if only_content {
+                self.mods.started = wanted;
+            } else {
+                self.start_mods();
+            }
         }
     }
     /// The ids of the installed mods the options have turned on.

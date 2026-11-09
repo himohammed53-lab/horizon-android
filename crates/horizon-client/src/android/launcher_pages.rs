@@ -382,7 +382,6 @@ fn section_chips(
     let width = ((space - 24.0) / 5.0).clamp(44.0, if wide { 100.0 } else { 96.0 });
     let pages: Vec<(&str, Page)> = if wide {
         vec![
-            ("Play", Page::Play),
             ("Mods", Page::Mods),
             ("Packs", Page::Packs),
             ("Skins", Page::Skins),
@@ -1668,38 +1667,51 @@ impl Launcher {
                 }
             }
         } else {
-            // On a wide screen Settings covers the whole screen above the Back bar.
-            let off = if compact { 0.0 } else { -130.0 };
+            // On a wide screen Settings covers the whole screen: the grey panel edge to edge,
+            // and only a Back button in the top left corner.
+            let off = if compact { 0.0 } else { -111.0 };
+            let bot = if compact { 130.0 } else { 80.0 };
             if !compact {
-                self.targets.retain(|t| t.0[1] >= h - 80.0);
-                ui.rounded(0.0, 0.0, w, h - 80.0, 0.0, color::hex(0x0b0b0e, 255));
+                self.targets.clear();
+                super::sunset::draw(&mut ui, w, h);
+                ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x0f1013, 200));
+                button(
+                    &mut ui,
+                    &mut self.targets,
+                    [24.0, 16.0, 110.0, 44.0],
+                    "Back",
+                    Action::Page(Page::Play),
+                    false,
+                );
             }
             let c = &self.catalog.config;
             ui.text(
                 Face::Medium,
                 24.0,
-                32.0,
-                156.0 + off,
+                if compact { 32.0 } else { 156.0 },
+                if compact { 156.0 } else { 22.0 },
                 color::TEXT,
                 "Launch settings",
             );
-            ui.rounded(
-                16.0,
-                186.0 + off,
-                w - 32.0,
-                h - 130.0 - (186.0 + off),
-                18.0,
-                color::hex(0x0f1013, 200),
-            );
+            if compact {
+                ui.rounded(
+                    16.0,
+                    186.0,
+                    w - 32.0,
+                    (h - bot) - 186.0,
+                    18.0,
+                    color::hex(0x0f1013, 200),
+                );
+            }
             let row_height = if compact { 82.0 } else { 66.0 };
             self.catalog.scroll = self.catalog.scroll.clamp(
                 0.0,
-                (19.0 * row_height - (h - 130.0 - (195.0 + off))).max(0.0),
+                (19.0 * row_height - ((h - bot) - (195.0 + off))).max(0.0),
             );
             self.list_view = Some([
                 195.0 + off,
-                h - 130.0,
-                (18.0 * row_height - (h - 130.0 - (195.0 + off))).max(0.0),
+                (h - bot),
+                (18.0 * row_height - ((h - bot) - (195.0 + off))).max(0.0),
             ]);
             for (i, (title, value, action)) in [
                 ("Rendering", c.renderer.label().to_owned(), Action::Renderer),
@@ -1835,7 +1847,7 @@ impl Launcher {
                     ],
                     action,
                 ));
-                if y < 185.0 + off || y + if compact { 70.0 } else { 46.0 } > h - 130.0 {
+                if y < 185.0 + off || y + if compact { 70.0 } else { 46.0 } > (h - bot) {
                     continue;
                 }
                 ui.text(
@@ -1913,7 +1925,7 @@ impl Launcher {
                 &mut self.targets,
                 [
                     w * 0.5 + 6.0,
-                    if compact { h - 114.0 } else { h - 124.0 },
+                    if compact { h - 114.0 } else { h - 62.0 },
                     w * 0.5 - 38.0,
                     42.0,
                 ],
@@ -1926,7 +1938,7 @@ impl Launcher {
                 &mut self.targets,
                 [
                     32.0,
-                    if compact { h - 114.0 } else { h - 124.0 },
+                    if compact { h - 114.0 } else { h - 62.0 },
                     w * 0.5 - 38.0,
                     42.0,
                 ],
@@ -1938,6 +1950,7 @@ impl Launcher {
         let status = self.error.as_deref().unwrap_or(&self.catalog.status);
         let status = if (page == Page::Play && self.error.is_none() && self.worker.is_none())
             || (page == Page::Skins && w >= 700.0)
+            || (page == Page::Settings && w >= 700.0)
         {
             ""
         } else {

@@ -10,6 +10,21 @@ use std::{
 pub const MANIFEST: &str = "horizon-mod.toml";
 /// The component's file name in a `.hmod` or a mod folder.
 pub const WASM: &str = "mod.wasm";
+
+/// Whether the mod at `path` (a `.hmod` or a folder) has code to run. Reads only the archive's
+/// index, so it is cheap; a mod that cannot be read counts as having code.
+pub fn has_code(path: &std::path::Path) -> bool {
+    if path.is_dir() {
+        return path.join(WASM).is_file();
+    }
+    let Ok(file) = std::fs::File::open(path) else {
+        return true;
+    };
+    match zip::ZipArchive::new(file) {
+        Ok(mut zip) => zip.by_name(WASM).is_ok(),
+        Err(_) => true,
+    }
+}
 /// The API (WIT package `horizon:mods`) versions this build runs: a mod
 /// built for any 0.1.x SDK.
 pub const API: &str = "0.1";

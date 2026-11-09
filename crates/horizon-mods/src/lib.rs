@@ -19,6 +19,6 @@ mod runtime;
 pub mod testing;
 
 pub use content::Content;
-pub use manifest::{Capability, Manifest, Package, Side, find};
+pub use manifest::{Capability, Manifest, Package, Side, find, has_code};
 #[cfg(feature = "runtime")]
 pub use runtime::*;
