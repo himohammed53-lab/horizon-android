@@ -706,9 +706,9 @@ impl Launcher {
                     color::hex(rgb, 255),
                 );
             }
-            for k in 0..6 {
+            for k in 0..5 {
                 let kf = k as f32;
-                let base = h * (0.34 + 0.09 * kf);
+                let base = h * (0.36 + 0.1 * kf);
                 let amp = 22.0 + 6.0 * kf;
                 let mut x = 0.0;
                 while x < w {
@@ -716,26 +716,51 @@ impl Launcher {
                     let y = base
                         + amp * (x * 0.011 + t * (0.5 + 0.06 * kf) + kf * 0.9).sin()
                         + amp * 0.4 * (x * 0.026 - t * 0.35 + kf).sin();
-                    let alpha = (edge * (150.0 - kf * 20.0)).max(0.0) as u8;
-                    ui.rounded(x, y, 3.6, 1.6, 0.8, color::hex(super::sunset::WAVE, alpha));
-                    x += 3.6;
+                    let alpha = (edge * (150.0 - kf * 20.0)).max(0.0);
+                    // A soft glow under a fine core, so no step shows along the line.
+                    ui.rounded(
+                        x,
+                        y - 4.0,
+                        3.4,
+                        9.0,
+                        2.0,
+                        color::hex(super::sunset::WAVE, (alpha * 0.2) as u8),
+                    );
+                    ui.rounded(
+                        x,
+                        y,
+                        3.4,
+                        1.8,
+                        0.9,
+                        color::hex(super::sunset::WAVE, alpha as u8),
+                    );
+                    x += 3.0;
                 }
             }
-            for i in 0..16 {
+            for i in 0..14 {
                 let fi = i as f32;
                 let x = (fi * 0.618_034 % 1.0) * w;
                 let speed = 5.0 + (i % 3) as f32 * 4.0;
                 let y = ((fi * 0.381_966 % 1.0) * h - t * speed).rem_euclid(h);
                 let fade = (std::f32::consts::PI * y / h).sin();
-                let alpha = ((0.5 + 0.5 * (t * 1.2 + fi * 1.7).sin()) * 200.0 * fade) as u8;
-                let size = 2.0 + (i % 2) as f32;
+                let alpha = (0.5 + 0.5 * (t * 1.2 + fi * 1.7).sin()) * 200.0 * fade;
+                let size = 3.0 + (i % 2) as f32;
+                // A round glow with a small bright middle.
+                ui.rounded(
+                    x - size * 1.2,
+                    y - size * 1.2,
+                    size * 3.4,
+                    size * 3.4,
+                    size * 1.7,
+                    color::hex(super::sunset::DUST, (alpha * 0.18) as u8),
+                );
                 ui.rounded(
                     x,
                     y,
                     size,
                     size,
                     size / 2.0,
-                    color::hex(super::sunset::DUST, alpha),
+                    color::hex(super::sunset::DUST, alpha as u8),
                 );
             }
             if let Some(window) = &self.window {
