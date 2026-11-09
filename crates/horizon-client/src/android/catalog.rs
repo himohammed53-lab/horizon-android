@@ -225,6 +225,10 @@ pub struct Catalog {
     pub icons: std::collections::HashMap<String, Vec<([f32; 4], u32)>>,
     icons_tried: std::collections::HashSet<String>,
     icon_worker: Option<mpsc::Receiver<(String, Vec<([f32; 4], u32)>)>>,
+    /// Pictures of mods added from files, found on Modrinth by the mod's cleaned-up name.
+    pub mod_icons: std::collections::HashMap<String, Vec<([f32; 4], u32)>>,
+    mod_icons_tried: std::collections::HashSet<String>,
+    mod_icon_worker: Option<mpsc::Receiver<(String, Vec<([f32; 4], u32)>)>>,
     searches: crate::search_queue::Queue<(Page, browser::SourceId, String, usize), Vec<Project>>,
 }
 #[derive(Clone)]
@@ -260,6 +264,9 @@ impl Catalog {
             icons: Default::default(),
             icons_tried: Default::default(),
             icon_worker: None,
+            mod_icons: Default::default(),
+            mod_icons_tried: Default::default(),
+            mod_icon_worker: None,
             searches: crate::search_queue::Queue::new(),
         };
         result.refresh(home);
@@ -420,7 +427,47 @@ impl Catalog {
             }
         }
         self.poll_icons(home);
+        self.poll_mod_icons(home);
         self.start_search();
+    }
+    /// Looks up the picture of each mod added from a file, one at a time, off the screen thread.
+    fn poll_mod_icons(&mut self, home: &Path) {
+        if let Some(rx) = &self.mod_icon_worker {
+            match rx.try_recv() {
+                Ok((name, rects)) => {
+                    self.mod_icons.insert(name, rects);
+                    self.mod_icon_worker = None;
+                }
+                Err(mpsc::TryRecvError::Disconnected) => self.mod_icon_worker = None,
+                Err(_) => {}
+            }
+        }
+        if self.mod_icon_worker.is_some() || self.page != Page::Mods {
+            return;
+        }
+        let next = self
+            .local
+            .iter()
+            .filter(|e| e.kind == horizon_client::content_files::Kind::Mods)
+            .map(|e| clean_mod_name(&e.title))
+            .find(|n| !n.is_empty() && !self.mod_icons_tried.contains(n));
+        if let Some(name) = next {
+            self.mod_icons_tried.insert(name.clone());
+            let (tx, rx) = mpsc::channel();
+            let home = home.to_path_buf();
+            std::thread::spawn(move || {
+                let mut query = Query::new(&name, Kind::Mod);
+                query.everything = true;
+                query.limit = 1;
+                let icon = browser::modrinth::Modrinth
+                    .search(&query)
+                    .ok()
+                    .and_then(|found| found.into_iter().find_map(|p| p.icon));
+                let rects = icon.map_or(vec![], |url| icon_squares(&home, &url));
+                let _ = tx.send((name, rects));
+            });
+            self.mod_icon_worker = Some(rx);
+        }
     }
     /// Fetches the icons of the listed projects one at a time, off the screen thread.
     fn poll_icons(&mut self, home: &Path) {
@@ -818,4 +865,15 @@ fn icon_squares(home: &Path, url: &str) -> Vec<([f32; 4], u32)> {
         }
     }
     out
+}
+
+/// The name a mod file is searched under: no extension, no "_file", spaces for separators.
+/// `falling_trees_file.hmod` becomes `falling trees`.
+pub fn clean_mod_name(title: &str) -> String {
+    let base = title
+        .strip_suffix(".hmod")
+        .or_else(|| title.strip_suffix(".jar"))
+        .unwrap_or(title);
+    let base = base.strip_suffix("_file").unwrap_or(base);
+    base.replace(['_', '-'], " ").trim().to_lowercase()
 }

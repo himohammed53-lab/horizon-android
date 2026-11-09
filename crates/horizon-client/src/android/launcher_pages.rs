@@ -1334,7 +1334,28 @@ impl Launcher {
                     continue;
                 }
                 let item = &self.catalog.local[i];
-                mod_tile(&mut ui, 32.0, y, &item.title);
+                let picture = self
+                    .catalog
+                    .mod_icons
+                    .get(&crate::catalog::clean_mod_name(&item.title))
+                    .filter(|squares| !squares.is_empty());
+                if let Some(squares) = picture {
+                    // The picture of the mod from its Modrinth page, in the same frame as the others.
+                    ui.rounded(32.0, y + 2.0, 60.0, 60.0, 0.0, color::hex(0xffffff, 255));
+                    ui.rounded(33.0, y + 3.0, 58.0, 58.0, 0.0, color::hex(0x0f1013, 255));
+                    for ([sx, sy, sw, sh], c) in squares {
+                        ui.rounded(
+                            33.0 + sx * 1.8125,
+                            y + 3.0 + sy * 1.8125,
+                            sw * 1.8125 + 0.3,
+                            sh * 1.8125 + 0.3,
+                            0.0,
+                            *c,
+                        );
+                    }
+                } else {
+                    mod_tile(&mut ui, 32.0, y, &item.title);
+                }
                 let title = ui.fit_text(Face::Medium, 22.0, &item.title, title_room - 72.0);
                 ui.text(Face::Medium, 22.0, 104.0, y, color::TEXT, &title);
                 ui.text(
