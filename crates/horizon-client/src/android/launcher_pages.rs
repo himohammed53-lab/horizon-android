@@ -675,28 +675,29 @@ impl Launcher {
                 ),
                 None => (self.catalog.config.name.clone(), "Offline"),
             };
-            let chip_w = (w * 0.5).min(300.0);
-            ui.rounded(10.0, 7.0, chip_w, 44.0, 22.0, card);
-            ui.rounded(14.0, 11.0, 36.0, 36.0, 6.0, white);
-            self.wardrobe.draw_face(&mut ui, 15.0, 12.0, 34.0);
-            let who = ui.fit_text(Face::Medium, 17.0, &who, chip_w - 76.0);
-            ui.text(Face::Medium, 17.0, 60.0, 11.0, white, &who);
-            ui.text(Face::Regular, 12.0, 60.0, 31.0, gray, provider);
+            // The name of the app on the left; on the right the account, then the gear.
+            ui.text(Face::Medium, 22.0, 16.0, 16.0, white, "Horizon");
+            let chip_w = (w * 0.4).min(260.0);
+            let chip_x = w - 54.0 - 8.0 - chip_w;
+            ui.rounded(chip_x, 7.0, chip_w, 44.0, 22.0, card);
+            self.wardrobe.draw_face(&mut ui, chip_x + 5.0, 12.0, 34.0);
+            let who = ui.fit_text(Face::Medium, 16.0, &who, chip_w - 56.0);
+            ui.text(Face::Medium, 16.0, chip_x + 48.0, 11.0, white, &who);
+            ui.text(Face::Regular, 12.0, chip_x + 48.0, 30.0, gray, provider);
             self.targets
-                .push(([10.0, 7.0, chip_w, 44.0], Action::Account));
+                .push(([chip_x, 7.0, chip_w, 44.0], Action::Account));
             ui.rounded(w - 54.0, 7.0, 44.0, 44.0, 22.0, card);
             gear_icon(&mut ui, w - 46.0, 15.0, 28.0);
             self.targets
                 .push(([w - 54.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
             // The sections, as rounded cards in a grid.
-            let items: [(&str, Action); 7] = [
+            let items: [(&str, Action); 6] = [
                 ("Mods", Action::Page(Page::Mods)),
                 ("Shaders", Action::Page(Page::Shaders)),
                 ("Packs", Action::Page(Page::Packs)),
                 ("Files", Action::Page(Page::Installed)),
                 ("Skins", Action::Page(Page::Skins)),
                 ("Worlds", Action::ImportWorld),
-                ("Settings", Action::Page(Page::Settings)),
             ];
             let cols = if w >= 560.0 { 3 } else { 2 };
             let rows = items.len().div_ceil(cols);
