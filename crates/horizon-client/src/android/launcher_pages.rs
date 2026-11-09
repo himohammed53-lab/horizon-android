@@ -798,10 +798,10 @@ impl Launcher {
             // The account on the left; on the right the name of the app, then the gear.
             let chip_w = (w * 0.4).min(260.0);
             ui.rounded(24.0, 13.0, chip_w, 44.0, 22.0, card);
-            self.wardrobe.draw_face(&mut ui, 39.0, 22.0, 26.0);
-            let who = ui.fit_text(Face::Medium, 16.0, &who, chip_w - 56.0);
-            ui.text(Face::Medium, 16.0, 72.0, 17.0, white, &who);
-            ui.text(Face::Regular, 12.0, 72.0, 36.0, gray, provider);
+            self.wardrobe.draw_face(&mut ui, 41.0, 22.0, 26.0);
+            let who = ui.fit_text(Face::Medium, 16.0, &who, chip_w - 62.0);
+            ui.text(Face::Medium, 16.0, 78.0, 17.0, white, &who);
+            ui.text(Face::Regular, 12.0, 78.0, 36.0, gray, provider);
             self.targets
                 .push(([24.0, 13.0, chip_w, 44.0], Action::Account));
             ui.rounded(w - 64.0, 13.0, 44.0, 44.0, 22.0, card);
@@ -894,10 +894,10 @@ impl Launcher {
                 };
                 let chip_w = (w * 0.4).min(260.0);
                 ui.rounded(24.0, 13.0, chip_w, 44.0, 22.0, card);
-                self.wardrobe.draw_face(&mut ui, 39.0, 22.0, 26.0);
-                let who = ui.fit_text(Face::Medium, 16.0, &who, chip_w - 56.0);
-                ui.text(Face::Medium, 16.0, 72.0, 17.0, white, &who);
-                ui.text(Face::Regular, 12.0, 72.0, 36.0, gray, provider);
+                self.wardrobe.draw_face(&mut ui, 41.0, 22.0, 26.0);
+                let who = ui.fit_text(Face::Medium, 16.0, &who, chip_w - 62.0);
+                ui.text(Face::Medium, 16.0, 78.0, 17.0, white, &who);
+                ui.text(Face::Regular, 12.0, 78.0, 36.0, gray, provider);
                 self.targets
                     .push(([24.0, 13.0, chip_w, 44.0], Action::Account));
                 ui.rounded(w - 64.0, 13.0, 44.0, 44.0, 22.0, card);
