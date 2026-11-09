@@ -608,8 +608,7 @@ impl Login {
             const ROW: f32 = 70.0;
             // A refusal is told in a small red line under the last field, above the button.
             let refusal = self.failed && !self.message.is_empty();
-            let buttons_at =
-                NOTE + fields.len() as f32 * ROW + 4.0 + if refusal { 18.0 } else { 0.0 };
+            let buttons_at = NOTE + fields.len() as f32 * ROW + if refusal { 14.0 } else { 0.0 };
             let total = buttons_at + 56.0 + 44.0 + 8.0;
             let maximum = (total - view_h).max(0.0);
             let mut scroll = scroll.clamp(0.0, maximum);
@@ -678,11 +677,11 @@ impl Login {
             if refusal {
                 let at_y = at(NOTE + fields.len() as f32 * ROW - 2.0);
                 if visible(at_y - top, 16.0) {
-                    let line = ui.fit_text(Face::Regular, 13.0, &self.message, w - 40.0);
+                    let line = ui.fit_text(Face::Regular, 13.0, &self.message, w - 64.0);
                     ui.text(
                         Face::Regular,
                         13.0,
-                        x + 20.0,
+                        x + 32.0,
                         at_y,
                         color::hex(0xff6b6b, 255),
                         &line,
@@ -712,7 +711,7 @@ impl Login {
                 );
             }
             let half = (w - 52.0) / 2.0;
-            let second = buttons_at + 56.0;
+            let second = buttons_at + 54.0;
             if visible(second - scroll, 44.0) {
                 button(
                     ui,
