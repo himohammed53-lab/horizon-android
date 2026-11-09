@@ -508,6 +508,7 @@ impl Wardrobe {
         }
         let controls = py + preview_height + if compact { 6.0 } else { 8.0 };
         let small = (preview_width - 24.0) / 4.0;
+        let compact_button = (preview_width - 18.0) / 4.0;
         for (i, (label, action)) in [
             ("<", Action::WardrobeRotate(-1)),
             (">", Action::WardrobeRotate(1)),
@@ -521,7 +522,12 @@ impl Wardrobe {
                 ui,
                 targets,
                 if compact {
-                    [px + i as f32 * 44.0, controls, 38.0, 30.0]
+                    [
+                        px + i as f32 * (compact_button + 6.0),
+                        controls,
+                        compact_button,
+                        30.0,
+                    ]
                 } else {
                     [px + i as f32 * (small + 8.0), controls, small, 46.0]
                 },
