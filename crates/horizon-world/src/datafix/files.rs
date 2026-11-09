@@ -747,11 +747,14 @@ fn upgrade_regions(
     let limits = Limits::default();
     for path in files_with_suffix(folder, ".mca") {
         progress.check()?;
-        let mut region = RegionFile::open(&path)?;
+        let mut region = RegionFile::open(&path).map_err(|e| with_path(e, "open region", &path))?;
         let positions: Vec<_> = region.chunks().map(|(p, _)| p).collect();
         let mut records = Vec::new();
         for pos in positions {
-            let Some(record) = region.read(pos)? else {
+            let Some(record) = region
+                .read(pos)
+                .map_err(|e| with_path(e, "read region", &path))?
+            else {
                 continue;
             };
             let mut root = record.nbt(limits)?;
@@ -769,9 +772,13 @@ fn upgrade_regions(
         let mut writer = RegionWriter::create(&temporary)
             .map_err(|e| with_path(e, "create region", &temporary))?;
         for (pos, record) in &records {
-            writer.write(*pos, record)?;
+            writer
+                .write(*pos, record)
+                .map_err(|e| with_path(e, "write region", &temporary))?;
         }
-        writer.finish()?;
+        writer
+            .finish()
+            .map_err(|e| with_path(e, "finish region", &temporary))?;
         fs::rename(&temporary, &path).map_err(|e| with_path(e, "replace region", &path))?;
         fs::remove_dir(&staging).map_err(|e| with_path(e, "remove", &staging))?;
         progress.progress.increment_finished_operations();
