@@ -340,16 +340,31 @@ impl Launcher {
                     let result = (|| {
                         let (account, secrets) = login::Login::session(&id)?
                             .ok_or("The selected account changed. Choose Play again.")?;
-                        let appearance =
-                            crate::skins::cloud::fetch(&account, &secrets, &wardrobe_home)
-                                .unwrap_or_default();
+                        let key = account.key();
                         let file = crate::account::write_session_file(
                             &game_home.join("sessions"),
                             &account,
                             &secrets,
                         )?;
+                        let appearance = if account.provider == crate::account::Provider::Ely {
+                            // Ely.by keeps the skin on its own site: wait for it only briefly, so
+                            // a slow connection never delays entering the game.
+                            let (done, finished) = mpsc::channel();
+                            std::thread::spawn(move || {
+                                let _ = done.send(
+                                    crate::skins::cloud::fetch(&account, &secrets, &wardrobe_home)
+                                        .unwrap_or_default(),
+                                );
+                            });
+                            finished
+                                .recv_timeout(Duration::from_millis(1200))
+                                .unwrap_or_default()
+                        } else {
+                            crate::skins::cloud::fetch(&account, &secrets, &wardrobe_home)
+                                .unwrap_or_default()
+                        };
                         Ok(PreparedAccount {
-                            key: account.key(),
+                            key,
                             file,
                             appearance,
                         })

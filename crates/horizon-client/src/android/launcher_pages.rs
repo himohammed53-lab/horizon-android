@@ -2118,16 +2118,16 @@ impl Launcher {
                     window.request_redraw();
                 }
             }
-            let items: [(&str, Action); 6] = [
+            let items: [(&str, Action); 5] = [
                 ("Mods", Action::Page(Page::Mods)),
-                ("Shaders", Action::Page(Page::Shaders)),
                 ("Packs", Action::Page(Page::Packs)),
                 ("Files", Action::Page(Page::Installed)),
                 ("Skins", Action::Page(Page::Skins)),
                 ("Worlds", Action::ImportWorld),
             ];
             let (pw, row) = (200.0_f32.min(w * 0.6), 54.0);
-            let ph = items.len() as f32 * row + 12.0;
+            // The panel keeps its size (six rows); the five rows sit together at the top.
+            let ph = 6.0 * row + 12.0;
             let py = ((h - ph) / 2.0).max(64.0);
             let px = w - pw * p;
             if p > 0.0 {
