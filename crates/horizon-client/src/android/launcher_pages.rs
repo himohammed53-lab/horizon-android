@@ -1011,7 +1011,8 @@ impl Launcher {
             let chips_page = w >= 700.0
                 && (self.catalog.page.is_catalog()
                     || self.catalog.page == Page::Installed
-                    || self.catalog.page == Page::Skins);
+                    || self.catalog.page == Page::Skins
+                    || self.catalog.page == Page::Settings);
             let tabs = Page::ALL.len() as f32;
             let tab_margin = if w < 700.0 { 16.0 } else { 32.0 };
             let tab_width = ((w - 2.0 * tab_margin - 16.0) / tabs).min(150.0);
@@ -1629,6 +1630,9 @@ impl Launcher {
                 }
             }
         } else {
+            if !compact {
+                section_chips(&mut ui, &mut self.targets, w, h, 0.0, page);
+            }
             let c = &self.catalog.config;
             ui.text(
                 Face::Medium,
@@ -1643,16 +1647,8 @@ impl Launcher {
                 186.0,
                 w - 32.0,
                 h - 130.0 - 186.0,
-                0.0,
-                color::hex(0x000000, 255),
-            );
-            ui.rounded(
                 18.0,
-                188.0,
-                w - 36.0,
-                h - 130.0 - 190.0,
-                0.0,
-                color::hex(0x1f2022, 245),
+                color::hex(0x0f1013, 200),
             );
             let row_height = if compact { 82.0 } else { 66.0 };
             self.catalog.scroll = self
