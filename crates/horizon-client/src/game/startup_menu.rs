@@ -1656,12 +1656,6 @@ impl Loading {
             self.menu.controls.draw(batch, &gui.atlas);
             return;
         }
-        #[cfg(target_os = "android")]
-        if self.menu.pending.is_some() {
-            let line = self.progress.line().to_owned();
-            self.draw_android_loading(batch, &line);
-            return;
-        }
         if self.menu.pending.is_some() {
             horizon_client::level_loading::draw_loading_overlay(
                 batch,
