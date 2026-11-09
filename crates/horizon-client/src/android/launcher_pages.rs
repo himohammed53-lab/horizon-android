@@ -2657,7 +2657,8 @@ impl Launcher {
                     Err(e) => e,
                 };
             }
-            None => {}
+            // The side menu is handled above, before this match.
+            Some(Action::HomeMenu) | None => {}
         }
         Ok(())
     }

@@ -9,9 +9,9 @@ mod gesture;
 mod login;
 #[path = "launcher_pages.rs"]
 mod pages;
-#[path = "wardrobe.rs"]
 #[path = "sunset.rs"]
 mod sunset;
+#[path = "wardrobe.rs"]
 mod wardrobe;
 use horizon_client::{
     Result,
