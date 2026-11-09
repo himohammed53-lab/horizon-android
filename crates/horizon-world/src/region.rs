@@ -520,7 +520,21 @@ impl RegionWriter {
         }
         self.file.sync_all()?;
         // Hard-link publication fails atomically if another writer won the name.
-        fs::hard_link(&self.temporary, &self.destination)?;
+        match fs::hard_link(&self.temporary, &self.destination) {
+            Ok(()) => {}
+            // Some systems refuse hard links outright (Android's app sandbox answers "permission
+            // denied"): move the finished file into place instead, unless the name is taken.
+            Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
+                if self.destination.try_exists()? {
+                    return Err(io::Error::new(
+                        io::ErrorKind::AlreadyExists,
+                        "destination region already exists",
+                    ));
+                }
+                fs::rename(&self.temporary, &self.destination)?;
+            }
+            Err(e) => return Err(e),
+        }
         self.committed = true;
         Ok(())
     }
