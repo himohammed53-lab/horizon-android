@@ -630,7 +630,10 @@ impl Launcher {
                 ui.w = ui.w.min(rect.right as f32 * input[0] as f32 / ui.density);
             }
         }
-        if let Some(bottom) = crate::native_ime::viewport_bottom() {
+        // The sign-in pages keep their size under the keyboard: nothing moves when a field is tapped.
+        if !self.login.visible
+            && let Some(bottom) = crate::native_ime::viewport_bottom()
+        {
             ui.h = ui.h.min(bottom as f32 / ui.density);
         }
         let (w, h) = (ui.w, ui.h);

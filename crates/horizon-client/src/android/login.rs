@@ -273,9 +273,11 @@ impl Login {
     ) -> Option<([f32; 3], f32)> {
         targets.clear();
         let w = (ui.w - 32.0).min(720.0);
-        let h = (ui.h - 24.0).min(550.0);
+        // Anchored near the top and never resized for the keyboard, so nothing moves when a
+        // field is tapped: the fields sit above where a keyboard reaches.
+        let h = (ui.h - 12.0).min(550.0);
         let x = (ui.w - w) / 2.0;
-        let y = (ui.h - h) / 2.0;
+        let y = 6.0;
         // A thin dark-grey outline (the search field's grey) so the dialog does not blend in.
         ui.rounded(
             x - 2.0,
@@ -549,7 +551,7 @@ impl Login {
                     "Offline player name",
                 );
             }
-            let (top, bottom) = (y + 64.0, y + h - 10.0);
+            let (top, bottom) = (y + 52.0, y + h - 10.0);
             let view_h = bottom - top;
             let paste_w = 104.0;
             let field_w = w - 40.0 - paste_w - 8.0;
@@ -580,10 +582,10 @@ impl Login {
                     },
                 ));
             }
-            const NOTE: f32 = 28.0;
-            const ROW: f32 = 92.0;
-            let buttons_at = NOTE + fields.len() as f32 * ROW + 6.0;
-            let total = buttons_at + 62.0 + 56.0 + 8.0;
+            const NOTE: f32 = 22.0;
+            const ROW: f32 = 70.0;
+            let buttons_at = NOTE + fields.len() as f32 * ROW + 4.0;
+            let total = buttons_at + 56.0 + 44.0 + 8.0;
             let maximum = (total - view_h).max(0.0);
             let mut scroll = scroll.clamp(0.0, maximum);
             // Bring the field being typed in into view when it starts and when the keyboard
@@ -634,7 +636,7 @@ impl Login {
                 button(
                     ui,
                     targets,
-                    [x + 20.0, at(c) + 24.0, field_w, 56.0],
+                    [x + 20.0, at(c) + 20.0, field_w, 46.0],
                     shown,
                     Action::Field(*name),
                     false,
@@ -642,7 +644,7 @@ impl Login {
                 button(
                     ui,
                     targets,
-                    [x + 28.0 + field_w, at(c) + 24.0, paste_w, 56.0],
+                    [x + 28.0 + field_w, at(c) + 20.0, paste_w, 46.0],
                     "Paste",
                     Action::PasteInto(*name),
                     false,
@@ -660,23 +662,23 @@ impl Login {
             } else {
                 ("Use offline account", Action::SelectOffline)
             };
-            if visible(buttons_at - scroll, 56.0) {
+            if visible(buttons_at - scroll, 50.0) {
                 button(
                     ui,
                     targets,
-                    [x + 20.0, at(buttons_at), w - 40.0, 56.0],
+                    [x + 20.0, at(buttons_at), w - 40.0, 50.0],
                     main_label,
                     main_action,
                     true,
                 );
             }
             let half = (w - 52.0) / 2.0;
-            let second = buttons_at + 66.0;
-            if visible(second - scroll, 50.0) {
+            let second = buttons_at + 56.0;
+            if visible(second - scroll, 44.0) {
                 button(
                     ui,
                     targets,
-                    [x + 20.0, at(second), half, 50.0],
+                    [x + 20.0, at(second), half, 44.0],
                     "Accounts",
                     Action::Account,
                     false,
@@ -684,7 +686,7 @@ impl Login {
                 button(
                     ui,
                     targets,
-                    [x + 32.0 + half, at(second), half, 50.0],
+                    [x + 32.0 + half, at(second), half, 44.0],
                     "Done",
                     Action::CloseLogin,
                     false,
