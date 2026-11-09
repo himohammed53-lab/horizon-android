@@ -523,17 +523,17 @@ fn switch_button(
     on: bool,
     action: Action,
 ) {
-    let (x, y, w, h) = plate_rect(rect, false);
-    let (fill, label) = if on { (SWITCH_ON, "ON") } else { (GRAY, "OFF") };
-    block_plate(ui, x, y, w, h, fill, false);
-    let size = 20.0;
-    let width = ui.measure(Face::Medium, size, label);
-    shadow_text(
-        ui,
-        Face::Medium,
+    // Just the word, thin and white: ON or OFF.
+    let [x, y, w, h] = rect;
+    let label = if on { "ON" } else { "OFF" };
+    let size = 22.0;
+    let width = ui.measure(Face::Regular, size, label);
+    ui.text(
+        Face::Regular,
         size,
         x + (w - width) / 2.0,
         y + ((h - size * 1.45) / 2.0).max(6.0),
+        color::hex(0xffffff, 255),
         label,
     );
     targets.push((rect, action));
@@ -933,6 +933,10 @@ impl Launcher {
                     white,
                     "Horizon",
                 );
+                self.targets.push((
+                    [w - 54.0 - 14.0 - name_w - 8.0, 8.0, name_w + 16.0, 42.0],
+                    Action::Page(Page::Play),
+                ));
                 if matches!(self.catalog.page, Page::Mods | Page::Shaders | Page::Packs) {
                     // The bottom bar: Eject (add a file) where the home screen has Play.
                     ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 205));
