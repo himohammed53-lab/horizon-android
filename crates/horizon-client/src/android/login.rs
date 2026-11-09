@@ -272,29 +272,21 @@ impl Login {
         scroll: f32,
     ) -> Option<([f32; 3], f32)> {
         targets.clear();
-        let w = (ui.w - 32.0).min(720.0);
-        // Anchored near the top and never resized for the keyboard, so nothing moves when a
-        // field is tapped: the fields sit above where a keyboard reaches.
-        let h = (ui.h - 12.0).min(550.0);
+        // The sign-in fields page is anchored near the top and never resized for the keyboard,
+        // so nothing moves when a field is tapped; the other pages are centred.
+        let fields_page = !self.providers && !self.choosing && (self.ely || self.offline);
+        let w = (ui.w - 32.0).min(600.0);
+        let h = if fields_page {
+            (ui.h - 12.0).min(340.0)
+        } else {
+            (ui.h - 24.0).min(400.0)
+        };
         let x = (ui.w - w) / 2.0;
-        let y = 6.0;
-        // A thin dark-grey outline (the search field's grey) so the dialog does not blend in.
-        ui.rounded(
-            x - 2.0,
-            y - 2.0,
-            w + 4.0,
-            h + 4.0,
-            if super::pages::GLASS { 22.0 } else { 10.0 },
-            color::hex(0x5a5a5a, 255),
-        );
-        ui.rounded(
-            x,
-            y,
-            w,
-            h,
-            if super::pages::GLASS { 20.0 } else { 8.0 },
-            color::BG,
-        );
+        let y = if fields_page { 6.0 } else { (ui.h - h) / 2.0 };
+        let radius = if super::pages::GLASS { 20.0 } else { 8.0 };
+        ui.rounded(x, y, w, h, radius, color::BG);
+        // A one-pixel outline so the dialog does not blend in.
+        ui.border(x, y, w, h, radius, color::hex(0x3a3a40, 255));
         if self.providers {
             ui.text(
                 Face::Medium,
@@ -364,19 +356,19 @@ impl Login {
             for (row, account) in signed.iter().take(room.max(1)).enumerate() {
                 let card_y = top + 20.0 + row as f32 * 54.0;
                 let current = self.profile.as_deref() == Some(account.name.as_str());
-                ui.rounded(
+                ui.rounded(x + 20.0, card_y, w - 40.0, 48.0, 8.0, color::RAISED);
+                ui.border(
                     x + 20.0,
-                    card_y - 1.0,
+                    card_y,
                     w - 40.0,
-                    50.0,
+                    48.0,
                     8.0,
                     if current {
                         color::ACCENT
                     } else {
-                        color::hex(0x5a5a5a, 255)
+                        color::hex(0x3a3a40, 255)
                     },
                 );
-                ui.rounded(x + 21.0, card_y, w - 42.0, 48.0, 7.0, color::RAISED);
                 let (lx, ly) = (x + 34.0, card_y + 10.0);
                 let ely = account.provider == account::Provider::Ely;
                 if ely {

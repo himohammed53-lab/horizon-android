@@ -1147,10 +1147,7 @@ impl Launcher {
                     0.0,
                     color::hex(0x0f1013, 255),
                 );
-                ui.rounded(rect[0], rect[1], rect[2], 2.0, 0.0, rim);
-                ui.rounded(rect[0], rect[1] + rect[3] - 2.0, rect[2], 2.0, 0.0, rim);
-                ui.rounded(rect[0], rect[1], 2.0, rect[3], 0.0, rim);
-                ui.rounded(rect[0] + rect[2] - 2.0, rect[1], 2.0, rect[3], 0.0, rim);
+                ui.border(rect[0], rect[1], rect[2], rect[3], 0.0, rim);
                 let shown = if self.catalog.query.is_empty() {
                     if page == Page::Mods {
                         "Search / .hmod URL".to_string()
