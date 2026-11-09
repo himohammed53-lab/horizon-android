@@ -124,7 +124,7 @@ fn glass_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, big: bool
         w,
         h,
         radius,
-        color::hex(if neutral { 0xffffff } else { 0xf0e6ff }, 105),
+        color::hex(if neutral { 0xffffff } else { 0xf0e6ff }, 60),
     );
     let body = if neutral {
         color::hex(0xffffff, 26)
@@ -524,6 +524,8 @@ fn switch_button(
     action: Action,
 ) {
     // The word, thin and white, inside a clear glass pill whose right edge is the rows' edge.
+    // Narrower than its row's slot and moved left, away from the side-menu arrow.
+    let rect = [rect[0] + rect[2] - 24.0 - 96.0, rect[1], 96.0, rect[3]];
     let (px, py, pw, ph) = plate_rect(rect, false);
     block_plate(ui, px, py, pw, ph, GRAY, false);
     let [x, y, w, h] = rect;
@@ -1138,7 +1140,7 @@ impl Launcher {
             section_chips(&mut ui, &mut self.targets, w, h, 0.0, page);
             // The search field: a plain outlined box (white rim, the dark page inside).
             {
-                let rect = [32.0, if compact { 174.0 } else { 196.0 }, w - 240.0, 44.0];
+                let rect = [32.0, if compact { 174.0 } else { 196.0 }, w - 214.0, 44.0];
                 // Inner dark field and a rim of the same dark grey on all four sides.
                 let rim = color::hex(GRAY, 255);
                 ui.rounded(
@@ -1176,7 +1178,7 @@ impl Launcher {
             button_as(
                 &mut ui,
                 &mut self.targets,
-                [w - 190.0, if compact { 174.0 } else { 196.0 }, 158.0, 44.0],
+                [w - 176.0, if compact { 174.0 } else { 196.0 }, 120.0, 44.0],
                 if page == Page::Mods && self.catalog.query.trim().starts_with("https://") {
                     "Import .hmod"
                 } else {
@@ -1198,7 +1200,7 @@ impl Launcher {
                 if compact {
                     [32.0, 222.0, file_button_width, 38.0]
                 } else {
-                    [w - 190.0, 138.0, 158.0, 46.0]
+                    [w - 176.0, 138.0, 120.0, 46.0]
                 },
                 "Import file",
                 Action::Import(kind),
