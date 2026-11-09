@@ -278,7 +278,7 @@ fn gear_icon(ui: &mut Ui, x: f32, y: f32, size: f32) {
         "....###....",
     ];
     // A little smaller than the face next to it.
-    let cell = (size * 0.9 / 11.0).floor().max(2.0);
+    let cell = ((size * 0.9 / 11.0 * 2.0).floor() / 2.0).max(2.0);
     let left = x + (size - cell * 11.0) / 2.0;
     let top = y + (size - cell * 11.0) / 2.0;
     for (row, line) in GEAR.iter().enumerate() {
@@ -794,15 +794,15 @@ impl Launcher {
             self.targets
                 .push(([10.0, 7.0, chip_w, 44.0], Action::Account));
             ui.rounded(w - 54.0, 7.0, 44.0, 44.0, 22.0, card);
-            gear_icon(&mut ui, w - 46.0, 15.0, 28.0);
+            gear_icon(&mut ui, w - 45.75, 15.25, 32.0);
             self.targets
                 .push(([w - 54.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
-            let name_w = ui.measure(Face::Medium, 22.0, "Horizon");
+            let name_w = ui.measure(Face::Medium, 30.0, "Horizon");
             ui.text(
                 Face::Medium,
-                22.0,
+                30.0,
                 w - 54.0 - 14.0 - name_w,
-                16.0,
+                7.0,
                 white,
                 "Horizon",
             );
@@ -839,12 +839,12 @@ impl Launcher {
                 },
             );
             let label = if starting { "Starting..." } else { "PLAY" };
-            let lw = ui.measure(Face::Medium, 24.0, label);
+            let lw = ui.measure(Face::Medium, 32.0, label);
             ui.text(
                 Face::Medium,
-                24.0,
+                32.0,
                 play[0] + (play[2] - lw) / 2.0,
-                play[1] + 18.0,
+                play[1] + (play[3] - 32.0 * 1.45) / 2.0,
                 color::hex(0x111111, 255),
                 label,
             );
@@ -874,7 +874,7 @@ impl Launcher {
                     },
                     32.0,
                     if w < 700.0 { 12.0 } else { 20.0 },
-                    "Horizon Rust Edition",
+                    "Horizon",
                 );
                 // The player's face, top right: the skin in use, or the default skin. It opens the
                 // sign-in choices (Offline, Microsoft, Ely.by). Next to it, a gear opens Settings.
@@ -941,15 +941,15 @@ impl Launcher {
                 self.targets
                     .push(([10.0, 7.0, chip_w, 44.0], Action::Account));
                 ui.rounded(w - 54.0, 7.0, 44.0, 44.0, 22.0, card);
-                gear_icon(&mut ui, w - 46.0, 15.0, 28.0);
+                gear_icon(&mut ui, w - 45.75, 15.25, 32.0);
                 self.targets
                     .push(([w - 54.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
-                let name_w = ui.measure(Face::Medium, 22.0, "Horizon");
+                let name_w = ui.measure(Face::Medium, 30.0, "Horizon");
                 ui.text(
                     Face::Medium,
-                    22.0,
+                    30.0,
                     w - 54.0 - 14.0 - name_w,
-                    16.0,
+                    7.0,
                     white,
                     "Horizon",
                 );
@@ -976,12 +976,12 @@ impl Launcher {
                     );
                     let eject = [14.0, h - 74.0, (w * 0.3).min(230.0), 62.0];
                     ui.rounded(eject[0], eject[1], eject[2], eject[3], 20.0, white);
-                    let ew = ui.measure(Face::Medium, 24.0, "Eject");
+                    let ew = ui.measure(Face::Medium, 32.0, "Eject");
                     ui.text(
                         Face::Medium,
-                        24.0,
+                        32.0,
                         eject[0] + (eject[2] - ew) / 2.0,
-                        eject[1] + 18.0,
+                        eject[1] + (eject[3] - 32.0 * 1.45) / 2.0,
                         color::hex(0x111111, 255),
                         "Eject",
                     );
