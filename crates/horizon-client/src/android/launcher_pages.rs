@@ -639,12 +639,7 @@ impl Launcher {
                 ui.w = ui.w.min(rect.right as f32 * input[0] as f32 / ui.density);
             }
         }
-        // The sign-in pages keep their size under the keyboard: nothing moves when a field is tapped.
-        if !self.login.visible
-            && let Some(bottom) = crate::native_ime::viewport_bottom()
-        {
-            ui.h = ui.h.min(bottom as f32 / ui.density);
-        }
+        // The keyboard covers the page: nothing is lifted or resized when a field is tapped.
         let (w, h) = (ui.w, ui.h);
         // The background: a plain, deep dark grey, no shapes.
         ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x13161b, 255));
