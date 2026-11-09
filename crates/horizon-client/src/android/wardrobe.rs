@@ -484,16 +484,13 @@ impl Wardrobe {
         let preview_height = if compact {
             (ui.h - 560.0).clamp(100.0, 190.0)
         } else {
-            (ui.h - list_top - 84.0 - 62.0).clamp(180.0, 300.0)
+            (ui.h - list_top - 84.0 - 62.0).clamp(180.0, 380.0)
         };
         let preview_width = (preview_height * 0.8).clamp(140.0, (width - 64.0).max(140.0));
-        let px = 14.0;
-        // Wide screens: the box sits low, its buttons just above the bottom bar.
-        let py = if compact {
-            list_top
-        } else {
-            (ui.h - 84.0 - 10.0 - 54.0 - preview_height).max(list_top)
-        };
+        // Centred over the Eject button of the bottom bar.
+        let eject_width = (width * 0.3).min(230.0);
+        let px = (14.0 + (eject_width - preview_width) / 2.0).max(14.0);
+        let py = list_top;
         self.rect = [px, py, preview_width, preview_height];
         ui.rounded(px, py, preview_width, preview_height, 4.0, color::RAISED);
         let scale = (preview_width / 160.0).min(preview_height / 200.0);
