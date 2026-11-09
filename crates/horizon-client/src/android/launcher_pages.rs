@@ -1991,14 +1991,7 @@ impl Launcher {
             && let Some((rect, _)) = self.targets.iter().find(|(_, a)| *a == action)
         {
             let (x, y, w, h) = plate_rect(*rect, matches!(action, Action::Play));
-            ui.rounded(
-                x,
-                y,
-                w,
-                h,
-                0.0,
-                horizon_client::hud::rgba(255, 255, 255, 48),
-            );
+            ui.rounded(x, y, w, h, 0.0, color::hex(0x7b4fe0, 140));
         }
         // A short fade-in when the page changes: a veil of the page colour that lifts.
         if self.shown_page.0 != self.catalog.page {

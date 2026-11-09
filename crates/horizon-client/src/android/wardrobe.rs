@@ -21,7 +21,7 @@ pub(super) enum CloudAction {
     Upload,
     Cape(usize),
 }
-/// A button drawn as a very thin outline in the top bar's grey (a faint fill when it is the chosen one).
+/// A button drawn as a very thin outline in the top bar's grey (purple when it is the chosen one).
 fn button(
     ui: &mut Ui,
     targets: &mut Vec<([f32; 4], Action)>,
@@ -32,7 +32,7 @@ fn button(
 ) {
     let [x, y, w, h] = rect;
     if chosen {
-        ui.rounded(x, y, w, h, 0.0, color::hex(0x1c1b1f, 150));
+        ui.rounded(x, y, w, h, 0.0, color::hex(0x7b4fe0, 200));
     }
     let rim = color::hex(0x1c1b1f, 255);
     let t = 1.0;
@@ -522,7 +522,11 @@ impl Wardrobe {
         let px = (14.0 + (eject_width - preview_width) / 2.0).max(14.0);
         let py = list_top;
         self.rect = [px, py, preview_width, preview_height];
-        ui.rounded(px, py, preview_width, preview_height, 4.0, color::RAISED);
+        let rim = color::hex(0x1c1b1f, 255);
+        ui.rounded(px, py, preview_width, 1.0, 0.0, rim);
+        ui.rounded(px, py + preview_height - 1.0, preview_width, 1.0, 0.0, rim);
+        ui.rounded(px, py, 1.0, preview_height, 0.0, rim);
+        ui.rounded(px + preview_width - 1.0, py, 1.0, preview_height, 0.0, rim);
         let scale = (preview_width / 160.0).min(preview_height / 200.0);
         let ox = px + (preview_width - 160.0 * scale) * 0.5;
         let oy = py + (preview_height - 200.0 * scale) * 0.5;
