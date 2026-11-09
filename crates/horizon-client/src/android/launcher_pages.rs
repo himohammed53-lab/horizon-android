@@ -649,7 +649,10 @@ impl Launcher {
             && horizon_client::official_install::ready(&self.home)
             && self.worker.is_none();
         let sunset = !home;
-        if sunset {
+        // Wide Settings draws its own sunset over the whole screen further down; drawing it here
+        // as well would paint the same scene twice every frame.
+        let settings_covers = self.catalog.page == Page::Settings && w >= 700.0;
+        if sunset && !settings_covers {
             super::sunset::draw(&mut ui, w, h);
         }
         if !home && !sunset {
