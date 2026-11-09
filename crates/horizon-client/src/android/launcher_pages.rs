@@ -1926,7 +1926,7 @@ impl Launcher {
                 for (i, (label, action)) in items.into_iter().enumerate() {
                     let y = py + 6.0 + i as f32 * row;
                     if i > 0 {
-                        ui.rounded(px + 18.0, y, pw - 36.0, 1.0, 0.0, color::hex(0xffffff, 24));
+                        ui.rounded(px + 24.0, y, pw - 48.0, 1.0, 0.0, color::hex(0xffffff, 24));
                     }
                     ui.text(
                         Face::Medium,
@@ -1946,9 +1946,9 @@ impl Launcher {
             ui.rounded(
                 tab[0],
                 tab[1],
-                tab[2] + 24.0,
+                tab[2] + 24.0 * (1.0 - p),
                 tab[3],
-                18.0,
+                14.0,
                 color::hex(0x000000, 205),
             );
             let arrow = if self.home_menu { ">" } else { "<" };
