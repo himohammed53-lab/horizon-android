@@ -442,19 +442,10 @@ impl Wardrobe {
     /// Draws the player's face (the skin in use, or the default skin) as a square.
     pub fn draw_face(&self, ui: &mut Ui, x: f32, y: f32, size: f32) {
         if self.face.len() != 64 {
-            // No skin yet: a grey tile with a black square and a pixel question mark, like the
+            // No skin yet: the face square is black with a white pixel question mark, like the
             // lucky block on the sign-in page.
-            ui.rounded(x, y, size, size, size * 0.12, color::hex(0x6b6b72, 255));
-            let inset = size * 0.14;
-            let inner = size - inset * 2.0;
-            ui.rounded(
-                x + inset,
-                y + inset,
-                inner,
-                inner,
-                0.0,
-                color::hex(0x000000, 255),
-            );
+            let (inset, inner) = (0.0, size);
+            ui.rounded(x, y, size, size, 0.0, color::hex(0x000000, 255));
             const MARK: [&str; 7] = [
                 ".XXX.", "X...X", "....X", "...X.", "..X..", ".....", "..X..",
             ];
