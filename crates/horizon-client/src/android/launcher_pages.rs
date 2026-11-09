@@ -658,6 +658,69 @@ impl Launcher {
                     &self.catalog.config.microsoft_client_id,
                 );
             }
+            // A slow purple hologram: a gradient, drifting light waves and twinkling dust.
+            static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+            let t = START
+                .get_or_init(std::time::Instant::now)
+                .elapsed()
+                .as_secs_f32();
+            let bands = 32;
+            for i in 0..bands {
+                let f = i as f32 / (bands - 1) as f32;
+                let mix = |a: f32, b: f32, k: f32| a + (b - a) * k;
+                let (from, to, k) = if f < 0.6 {
+                    (
+                        [0x1a as f32, 0x0b as f32, 0x33 as f32],
+                        [0x4b as f32, 0x1d as f32, 0x8f as f32],
+                        f / 0.6,
+                    )
+                } else {
+                    (
+                        [0x4b as f32, 0x1d as f32, 0x8f as f32],
+                        [0x24 as f32, 0x0e as f32, 0x52 as f32],
+                        (f - 0.6) / 0.4,
+                    )
+                };
+                let rgb = ((mix(from[0], to[0], k) as u32) << 16)
+                    | ((mix(from[1], to[1], k) as u32) << 8)
+                    | mix(from[2], to[2], k) as u32;
+                let band = h / bands as f32;
+                ui.rounded(
+                    0.0,
+                    i as f32 * band,
+                    w,
+                    band + 1.0,
+                    0.0,
+                    color::hex(rgb, 255),
+                );
+            }
+            for k in 0..6 {
+                let kf = k as f32;
+                let base = h * (0.34 + 0.09 * kf);
+                let amp = 22.0 + 6.0 * kf;
+                let mut x = 0.0;
+                while x < w {
+                    let edge = (std::f32::consts::PI * x / w).sin();
+                    let y = base
+                        + amp * (x * 0.011 + t * (0.5 + 0.06 * kf) + kf * 0.9).sin()
+                        + amp * 0.4 * (x * 0.026 - t * 0.35 + kf).sin();
+                    let alpha = (edge * (210.0 - kf * 28.0)).max(0.0) as u8;
+                    ui.rounded(x, y, 7.0, 2.2, 1.1, color::hex(0xd9c2ff, alpha));
+                    x += 6.0;
+                }
+            }
+            for i in 0..16 {
+                let fi = i as f32;
+                let x = (fi * 0.618_034 % 1.0) * w;
+                let speed = 5.0 + (i % 3) as f32 * 4.0;
+                let y = ((fi * 0.381_966 % 1.0) * h - t * speed).rem_euclid(h);
+                let alpha = ((0.5 + 0.5 * (t * 1.2 + fi * 1.7).sin()) * 200.0) as u8;
+                let size = 2.0 + (i % 2) as f32;
+                ui.rounded(x, y, size, size, size / 2.0, color::hex(0xe6d8ff, alpha));
+            }
+            if let Some(window) = &self.window {
+                window.request_redraw();
+            }
             let surface = color::hex(0x1c1b1f, 255);
             let card = color::hex(0x2b2930, 255);
             let white = color::hex(0xffffff, 255);
