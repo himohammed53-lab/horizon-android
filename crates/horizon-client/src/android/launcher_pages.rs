@@ -937,7 +937,10 @@ impl Launcher {
                     [w - 54.0 - 14.0 - name_w - 8.0, 8.0, name_w + 16.0, 42.0],
                     Action::Page(Page::Play),
                 ));
-                if matches!(self.catalog.page, Page::Mods | Page::Shaders | Page::Packs) {
+                if matches!(
+                    self.catalog.page,
+                    Page::Mods | Page::Shaders | Page::Packs | Page::Skins
+                ) {
                     // The bottom bar: Eject (add a file) where the home screen has Play.
                     ui.rounded(0.0, h - 84.0, w, 84.0, 0.0, color::hex(0x000000, 205));
                     ui.rounded(0.0, h - 84.0, w, 1.0, 0.0, color::hex(0xffffff, 28));
@@ -967,7 +970,14 @@ impl Launcher {
                         Page::Shaders => horizon_client::content_files::Kind::Shaders,
                         _ => horizon_client::content_files::Kind::Packs,
                     };
-                    self.targets.push((eject, Action::Import(kind)));
+                    self.targets.push((
+                        eject,
+                        if self.catalog.page == Page::Skins {
+                            Action::WardrobeImport
+                        } else {
+                            Action::Import(kind)
+                        },
+                    ));
                 }
             }
             let tabs = Page::ALL.len() as f32;
