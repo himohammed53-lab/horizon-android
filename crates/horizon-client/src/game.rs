@@ -55,6 +55,10 @@ mod agent;
 mod agent_settings;
 mod allays;
 mod android_bundled;
+#[cfg(target_os = "android")]
+#[allow(dead_code)]
+#[path = "android/sunset.rs"]
+mod sunset;
 mod gravestones;
 #[cfg(target_os = "android")]
 mod android_input;

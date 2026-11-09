@@ -327,7 +327,11 @@ impl Catalog {
                     }
                     horizon_client::content_files::Kind::Mods => name
                         .strip_suffix(".hmod")
-                        .is_some_and(|id| on.enabled.contains(id)),
+                        .is_some_and(|id| {
+                            // A mod with its own native logic is on only when both parts are.
+                            on.enabled.contains(id)
+                                && !on.disabled.contains(&format!("{id}_logic"))
+                        }),
                 };
                 let shown = if kind == horizon_client::content_files::Kind::Mods {
                     read_hmod(&entry.path())
@@ -707,10 +711,15 @@ impl Catalog {
                 }
                 let mut on = horizon_client::mod_list::ModList::load(&game);
                 if let Some(id) = item.file.strip_suffix(".hmod") {
+                    let logic = format!("{id}_logic");
                     if item.enabled {
                         on.enabled.remove(id);
+                        if id == "gravestones" {
+                            on.disabled.insert(logic);
+                        }
                     } else {
                         on.enabled.insert(id.to_owned());
+                        on.disabled.remove(&logic);
                     }
                 }
                 on.save(&game);

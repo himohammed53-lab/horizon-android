@@ -570,7 +570,8 @@ impl Game<'_> {
             .installed
             .iter()
             .enumerate()
-            .filter(|&(i, _)| self.settings.mods.is_on(i))
+            // Native mods are built in: toggling one must not recompile the wasm mods.
+            .filter(|&(i, m)| m.native.is_none() && self.settings.mods.is_on(i))
             .map(|(_, m)| m.id.clone())
             .collect()
     }

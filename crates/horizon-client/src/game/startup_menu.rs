@@ -1595,11 +1595,49 @@ impl Loading {
         Ok(())
     }
 
+    /// The launcher's loading look (sunset, wordmark, one status line), drawn in the game.
+    #[cfg(target_os = "android")]
+    fn draw_android_loading(&self, batch: &mut HudBatch, note: &str) {
+        use horizon_client::ui_theme::{Face, Ui, color};
+        let mut ui = Ui::mobile(&self.boot, batch, (0.0, 0.0));
+        let (w, h) = (ui.w, ui.h);
+        super::sunset::draw(&mut ui, w, h);
+        ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x000000, 110));
+        let title = "Horizon";
+        let tw = ui.measure(Face::Medium, 64.0, title);
+        ui.text(
+            Face::Medium,
+            64.0,
+            (w - tw) / 2.0,
+            h * 0.38,
+            color::hex(0xffffff, 255),
+            title,
+        );
+        let nw = ui.measure(Face::Regular, 18.0, note);
+        ui.text(
+            Face::Regular,
+            18.0,
+            (w - nw) / 2.0,
+            h * 0.38 + 64.0 * 1.45 + 8.0,
+            color::hex(0xffffff, 190),
+            note,
+        );
+        ui.finish();
+    }
+
     pub(super) fn draw_menu(&mut self, batch: &mut HudBatch) {
         let logs = horizon_client::logging::recent_lines();
         let Some(gui) = &self.gui else {
             // The pack's screens do not exist yet: the boot screen holds the
             // window, the wordmark and the console's lines while they load.
+            #[cfg(target_os = "android")]
+            {
+                // The same sunset and wordmark as the launcher's loading screen, so
+                // pressing Play flows into the game without a black splash.
+                self.draw_android_loading(batch, "Getting your game ready...");
+                return;
+            }
+            #[cfg(not(target_os = "android"))]
             horizon_client::ui_theme::draw_boot(&self.boot, batch, &logs);
             return;
         };
@@ -1616,6 +1654,12 @@ impl Loading {
         #[cfg(target_os = "android")]
         if self.menu.controls.editor.is_some() {
             self.menu.controls.draw(batch, &gui.atlas);
+            return;
+        }
+        #[cfg(target_os = "android")]
+        if self.menu.pending.is_some() {
+            let line = self.progress.line().to_owned();
+            self.draw_android_loading(batch, &line);
             return;
         }
         if self.menu.pending.is_some() {
