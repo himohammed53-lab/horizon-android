@@ -237,7 +237,7 @@ fn mod_tile(ui: &mut Ui, x: f32, y: f32, name: &str) {
         .bytes()
         .fold(7u32, |a, b| a.wrapping_mul(31).wrapping_add(b as u32));
     let tint = [0x6a4cc4, 0x3f8f6b, 0xb5683a, 0x3a7fb5, 0xa84a7a][(hash % 5) as usize];
-    ui.rounded(x, y + 2.0, 60.0, 60.0, 0.0, color::hex(0xb9bac2, 255));
+    ui.rounded(x, y + 2.0, 60.0, 60.0, 0.0, color::hex(0xffffff, 255));
     ui.rounded(x + 1.0, y + 3.0, 58.0, 58.0, 0.0, color::hex(tint, 255));
     let letter = name
         .chars()
