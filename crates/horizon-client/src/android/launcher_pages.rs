@@ -675,21 +675,28 @@ impl Launcher {
                 ),
                 None => (self.catalog.config.name.clone(), "Offline"),
             };
-            // The name of the app on the left; on the right the account, then the gear.
-            ui.text(Face::Medium, 22.0, 16.0, 16.0, white, "Horizon");
+            // The account on the left; on the right the name of the app, then the gear.
             let chip_w = (w * 0.4).min(260.0);
-            let chip_x = w - 54.0 - 8.0 - chip_w;
-            ui.rounded(chip_x, 7.0, chip_w, 44.0, 22.0, card);
-            self.wardrobe.draw_face(&mut ui, chip_x + 5.0, 12.0, 34.0);
+            ui.rounded(10.0, 7.0, chip_w, 44.0, 22.0, card);
+            self.wardrobe.draw_face(&mut ui, 15.0, 12.0, 34.0);
             let who = ui.fit_text(Face::Medium, 16.0, &who, chip_w - 56.0);
-            ui.text(Face::Medium, 16.0, chip_x + 48.0, 11.0, white, &who);
-            ui.text(Face::Regular, 12.0, chip_x + 48.0, 30.0, gray, provider);
+            ui.text(Face::Medium, 16.0, 58.0, 11.0, white, &who);
+            ui.text(Face::Regular, 12.0, 58.0, 30.0, gray, provider);
             self.targets
-                .push(([chip_x, 7.0, chip_w, 44.0], Action::Account));
+                .push(([10.0, 7.0, chip_w, 44.0], Action::Account));
             ui.rounded(w - 54.0, 7.0, 44.0, 44.0, 22.0, card);
             gear_icon(&mut ui, w - 46.0, 15.0, 28.0);
             self.targets
                 .push(([w - 54.0, 7.0, 44.0, 44.0], Action::Page(Page::Settings)));
+            let name_w = ui.measure(Face::Medium, 22.0, "Horizon");
+            ui.text(
+                Face::Medium,
+                22.0,
+                w - 54.0 - 14.0 - name_w,
+                16.0,
+                white,
+                "Horizon",
+            );
             // The sections, as rounded cards in a grid.
             let items: [(&str, Action); 6] = [
                 ("Mods", Action::Page(Page::Mods)),
@@ -740,24 +747,18 @@ impl Launcher {
                 let status = ui.fit_text(Face::Regular, 13.0, &self.catalog.status, w - 32.0);
                 ui.text(Face::Regular, 13.0, 16.0, h - 106.0, gray, &status);
             }
+            let version = format!("v{APP_VERSION}");
+            let version_w = ui.measure(Face::Medium, 20.0, &version);
             ui.text(
                 Face::Medium,
-                18.0,
-                16.0,
-                h - 68.0,
-                white,
-                "Horizon Rust Edition",
-            );
-            ui.text(
-                Face::Regular,
-                13.0,
-                16.0,
-                h - 42.0,
+                20.0,
+                w - 16.0 - version_w,
+                h - 50.0,
                 gray,
-                &format!("Minecraft 26.3  -  v{APP_VERSION}"),
+                &version,
             );
             let play_w = (w * 0.42).min(340.0);
-            let play = [w - 14.0 - play_w, h - 74.0, play_w, 62.0];
+            let play = [14.0, h - 74.0, play_w, 62.0];
             let starting = self.session_worker.is_some();
             ui.rounded(
                 play[0],
