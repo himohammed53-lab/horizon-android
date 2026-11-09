@@ -129,7 +129,7 @@ fn glass_plate(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, base: u32, big: bool
     let body = if neutral {
         color::hex(0xffffff, 26)
     } else {
-        color::hex(base, 150)
+        color::hex(base, 112)
     };
     ui.rounded(x + 1.0, y + 1.0, w - 2.0, h - 2.0, radius - 1.0, body);
     ui.rounded(
@@ -692,7 +692,7 @@ impl Launcher {
                 .elapsed()
                 .as_secs_f32()
                 * 0.6;
-            let bands = 32;
+            let bands = 120;
             for i in 0..bands {
                 let f = i as f32 / (bands - 1) as f32;
                 let rgb = super::sunset::sky_at(f as f64 * 0.92);
@@ -716,9 +716,9 @@ impl Launcher {
                     let y = base
                         + amp * (x * 0.011 + t * (0.5 + 0.06 * kf) + kf * 0.9).sin()
                         + amp * 0.4 * (x * 0.026 - t * 0.35 + kf).sin();
-                    let alpha = (edge * (210.0 - kf * 28.0)).max(0.0) as u8;
-                    ui.rounded(x, y, 7.0, 2.2, 1.1, color::hex(super::sunset::WAVE, alpha));
-                    x += 6.0;
+                    let alpha = (edge * (150.0 - kf * 20.0)).max(0.0) as u8;
+                    ui.rounded(x, y, 3.6, 1.6, 0.8, color::hex(super::sunset::WAVE, alpha));
+                    x += 3.0;
                 }
             }
             for i in 0..16 {

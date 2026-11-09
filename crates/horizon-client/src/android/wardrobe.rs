@@ -21,7 +21,7 @@ pub(super) enum CloudAction {
     Upload,
     Cape(usize),
 }
-/// A button drawn as a very thin outline in the top bar's grey (purple when it is the chosen one).
+/// A button in clear purple glass; a lighter purple when it is the chosen one.
 fn button(
     ui: &mut Ui,
     targets: &mut Vec<([f32; 4], Action)>,
@@ -30,28 +30,15 @@ fn button(
     action: Action,
     chosen: bool,
 ) {
-    let [x, y, w, h] = rect;
-    if chosen {
-        ui.rounded(x, y, w, h, 0.0, color::hex(0x7b4fe0, 200));
-    }
-    let rim = color::hex(0x1c1b1f, 255);
-    let t = 1.0;
-    ui.rounded(x, y, w, t, 0.0, rim);
-    ui.rounded(x, y + h - t, w, t, 0.0, rim);
-    ui.rounded(x, y, t, h, 0.0, rim);
-    ui.rounded(x + w - t, y, t, h, 0.0, rim);
-    let size = 17.0;
-    let label = ui.fit_text(Face::Medium, size, label, w - 16.0);
-    let width = ui.measure(Face::Medium, size, &label);
-    ui.text(
-        Face::Medium,
-        size,
-        x + (w - width) / 2.0,
-        y + ((h - size * 1.45) / 2.0).max(3.0),
-        color::hex(0xffffff, 255),
-        &label,
+    button_as(
+        ui,
+        targets,
+        rect,
+        label,
+        action,
+        chosen,
+        Some((0x7b4fe0, 0xa855e8)),
     );
-    targets.push((rect, action));
 }
 
 pub(super) struct Wardrobe {
@@ -522,11 +509,14 @@ impl Wardrobe {
         let px = (14.0 + (eject_width - preview_width) / 2.0).max(14.0);
         let py = list_top;
         self.rect = [px, py, preview_width, preview_height];
-        let rim = color::hex(0x1c1b1f, 255);
-        ui.rounded(px, py, preview_width, 1.0, 0.0, rim);
-        ui.rounded(px, py + preview_height - 1.0, preview_width, 1.0, 0.0, rim);
-        ui.rounded(px, py, 1.0, preview_height, 0.0, rim);
-        ui.rounded(px + preview_width - 1.0, py, 1.0, preview_height, 0.0, rim);
+        ui.rounded(
+            px,
+            py,
+            preview_width,
+            preview_height,
+            14.0,
+            color::hex(0x7b4fe0, 46),
+        );
         let scale = (preview_width / 160.0).min(preview_height / 200.0);
         let ox = px + (preview_width - 160.0 * scale) * 0.5;
         let oy = py + (preview_height - 200.0 * scale) * 0.5;
