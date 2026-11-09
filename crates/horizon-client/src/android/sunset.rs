@@ -98,8 +98,6 @@ struct Ridge {
 }
 
 pub struct Scene {
-    width: f64,
-    height: f64,
     px: f64,
     w: i32,
     h: i32,
@@ -238,8 +236,6 @@ impl Scene {
             col += 14 + (rand.next() * 30.).floor() as i32;
         }
         Scene {
-            width,
-            height,
             px,
             w,
             h,
@@ -278,7 +274,6 @@ pub fn draw(ui: &mut Ui, w: f32, h: f32) {
     }
     let scene = &cache.as_ref().unwrap().1;
     let px = scene.px as f32;
-    let _ = scene.height;
     // The sky, a texel row at a time, down to the window's bottom (the land covers the rest).
     for row in 0..scene.h {
         let y = row as f32 * px;
