@@ -577,7 +577,19 @@ impl Game<'_> {
                     })
                 });
             if only_content {
+                // What a content mod adds (blocks, items, models) is read when the game starts.
+                let added: Vec<String> = wanted
+                    .iter()
+                    .filter(|id| !self.mods.started.contains(id))
+                    .cloned()
+                    .collect();
                 self.mods.started = wanted;
+                if !added.is_empty() {
+                    self.system_message(horizon_client::text::Text::literal(format!(
+                        "Restart the game to use: {}",
+                        added.join(", ")
+                    )));
+                }
             } else {
                 self.start_mods();
             }

@@ -2361,6 +2361,19 @@ impl Launcher {
                     list.disabled.remove(id);
                     list.enabled.insert(id.into());
                 }
+                // Gravestones is its logic plus the content mod with its block: one switch for both.
+                if id == "gravestones_logic"
+                    && game
+                        .join(horizon_client::mod_list::DIR)
+                        .join("gravestones.hmod")
+                        .is_file()
+                {
+                    if enabled {
+                        list.enabled.remove("gravestones");
+                    } else {
+                        list.enabled.insert("gravestones".into());
+                    }
+                }
                 std::fs::create_dir_all(&game)?;
                 std::fs::write(game.join(horizon_client::mod_list::FILE), list.serialize())?;
                 self.catalog.refresh(&self.home);

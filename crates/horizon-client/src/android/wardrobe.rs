@@ -442,25 +442,41 @@ impl Wardrobe {
     /// Draws the player's face (the skin in use, or the default skin) as a square.
     pub fn draw_face(&self, ui: &mut Ui, x: f32, y: f32, size: f32) {
         if self.face.len() != 64 {
-            // A plain head and shoulders until there is a skin to show.
-            let (back, front) = (color::hex(0x3d3a45, 255), color::hex(0x8e8e8e, 255));
-            ui.rounded(x, y, size, size, size * 0.2, back);
+            // No skin yet: a grey tile with a black square and a pixel question mark, like the
+            // lucky block on the sign-in page.
+            ui.rounded(x, y, size, size, size * 0.12, color::hex(0x6b6b72, 255));
+            let inset = size * 0.14;
+            let inner = size - inset * 2.0;
             ui.rounded(
-                x + size * 0.3,
-                y + size * 0.16,
-                size * 0.4,
-                size * 0.4,
-                size * 0.2,
-                front,
+                x + inset,
+                y + inset,
+                inner,
+                inner,
+                0.0,
+                color::hex(0x000000, 255),
             );
-            ui.rounded(
-                x + size * 0.17,
-                y + size * 0.62,
-                size * 0.66,
-                size * 0.3,
-                size * 0.15,
-                front,
+            const MARK: [&str; 7] = [
+                ".XXX.", "X...X", "....X", "...X.", "..X..", ".....", "..X..",
+            ];
+            let cell = inner * 0.66 / 7.0;
+            let (left, top) = (
+                x + inset + (inner - cell * 5.0) / 2.0,
+                y + inset + (inner - cell * 7.0) / 2.0,
             );
+            for (row, line) in MARK.iter().enumerate() {
+                for (col, c) in line.chars().enumerate() {
+                    if c == 'X' {
+                        ui.rounded(
+                            left + col as f32 * cell,
+                            top + row as f32 * cell,
+                            cell + 0.4,
+                            cell + 0.4,
+                            0.0,
+                            color::hex(0xf2f2f2, 255),
+                        );
+                    }
+                }
+            }
             return;
         }
         let cell = size / 8.0;
@@ -645,7 +661,8 @@ impl Wardrobe {
         let (import_y, import_h, first, rh, pitch) = if compact {
             (listtop + 44.0, 36.0, 88.0, 44.0, 50.0)
         } else {
-            (listtop + 54.0, 46.0, 112.0, 52.0, 58.0)
+            // No import button of its own here: the white Eject button below does that.
+            (listtop + 54.0, 46.0, 54.0, 52.0, 58.0)
         };
         if compact {
             button(
@@ -692,14 +709,16 @@ impl Wardrobe {
                 false,
             );
         }
-        button(
-            ui,
-            targets,
-            [lx, import_y, lw, import_h],
-            "Import PNG to local gallery",
-            Action::WardrobeImport,
-            true,
-        );
+        if compact {
+            button(
+                ui,
+                targets,
+                [lx, import_y, lw, import_h],
+                "Import PNG to local gallery",
+                Action::WardrobeImport,
+                true,
+            );
+        }
         // A row half outside the list shows only its inside half.
         let clip_from = ui.mark();
         let mut row = listtop + first + 4.0 - scroll;
