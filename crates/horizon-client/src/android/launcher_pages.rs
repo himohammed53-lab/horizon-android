@@ -738,7 +738,7 @@ impl Launcher {
             if let Some(window) = &self.window {
                 window.request_redraw();
             }
-            let surface = color::hex(0x1c1b1f, 255);
+            let surface = color::hex(0x17161a, 255);
             let card = color::hex(0x2b2930, 255);
             let white = color::hex(0xffffff, 255);
             let gray = color::hex(0x8e8e8e, 255);
@@ -891,7 +891,7 @@ impl Launcher {
                 let card = color::hex(0x2b2930, 255);
                 let white = color::hex(0xffffff, 255);
                 let gray = color::hex(0x8e8e8e, 255);
-                ui.rounded(0.0, 0.0, w, 58.0, 0.0, color::hex(0x1c1b1f, 255));
+                ui.rounded(0.0, 0.0, w, 58.0, 0.0, color::hex(0x17161a, 255));
                 let account = crate::account::Accounts::load().selected().cloned();
                 let (who, provider) = match &account {
                     Some(a) => (
