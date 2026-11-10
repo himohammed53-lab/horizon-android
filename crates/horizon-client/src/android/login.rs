@@ -9,6 +9,8 @@ pub(super) struct Login {
     pub offline: bool,
     pub saved_accounts: Vec<Account>,
     pub account_offset: usize,
+    /// The account whose "Log out" button is showing on the accounts page.
+    pub menu: Option<String>,
     pub ely: bool,
     pub username: String,
     pub password: String,
@@ -62,6 +64,7 @@ impl Login {
             offline: false,
             saved_accounts: vec![],
             account_offset: 0,
+            menu: None,
             ely: false,
             username: String::new(),
             password: String::new(),
@@ -119,6 +122,7 @@ impl Login {
         self.visible = false;
     }
     pub fn close(&mut self) {
+        self.menu = None;
         self.password.clear();
         self.otp.clear();
         self.otp_needed = false;
@@ -247,6 +251,25 @@ impl Login {
                 Err(e) => e,
             };
         }
+        self.refresh_status();
+    }
+    /// Sign one saved account out (the three dots on its card), whichever is selected.
+    pub fn sign_out_account(&mut self, key: &str) {
+        self.menu = None;
+        let mut accounts = Accounts::load();
+        self.message = match accounts
+            .remove_when_idle(account::store(), key)
+            .and_then(|_| accounts.save())
+        {
+            Ok(()) => {
+                self.failed = false;
+                "Logged out.".into()
+            }
+            Err(e) => {
+                self.failed = true;
+                e
+            }
+        };
         self.refresh_status();
     }
     pub fn copy_code(&mut self) {
@@ -386,6 +409,11 @@ impl Login {
             for (row, account) in signed.iter().take(room.max(1)).enumerate() {
                 let card_y = top + 20.0 + row as f32 * 54.0;
                 let current = self.profile.as_deref() == Some(account.name.as_str());
+                let index = self
+                    .saved_accounts
+                    .iter()
+                    .position(|a| a.key() == account.key());
+                let menu_open = self.menu.as_deref() == Some(account.key().as_str());
                 ui.rounded(x + 20.0, card_y, w - 40.0, 48.0, 8.0, color::RAISED);
                 ui.border(
                     x + 20.0,
@@ -432,7 +460,12 @@ impl Login {
                     x + 76.0,
                     card_y + 6.0,
                     color::TEXT,
-                    &ui.fit_text(Face::Medium, 16.0, &account.name, w - 220.0),
+                    &ui.fit_text(
+                        Face::Medium,
+                        16.0,
+                        &account.name,
+                        if menu_open { w - 300.0 } else { w - 220.0 },
+                    ),
                 );
                 ui.text(
                     Face::Regular,
@@ -442,14 +475,42 @@ impl Login {
                     color::MUTED,
                     if ely { "Ely.by" } else { "Microsoft" },
                 );
-                ui.text(
-                    Face::Medium,
-                    14.0,
-                    x + w - 120.0,
-                    card_y + 15.0,
-                    color::ACCENT,
-                    if current { "Signed in" } else { "Saved" },
-                );
+                if let Some(index) = index {
+                    if menu_open {
+                        button(
+                            ui,
+                            targets,
+                            [x + w - 196.0, card_y + 7.0, 124.0, 34.0],
+                            "Log out",
+                            Action::SignOutAccount(index),
+                            false,
+                        );
+                    } else {
+                        ui.text(
+                            Face::Medium,
+                            14.0,
+                            x + w - 130.0,
+                            card_y + 15.0,
+                            color::ACCENT,
+                            if current { "Signed in" } else { "Saved" },
+                        );
+                    }
+                    // Three dots, on the right of the card.
+                    for dot in 0..3 {
+                        ui.rounded(
+                            x + w - 44.0,
+                            card_y + 14.0 + dot as f32 * 8.0,
+                            4.0,
+                            4.0,
+                            2.0,
+                            color::TEXT,
+                        );
+                    }
+                    targets.push((
+                        [x + w - 66.0, card_y, 46.0, 48.0],
+                        Action::AccountMenu(index),
+                    ));
+                }
             }
             button(
                 ui,

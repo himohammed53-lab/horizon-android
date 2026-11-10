@@ -338,7 +338,14 @@ impl Game<'_> {
             player: player.clone(),
             owner_profile: auth.as_ref().map(|a| {
                 let id = a.uuid;
+                let ely_name = a.is_ely().then(|| a.name.clone());
                 Arc::new(OwnerProfile::new(move || {
+                    // An Ely.by account's skin is Ely.by's, not Mojang's.
+                    if let Some(name) = ely_name {
+                        return horizon_client::auth::ely_textures_property(&name)
+                            .into_iter()
+                            .collect();
+                    }
                     horizon_client::skins::fetch_own_properties(id)
                         .into_iter()
                         .map(|(name, value, signature)| {

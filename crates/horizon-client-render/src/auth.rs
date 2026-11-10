@@ -593,8 +593,15 @@ pub fn has_joined(
     server_hash: &str,
     ip: Option<std::net::IpAddr>,
 ) -> Result<Option<JoinedProfile>, JoinError> {
-    let doc = discovery()?;
-    let url = endpoint(&doc, "session", "verify").ok_or(JoinError::Unavailable)?;
+    // A host signed in with Ely.by checks its guests with Ely.by's session server, the one
+    // their `join` went to; any other host asks Mojang's.
+    let ely = current().is_some_and(|s| s.is_ely());
+    let url = if ely {
+        "https://authserver.ely.by/session/hasJoined".to_owned()
+    } else {
+        let doc = discovery()?;
+        endpoint(&doc, "session", "verify").ok_or(JoinError::Unavailable)?
+    };
     let mut query = format!(
         "username={}&serverId={}",
         url_encode(name),
@@ -616,7 +623,41 @@ pub fn has_joined(
         }
         Err(ureq::Error::Transport(_)) => return Err(JoinError::Unavailable),
     };
-    Ok(parse_joined(&body))
+    let mut joined = parse_joined(&body);
+    if ely
+        && let Some(profile) = joined.as_mut()
+        && !profile.properties.iter().any(|p| p.name == "textures")
+    {
+        profile.properties.extend(ely_textures_property(name));
+    }
+    Ok(joined)
+}
+
+/// An Ely.by account's skin and cape as the unsigned `textures` property a player list
+/// carries, so other players of a LAN world see them. `None` for an account with neither.
+pub fn ely_textures_property(name: &str) -> Option<horizon_protocol::packets::login::Property> {
+    use base64::Engine as _;
+    let textures = ely_textures(name)?;
+    let mut map = serde_json::Map::new();
+    if let Some(url) = &textures.skin {
+        let mut skin = serde_json::json!({ "url": url });
+        if textures.slim {
+            skin["metadata"] = serde_json::json!({ "model": "slim" });
+        }
+        map.insert("SKIN".into(), skin);
+    }
+    if let Some(url) = &textures.cape {
+        map.insert("CAPE".into(), serde_json::json!({ "url": url }));
+    }
+    if map.is_empty() {
+        return None;
+    }
+    let json = serde_json::json!({ "textures": map }).to_string();
+    Some(horizon_protocol::packets::login::Property {
+        name: "textures".into(),
+        value: base64::engine::general_purpose::STANDARD.encode(json),
+        signature: None,
+    })
 }
 
 /// HasJoinedMinecraftServerResponse: `id` and `properties`; no id is no profile.

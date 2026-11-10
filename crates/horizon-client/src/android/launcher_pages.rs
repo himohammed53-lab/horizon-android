@@ -46,6 +46,8 @@ pub(super) enum Action {
     SavedAccounts,
     SavedPage(bool),
     SelectAccount(usize),
+    AccountMenu(usize),
+    SignOutAccount(usize),
     SelectOffline,
     WardrobeKind(bool),
     WardrobeSelect(usize),
@@ -2653,6 +2655,19 @@ impl Launcher {
                 self.prepared_session = None;
                 self.session_worker = None;
                 self.login.start(&self.catalog.config.microsoft_client_id);
+            }
+            Some(Action::AccountMenu(index)) => {
+                let key = self.login.saved_accounts.get(index).map(|a| a.key());
+                self.login.menu = if self.login.menu == key { None } else { key };
+            }
+            Some(Action::SignOutAccount(index)) => {
+                if let Some(key) = self.login.saved_accounts.get(index).map(|a| a.key()) {
+                    self.session_ready = false;
+                    self.prepared_session = None;
+                    self.session_worker = None;
+                    self.login.sign_out_account(&key);
+                    self.refresh_wardrobe_account();
+                }
             }
             Some(Action::SignOut) => {
                 self.session_ready = false;

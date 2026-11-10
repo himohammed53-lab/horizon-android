@@ -302,8 +302,14 @@ impl Launcher {
         }
         std::thread::spawn(move || {
             let result = (|| {
-                let (account, secrets) = login::Login::session(&id)?
-                    .ok_or("The selected account changed. Choose Play again.")?;
+                let session = login::Login::session(&id);
+                // No internet and the saved sign-in cannot be renewed: play as the offline
+                // name instead of being refused. The next launch tries the account again.
+                if session.is_err() && !internet_reachable() {
+                    return Err(NO_INTERNET.to_owned());
+                }
+                let (account, secrets) =
+                    session?.ok_or("The selected account changed. Choose Play again.")?;
                 let key = account.key();
                 let file = crate::account::write_session_file(
                     &game_home.join("sessions"),
@@ -484,7 +490,13 @@ impl Launcher {
                     .join(horizon_core::VANILLA_VERSION),
                 game_home,
                 session_file: self.prepared_session.take(),
-                offline_name: crate::catalog::truncate_player_name(&self.catalog.config.name),
+                offline_name: crate::catalog::truncate_player_name(
+                    if self.catalog.config.name.trim().is_empty() {
+                        self.login.profile.as_deref().unwrap_or_default()
+                    } else {
+                        &self.catalog.config.name
+                    },
+                ),
                 server: self.catalog.config.server.clone(),
                 control_socket: (!crate::PUBLIC_BUILD).then(|| self.home.join("control.json")),
                 extra_arguments,
@@ -757,6 +769,14 @@ impl ApplicationHandler for Launcher {
                 Ok(prepared) if prefetch => self.prefetched = Some(prepared),
                 // A failed background fetch is not shown: Play tries again and reports then.
                 Err(_) if prefetch => {}
+                Err(e) if e == NO_INTERNET => {
+                    self.prepared_session = None;
+                    self.session_ready = true;
+                    self.catalog.status = "No internet: playing offline.".into();
+                    if let Err(e) = self.action(events) {
+                        self.fail(e);
+                    }
+                }
                 Ok(prepared) => self.finish_prepared(prepared, events),
                 Err(e) => self.fail(e),
             }
@@ -844,4 +864,18 @@ impl Launcher {
         }
         Ok(())
     }
+}
+
+/// Marks a session fetch that failed because the phone has no internet.
+const NO_INTERNET: &str = "no-internet";
+
+/// Whether the phone can reach the internet at all (public resolvers by address, so a dead
+/// DNS or a sleeping account service does not matter): a TCP connect within three seconds.
+fn internet_reachable() -> bool {
+    use std::net::{SocketAddr, TcpStream};
+    ["1.1.1.1:443", "8.8.8.8:443"].iter().any(|a| {
+        a.parse::<SocketAddr>()
+            .ok()
+            .is_some_and(|a| TcpStream::connect_timeout(&a, Duration::from_secs(3)).is_ok())
+    })
 }
