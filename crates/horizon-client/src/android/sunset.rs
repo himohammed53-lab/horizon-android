@@ -290,7 +290,101 @@ pub const DUST: u32 = 0xfff3e4;
 static CACHE: Mutex<Option<((u32, u32), Scene)>> = Mutex::new(None);
 
 /// Draws the sunset over the whole `w` × `h` window.
+/// The launcher's background picture with a few stars that fade in and out, when the atlas
+/// holds the picture. One textured quad instead of the thousands of shapes of the drawn sky.
+fn picture(ui: &mut Ui, w: f32, h: f32) -> bool {
+    let Some(rect) = ui
+        .atlas
+        .sprites
+        .get(horizon_client::hud::LAUNCHER_BACKGROUND_SPRITE)
+        .copied()
+    else {
+        return false;
+    };
+    let scale = ui.density / ui.batch.scale;
+    // Cover the screen, keeping the ground and the sun: a wide screen drops the top of the
+    // sky, a tall one the sides.
+    let texels = (
+        (rect.u1 - rect.u0) * ui.atlas.width as f32,
+        (rect.v1 - rect.v0) * ui.atlas.height as f32,
+    );
+    let (image, screen) = (texels.0 / texels.1, w / h);
+    let (mut u0, mut u1, mut v0, v1) = (rect.u0, rect.u1, rect.v0, rect.v1);
+    if screen > image {
+        v0 = v1 - (v1 - v0) * image / screen;
+    } else {
+        let keep = screen / image;
+        let from = (0.65 - keep / 2.0).clamp(0.0, 1.0 - keep);
+        let span = u1 - u0;
+        u1 = u0 + span * (from + keep);
+        u0 += span * from;
+    }
+    ui.batch.rect_uv(
+        0.0,
+        0.0,
+        w * scale,
+        h * scale,
+        horizon_client::hud::Rect {
+            u0,
+            v0,
+            u1,
+            v1,
+            ..rect
+        },
+        color::hex(0xffffff, 255),
+    );
+    // A few stars, each fading in and out on its own beat, like the home screen's dust.
+    static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    let t = START
+        .get_or_init(std::time::Instant::now)
+        .elapsed()
+        .as_secs_f32();
+    const STARS: [(f32, f32, f32, f32, f32); 9] = [
+        // x and y as fractions of the screen, size, beat (seconds), phase.
+        (0.08, 0.10, 2.6, 4.4, 0.0),
+        (0.21, 0.27, 2.2, 5.6, 1.9),
+        (0.33, 0.07, 3.0, 6.2, 3.1),
+        (0.47, 0.19, 2.4, 4.9, 0.7),
+        (0.58, 0.09, 2.8, 5.3, 4.2),
+        (0.70, 0.24, 2.2, 6.8, 2.5),
+        (0.83, 0.12, 3.0, 4.7, 5.4),
+        (0.92, 0.30, 2.4, 5.9, 1.2),
+        (0.14, 0.38, 2.2, 7.1, 3.8),
+    ];
+    for (fx, fy, size, beat, phase) in STARS {
+        // Mostly dark, then a smooth rise to a bright moment and back.
+        let wave = (0.5 + 0.5 * (t * std::f32::consts::TAU / beat + phase).sin()).powi(3);
+        let alpha = wave * 235.0;
+        if alpha < 6.0 {
+            continue;
+        }
+        let (x, y) = (fx * w, fy * h * 0.8);
+        ui.rounded(
+            x - size * 1.2,
+            y - size * 1.2,
+            size * 3.4,
+            size * 3.4,
+            size * 1.7,
+            color::hex(STAR_WARM, (alpha * 0.18) as u8),
+        );
+        ui.rounded(
+            x,
+            y,
+            size,
+            size,
+            size / 2.0,
+            color::hex(STAR_WARM, alpha as u8),
+        );
+    }
+    // A thin veil, so text on top stays easy to read.
+    ui.rounded(0.0, 0.0, w, h, 0.0, color::hex(0x000000, 40));
+    true
+}
+
 pub fn draw(ui: &mut Ui, w: f32, h: f32) {
+    if picture(ui, w, h) {
+        return;
+    }
     let key = (w.round() as u32, h.round() as u32);
     let mut cache = CACHE.lock().unwrap();
     if cache.as_ref().map(|c| c.0) != Some(key) {

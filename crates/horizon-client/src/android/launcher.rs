@@ -243,8 +243,20 @@ impl Launcher {
             events.create_window(Window::default_attributes().with_title("Horizon Android"))?,
         );
         crate::display::prepare(&window)?;
+        // The background picture goes into the launcher's own atlas only; if the atlas cannot
+        // hold it (a small texture limit), the launcher builds without it and draws the sky.
+        let installer = self.home.join("installer");
+        HudAtlas::set_launcher_background(
+            horizon_client::hud::decode_bytes(include_bytes!("launcher_bg.png")).ok(),
+        );
+        let built = HudAtlas::build(&installer);
+        HudAtlas::set_launcher_background(None);
+        let atlas = match built {
+            Ok(atlas) => atlas,
+            Err(_) => HudAtlas::build(&installer)?,
+        };
         let gui = game::UiResources {
-            atlas: HudAtlas::build(&self.home.join("installer"))?,
+            atlas,
             panorama: Arc::new(horizon_client::gfx::panorama::Faces {
                 size: 1,
                 pixels: [0u8; 4].repeat(6),

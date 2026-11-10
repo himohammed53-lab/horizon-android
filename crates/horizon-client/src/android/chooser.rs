@@ -31,8 +31,11 @@ impl Launcher {
         let device = if matches!(kind, Kind::Renderer) {
             self.renderer.as_ref().map(|r| {
                 format!(
-                    "GPU: {} / {} {}",
-                    r.info.name, r.info.driver, r.info.driver_info
+                    "GPU ({}): {} / {} {}",
+                    gpu_family(&r.info.name, r.info.vendor).unwrap_or("other"),
+                    r.info.name,
+                    r.info.driver,
+                    r.info.driver_info
                 )
             })
         } else {
@@ -174,31 +177,61 @@ impl Launcher {
                     })
                     .collect(),
             ),
-            Kind::Renderer => (
-                "Rendering mode",
-                "Uses the system GPU driver. Applies on the next game launch.",
-                vec![
-                    (
-                        "OpenGL ES / experimental".into(),
-                        "For older GPUs. Requires ES 3.0+ and sufficient driver limits.".into(),
-                        Action::ChooseRenderer(RendererMode::OpenGl),
-                        c.renderer == RendererMode::OpenGl,
-                    ),
-                    (
-                        "Vulkan / GPU batching".into(),
-                        "Groups terrain draws and enables supported GPU culling.".into(),
-                        Action::ChooseRenderer(RendererMode::Vulkan),
-                        c.renderer == RendererMode::Vulkan,
-                    ),
-                    (
-                        "Vulkan / compatibility".into(),
-                        "Direct terrain draws for drivers with missing or transparent blocks."
-                            .into(),
-                        Action::ChooseRenderer(RendererMode::VulkanCompatibility),
-                        c.renderer == RendererMode::VulkanCompatibility,
-                    ),
-                ],
-            ),
+            Kind::Renderer => {
+                // The suggestion follows the GPU family. Only Adreno has been tested (an
+                // Adreno 725); Mali and PowerVR get the same safe default, flagged as untested.
+                let family = self
+                    .renderer
+                    .as_ref()
+                    .and_then(|r| gpu_family(&r.info.name, r.info.vendor));
+                let note = |mode: RendererMode| -> String {
+                    match (family, mode) {
+                        (Some("Adreno"), RendererMode::VulkanCompatibility) => {
+                            " Suggested for your Adreno GPU.".into()
+                        }
+                        (Some(f @ ("Mali" | "PowerVR")), RendererMode::VulkanCompatibility) => {
+                            format!(" Suggested first for your {f} GPU (not tested on {f} yet).")
+                        }
+                        (Some("Mali" | "PowerVR"), RendererMode::OpenGl) => {
+                            " Try this if Vulkan crashes or the screen stays black.".into()
+                        }
+                        _ => String::new(),
+                    }
+                };
+                (
+                    "Rendering mode",
+                    "Uses the system GPU driver. Applies on the next game launch.",
+                    vec![
+                        (
+                            "OpenGL ES / experimental".into(),
+                            format!(
+                                "For older GPUs. Requires ES 3.0+ and sufficient driver limits.{}",
+                                note(RendererMode::OpenGl)
+                            ),
+                            Action::ChooseRenderer(RendererMode::OpenGl),
+                            c.renderer == RendererMode::OpenGl,
+                        ),
+                        (
+                            "Vulkan / GPU batching".into(),
+                            format!(
+                                "Groups terrain draws and enables supported GPU culling.{}",
+                                note(RendererMode::Vulkan)
+                            ),
+                            Action::ChooseRenderer(RendererMode::Vulkan),
+                            c.renderer == RendererMode::Vulkan,
+                        ),
+                        (
+                            "Vulkan / compatibility".into(),
+                            format!(
+                                "Direct terrain draws for drivers with missing or transparent blocks.{}",
+                                note(RendererMode::VulkanCompatibility)
+                            ),
+                            Action::ChooseRenderer(RendererMode::VulkanCompatibility),
+                            c.renderer == RendererMode::VulkanCompatibility,
+                        ),
+                    ],
+                )
+            }
             Kind::Profile => {
                 let mut ids = vec![0, c.profile];
                 ids.extend(
@@ -337,5 +370,20 @@ impl Chooser {
             Action::Dismiss,
             false,
         );
+    }
+}
+
+/// The GPU family of an Android phone: Qualcomm's Adreno, Arm's Mali (also in MediaTek and
+/// Samsung chips) or Imagination's PowerVR, from the Vulkan vendor id or the adapter name.
+fn gpu_family(name: &str, vendor: u32) -> Option<&'static str> {
+    let name = name.to_ascii_lowercase();
+    if vendor == 0x5143 || name.contains("adreno") {
+        Some("Adreno")
+    } else if vendor == 0x13b5 || name.contains("mali") {
+        Some("Mali")
+    } else if vendor == 0x1010 || name.contains("powervr") || name.contains("img ") {
+        Some("PowerVR")
+    } else {
+        None
     }
 }

@@ -367,6 +367,11 @@ impl HudAtlas {
         atlas.text_shader = pack_text::load(root, defaults);
         Ok(atlas)
     }
+    /// The launcher's background picture (RGBA), set only while the launcher builds its own
+    /// atlas, so the game's atlas never carries it.
+    pub fn set_launcher_background(image: Option<(u32, u32, Vec<u8>)>) {
+        *LAUNCHER_BACKGROUND.lock().unwrap() = image;
+    }
     /// Empty slots written at run time: map textures (game/maps.rs), the
     /// minimap, downloaded skins, world and pack icons and the on-screen keyboard's text.
     fn slots(images: &mut Vec<PackedImage>, trim: (u32, u32)) {
@@ -789,6 +794,9 @@ impl HudAtlas {
             edition.3 = pixels;
         }
         images.push(("horizon/white".into(), 4, 4, vec![255; 64]));
+        if let Some((w, h, rgba)) = LAUNCHER_BACKGROUND.lock().unwrap().clone() {
+            images.push((LAUNCHER_BACKGROUND_SPRITE.into(), w, h, rgba));
+        }
         if full {
             Self::slots(&mut images, crate::trims::slot_size(root));
             // MissingTextureAtlasSprite.generateMissingImage: 16x16, magenta
@@ -983,6 +991,10 @@ fn clip_polygon(poly: &[HudVertex], axis: usize, limit: f32, keep_below: bool) -
     out
 }
 /// The GUI Scale option (0 = auto).
+/// The sprite name of the launcher's background picture in its atlas.
+pub const LAUNCHER_BACKGROUND_SPRITE: &str = "horizon/launcher-bg";
+static LAUNCHER_BACKGROUND: std::sync::Mutex<Option<(u32, u32, Vec<u8>)>> =
+    std::sync::Mutex::new(None);
 pub static GUI_SCALE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 /// Layout only passive information inside a safe rectangle. The main HUD,
 /// touch controls, menu hit tests and world projection keep their full surface.
