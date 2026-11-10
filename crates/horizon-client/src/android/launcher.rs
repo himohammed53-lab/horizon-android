@@ -7,6 +7,8 @@ mod chooser;
 mod device_report;
 #[path = "launcher_gesture.rs"]
 mod gesture;
+#[path = "load_monitor.rs"]
+mod load_monitor;
 #[path = "login.rs"]
 mod login;
 #[path = "launcher_pages.rs"]
@@ -278,6 +280,7 @@ impl Launcher {
         )?);
         if let Some(r) = &self.renderer {
             let l = r.device.limits();
+            load_monitor::start();
             device_report::log(
                 r.info.name.clone(),
                 r.info.vendor,
@@ -324,17 +327,19 @@ impl Launcher {
             horizon_client::graphics::Preset::Performance,
             &mut settings,
         );
+        // The phone's motor shaking on every hit and broken block costs frames and battery.
+        settings.controller.vibration = false;
         if low {
             settings.render_distance = 6;
             settings.simulation_distance = 5;
         }
         settings.save(&options);
         log::info!(
-            "Horizon: weak GPU mode: resolution {}%, Performance preset",
+            "Horizon: weak GPU mode: resolution {}%, Performance preset, vibration off",
             self.catalog.config.render_scale.percent()
         );
         self.catalog.status = format!(
-            "Weak GPU mode: resolution {}% and the Performance graphics preset. Change them in Settings.",
+            "Weak GPU mode: resolution {}%, the Performance graphics preset and vibration off. Change them in Settings.",
             self.catalog.config.render_scale.percent()
         );
     }

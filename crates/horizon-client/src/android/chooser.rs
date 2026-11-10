@@ -245,7 +245,7 @@ impl Launcher {
                         (
                             "Vulkan / weak GPU (Mali)".into(),
                             format!(
-                                "For weak GPUs (Mali, older Adreno, PowerVR): Vulkan as in compatibility, with a lower resolution (50-67%) and the Performance graphics preset. Choosing it sets them once; change them in Settings.{}",
+                                "For weak GPUs (Mali, older Adreno, PowerVR): Vulkan as in compatibility, with a lower resolution (50-67%), the Performance graphics preset and vibration off. Choosing it sets them once; change them in Settings.{}",
                                 note(RendererMode::WeakGpu)
                             ),
                             Action::ChooseRenderer(RendererMode::WeakGpu),
