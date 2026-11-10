@@ -66,8 +66,12 @@ pub(super) fn log(gpu: String, vendor: u32, limits: Vec<(&'static str, u64)>) {
                     .collect::<Vec<_>>()
                     .join(" ")
             );
-            // A rule of thumb, not measured: what the memory and cores usually carry.
-            let (tier, advice) = if total == 0 || cores == 0 {
+            // A rule of thumb, not measured: what the memory and cores usually carry, held
+            // down by an older or smaller GPU (a Mali-G76 managed about 25 frames per second
+            // at the screen's full resolution).
+            let (tier, advice) = if let Some(cap) = gpu_cap(&gpu) {
+                cap
+            } else if total == 0 || cores == 0 {
                 ("unknown", "no advice: the phone did not report its memory or cores")
             } else if total < 4096 || cores <= 4 {
                 (
@@ -87,4 +91,44 @@ pub(super) fn log(gpu: String, vendor: u32, limits: Vec<(&'static str, u64)>) {
             };
             log::info!("Horizon: device tier: {tier} (rule of thumb, untested): {advice}");
         });
+}
+
+/// A tier ceiling from the GPU's name: the memory and cores say little about the graphics.
+fn gpu_cap(gpu: &str) -> Option<(&'static str, &'static str)> {
+    const LOW: (&str, &str) = (
+        "low",
+        "render distance 6, resolution scale 50%, Battery mode on, 1-2 world workers; use Vulkan, not OpenGL ES",
+    );
+    const MID: (&str, &str) = (
+        "mid",
+        "render distance 8, resolution scale 50-75%; the GPU, not the CPU, sets the frame rate",
+    );
+    let name = gpu.to_ascii_lowercase();
+    let number = |prefix: &str| -> Option<u32> {
+        let rest = name.split(prefix).nth(1)?;
+        let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+        digits.parse().ok()
+    };
+    if name.contains("mali") {
+        // Mali-G7x and older mid-range parts (G52, G57, G68, G76) are held to mid or low.
+        return match number("-g").or_else(|| number("mali-t")) {
+            Some(n) if n < 60 => Some(LOW),
+            Some(n) if n < 78 => Some(MID),
+            _ => None,
+        };
+    }
+    if name.contains("adreno") {
+        return match number("adreno (tm) ").or_else(|| number("adreno ")) {
+            Some(n) if n < 610 => Some(LOW),
+            Some(n) if n < 650 => Some(MID),
+            _ => None,
+        };
+    }
+    name.contains("powervr").then_some(LOW)
+}
+
+/// `"low"` or `"mid"` for a GPU that holds the frame rate down at full resolution; `None`
+/// for a GPU with no known limit.
+pub(crate) fn gpu_tier(gpu: &str) -> Option<&'static str> {
+    gpu_cap(gpu).map(|(tier, _)| tier)
 }

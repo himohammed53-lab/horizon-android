@@ -2823,6 +2823,9 @@ impl Launcher {
             }
             Some(Action::ChooseRenderer(mode)) => {
                 self.catalog.config.renderer = mode;
+                if mode == crate::catalog::RendererMode::WeakGpu {
+                    self.apply_weak_gpu_mode();
+                }
                 self.catalog.config.save(&self.home)?;
                 self.chooser = None;
             }

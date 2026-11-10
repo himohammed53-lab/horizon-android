@@ -342,9 +342,16 @@ impl Game<'_> {
                 Arc::new(OwnerProfile::new(move || {
                     // An Ely.by account's skin is Ely.by's, not Mojang's.
                     if let Some(name) = ely_name {
-                        return horizon_client::auth::ely_textures_property(&name)
-                            .into_iter()
-                            .collect();
+                        // A lookup that fails (no connection yet) is tried again a few times.
+                        for wait in [0, 3, 8, 20] {
+                            std::thread::sleep(std::time::Duration::from_secs(wait));
+                            if let Some(property) =
+                                horizon_client::auth::ely_textures_property(&name)
+                            {
+                                return vec![property];
+                            }
+                        }
+                        return Vec::new();
                     }
                     horizon_client::skins::fetch_own_properties(id)
                         .into_iter()

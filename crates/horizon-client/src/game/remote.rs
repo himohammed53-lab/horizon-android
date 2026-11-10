@@ -426,8 +426,28 @@ enum OwnProfile {
 
 /// An Ely.by player's skin looked up by name, for a player the server sent none for.
 enum ElySkin {
-    Fetching(std::sync::mpsc::Receiver<Option<horizon_client::skins::Textures>>),
+    /// A lookup in flight, and how many came before it.
+    Fetching(
+        std::sync::mpsc::Receiver<Option<horizon_client::skins::Textures>>,
+        u8,
+    ),
     Done(Option<horizon_client::skins::Textures>),
+    /// A lookup that found nothing (often no connection yet): tried again after a pause.
+    Missed(u8, std::time::Instant),
+}
+
+impl ElySkin {
+    /// Looks the name up on a background thread; `tries` counts the earlier lookups.
+    fn fetch(name: String, tries: u8) -> Self {
+        let (send, recv) = std::sync::mpsc::channel();
+        std::thread::Builder::new()
+            .name("Ely.by skin".into())
+            .spawn(move || {
+                let _ = send.send(horizon_client::auth::ely_textures(&name));
+            })
+            .ok();
+        ElySkin::Fetching(recv, tries)
+    }
 }
 
 pub(super) struct Remote {
@@ -4847,20 +4867,26 @@ impl Game<'_> {
             let Some(name) = r.tab_players.get(uuid).map(|p| p.name.clone()) else {
                 continue;
             };
-            let entry = r.ely_skins.entry(*uuid).or_insert_with(|| {
-                let (send, recv) = std::sync::mpsc::channel();
-                std::thread::Builder::new()
-                    .name("Ely.by skin".into())
-                    .spawn(move || {
-                        let _ = send.send(horizon_client::auth::ely_textures(&name));
-                    })
-                    .ok();
-                ElySkin::Fetching(recv)
-            });
-            if let ElySkin::Fetching(recv) = entry
+            let entry = r
+                .ely_skins
+                .entry(*uuid)
+                .or_insert_with(|| ElySkin::fetch(name.clone(), 0));
+            if let ElySkin::Fetching(recv, tries) = entry
                 && let Ok(found) = recv.try_recv()
             {
-                *entry = ElySkin::Done(found);
+                let tries = *tries;
+                *entry = match found {
+                    None => ElySkin::Missed(tries + 1, std::time::Instant::now()),
+                    found => ElySkin::Done(found),
+                };
+            }
+            // A failed lookup is repeated a few times, 10 s apart, so a connection that
+            // came up late still finds the skin.
+            if let ElySkin::Missed(tries, at) = entry
+                && *tries < 5
+                && at.elapsed() >= std::time::Duration::from_secs(10)
+            {
+                *entry = ElySkin::fetch(name.clone(), *tries);
             }
             if let ElySkin::Done(Some(found)) = entry {
                 *textures = found.clone();
@@ -4898,11 +4924,26 @@ impl Game<'_> {
         for (uuid, textures) in entries {
             // PlayerInfo.createSkinLookup: only the local player's own skin
             // may be unsigned.
+            // Ely.by signs nothing a client can check, so textures that name Ely.by's own
+            // storage are taken unsigned, like those found by name above.
+            let from_ely = [&textures.skin, &textures.cape]
+                .into_iter()
+                .flatten()
+                .any(|url| {
+                    [
+                        "https://ely.by/",
+                        "http://ely.by/",
+                        "https://skinsystem.ely.by/",
+                        "http://skinsystem.ely.by/",
+                    ]
+                    .iter()
+                    .any(|prefix| url.starts_with(prefix))
+                });
             let skin = {
                 let mut downloads = self.skin_downloads.borrow_mut();
                 horizon_client::skins::lookup(
                     &textures,
-                    uuid != local && !ely_found.contains(&uuid),
+                    uuid != local && !ely_found.contains(&uuid) && !from_ely,
                     |kind, url| downloads.state(kind, url),
                 )
             };

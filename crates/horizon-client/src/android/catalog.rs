@@ -40,6 +40,8 @@ pub enum RendererMode {
     OpenGl,
     #[default]
     VulkanCompatibility,
+    /// Vulkan as in compatibility, with the settings a weak GPU needs (Mali, older Adreno).
+    WeakGpu,
 }
 impl RendererMode {
     pub fn label(self) -> &'static str {
@@ -47,6 +49,7 @@ impl RendererMode {
             Self::Vulkan => "Vulkan / GPU batching",
             Self::OpenGl => "OpenGL ES / experimental",
             Self::VulkanCompatibility => "Vulkan / compatibility",
+            Self::WeakGpu => "Vulkan / weak GPU (Mali)",
         }
     }
 }

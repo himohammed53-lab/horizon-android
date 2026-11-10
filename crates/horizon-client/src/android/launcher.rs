@@ -298,6 +298,47 @@ impl Launcher {
         Ok(())
     }
 
+    /// The "Vulkan / weak GPU" rendering mode: a lower resolution and the Performance graphics
+    /// preset, the settings that matter most when the GPU, not the CPU, is the limit. Applied
+    /// when the mode is chosen, never to a phone that did not choose it; everything stays
+    /// changeable in Settings.
+    fn apply_weak_gpu_mode(&mut self) {
+        let low = self
+            .renderer
+            .as_ref()
+            .and_then(|r| device_report::gpu_tier(&r.info.name))
+            == Some("low");
+        self.catalog.config.render_scale =
+            crate::display::RenderScale::new(if low { 50 } else { 67 });
+        crate::display::set_scale(self.catalog.config.render_scale);
+        let options = self
+            .catalog
+            .config
+            .game_home(&self.home)
+            .join("options.txt");
+        if let Some(dir) = options.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let mut settings = horizon_client::settings::Settings::load(&options);
+        horizon_client::graphics::apply_preset(
+            horizon_client::graphics::Preset::Performance,
+            &mut settings,
+        );
+        if low {
+            settings.render_distance = 6;
+            settings.simulation_distance = 5;
+        }
+        settings.save(&options);
+        log::info!(
+            "Horizon: weak GPU mode: resolution {}%, Performance preset",
+            self.catalog.config.render_scale.percent()
+        );
+        self.catalog.status = format!(
+            "Weak GPU mode: resolution {}% and the Performance graphics preset. Change them in Settings.",
+            self.catalog.config.render_scale.percent()
+        );
+    }
+
     fn request_back(&mut self) {
         crate::platform::hide();
         if self.exit_confirmation {

@@ -528,13 +528,28 @@ pub fn ely_textures(name: &str) -> Option<crate::skins::Textures> {
     if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
         return None;
     }
-    let body = agent()
+    let body = match agent()
         .get(&format!("https://skinsystem.ely.by/textures/{name}"))
         .call()
-        .ok()?
-        .into_string()
-        .ok()?;
+    {
+        Ok(response) => response.into_string().ok()?,
+        Err(error) => {
+            log::info!(
+                "Horizon: Ely.by skin lookup for {name}: {}",
+                match &error {
+                    ureq::Error::Status(code, _) => format!("HTTP {code} (no skin set?)"),
+                    ureq::Error::Transport(_) => "no connection".to_owned(),
+                }
+            );
+            return None;
+        }
+    };
     let value: serde_json::Value = serde_json::from_str(&body).ok()?;
+    log::info!(
+        "Horizon: Ely.by skin lookup for {name}: skin {} cape {}",
+        value.get("SKIN").is_some(),
+        value.get("CAPE").is_some()
+    );
     let url = |key: &str| {
         value
             .get(key)?

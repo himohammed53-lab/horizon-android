@@ -178,21 +178,34 @@ impl Launcher {
                     .collect(),
             ),
             Kind::Renderer => {
-                // The suggestion follows the GPU family. Only Adreno has been tested (an
-                // Adreno 725); Mali and PowerVR get the same safe default, flagged as untested.
+                // The suggestion follows the GPU: tested on an Adreno 725 (fine) and a Mali-G76
+                // (about 25 FPS at full resolution, hence the weak GPU mode).
                 let family = self
                     .renderer
                     .as_ref()
                     .and_then(|r| gpu_family(&r.info.name, r.info.vendor));
+                let weak = family == Some("PowerVR")
+                    || self
+                        .renderer
+                        .as_ref()
+                        .and_then(|r| super::device_report::gpu_tier(&r.info.name))
+                        .is_some();
                 let note = |mode: RendererMode| -> String {
                     match (family, mode) {
-                        (Some("Adreno"), RendererMode::VulkanCompatibility) => {
+                        (Some("Mali"), RendererMode::WeakGpu) if weak => {
+                            " Suggested for your Mali GPU (a Mali-G76 ran about 25 FPS at full resolution).".into()
+                        }
+                        (_, RendererMode::WeakGpu) if weak => " Suggested for your GPU.".into(),
+                        (Some("Adreno"), RendererMode::VulkanCompatibility) if !weak => {
                             " Suggested for your Adreno GPU.".into()
                         }
-                        (Some(f @ ("Mali" | "PowerVR")), RendererMode::VulkanCompatibility) => {
-                            format!(" Suggested first for your {f} GPU (not tested on {f} yet).")
+                        (Some("Mali"), RendererMode::VulkanCompatibility) if !weak => {
+                            " Suggested for your Mali GPU (not tested on this one yet).".into()
                         }
-                        (Some("Mali" | "PowerVR"), RendererMode::OpenGl) => {
+                        (Some("Mali"), RendererMode::OpenGl) => {
+                            " Much slower than Vulkan on the Mali-G76 tested; use only if Vulkan fails.".into()
+                        }
+                        (Some("PowerVR"), RendererMode::OpenGl) => {
                             " Try this if Vulkan crashes or the screen stays black.".into()
                         }
                         _ => String::new(),
@@ -228,6 +241,15 @@ impl Launcher {
                             ),
                             Action::ChooseRenderer(RendererMode::VulkanCompatibility),
                             c.renderer == RendererMode::VulkanCompatibility,
+                        ),
+                        (
+                            "Vulkan / weak GPU (Mali)".into(),
+                            format!(
+                                "For weak GPUs (Mali, older Adreno, PowerVR): Vulkan as in compatibility, with a lower resolution (50-67%) and the Performance graphics preset. Choosing it sets them once; change them in Settings.{}",
+                                note(RendererMode::WeakGpu)
+                            ),
+                            Action::ChooseRenderer(RendererMode::WeakGpu),
+                            c.renderer == RendererMode::WeakGpu,
                         ),
                     ],
                 )
