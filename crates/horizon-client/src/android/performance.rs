@@ -99,7 +99,106 @@ pub fn slow_frame(cpu: f32, timings: &[spans::Span]) {
         );
     }
 }
+/// Always-on, tiny: the frames of the last ten seconds, with where the slow ones spent their
+/// time, written to the diagnostics log as one line.
+struct Auto {
+    since: Instant,
+    frames: u32,
+    frame_sum: f64,
+    frame_max: f32,
+    over_33: u32,
+    over_50: u32,
+    cpu_sum: f64,
+    phase_sum: [f64; 4],
+    /// Slow frames whose CPU time was most of the frame, by the biggest phase.
+    cpu_bound: [u32; 4],
+    /// Slow frames that mostly waited (the GPU, the display or the frame limiter).
+    waiting: u32,
+    worst: (f32, f32, [f32; 4]),
+}
+static AUTO: Mutex<Option<Auto>> = Mutex::new(None);
+
+fn auto_frame(frame: f32, cpu: f32, phases: [f32; 4]) {
+    let Ok(mut guard) = AUTO.lock() else {
+        return;
+    };
+    let a = guard.get_or_insert_with(|| Auto {
+        since: Instant::now(),
+        frames: 0,
+        frame_sum: 0.0,
+        frame_max: 0.0,
+        over_33: 0,
+        over_50: 0,
+        cpu_sum: 0.0,
+        phase_sum: [0.0; 4],
+        cpu_bound: [0; 4],
+        waiting: 0,
+        worst: (0.0, 0.0, [0.0; 4]),
+    });
+    a.frames += 1;
+    a.frame_sum += f64::from(frame);
+    a.cpu_sum += f64::from(cpu);
+    for (sum, p) in a.phase_sum.iter_mut().zip(phases) {
+        *sum += f64::from(p);
+    }
+    if frame > a.frame_max {
+        a.frame_max = frame;
+        a.worst = (frame, cpu, phases);
+    }
+    if frame >= 33.0 {
+        a.over_33 += 1;
+        if frame >= 50.0 {
+            a.over_50 += 1;
+        }
+        if cpu >= frame * 0.7 {
+            let biggest = (0..4)
+                .max_by(|&x, &y| phases[x].total_cmp(&phases[y]))
+                .unwrap_or(0);
+            a.cpu_bound[biggest] += 1;
+        } else {
+            a.waiting += 1;
+        }
+    }
+    if a.since.elapsed() < Duration::from_secs(10) {
+        return;
+    }
+    let n = f64::from(a.frames.max(1));
+    let names = ["update", "tick", "prepare", "render"];
+    let cpu_bound: u32 = a.cpu_bound.iter().sum();
+    let verdict = if a.over_33 == 0 {
+        "smooth".to_owned()
+    } else if cpu_bound > a.waiting {
+        let biggest = (0..4).max_by_key(|&i| a.cpu_bound[i]).unwrap_or(0);
+        format!("CPU-bound, mostly {}", names[biggest])
+    } else {
+        "mostly waiting: the GPU, the display or the frame limiter".to_owned()
+    };
+    log::info!(
+        "Horizon: game frames: n={} avg={:.1}ms max={:.1}ms over33ms={} over50ms={} cpu_avg={:.1}ms phases_avg(update/tick/prepare/render)={:.1}/{:.1}/{:.1}/{:.1}ms slow(cpu-bound by phase {:?}, waiting {}) worst(frame {:.1}ms cpu {:.1}ms phases {:.1}/{:.1}/{:.1}/{:.1}) verdict: {}",
+        a.frames,
+        a.frame_sum / n,
+        a.frame_max,
+        a.over_33,
+        a.over_50,
+        a.cpu_sum / n,
+        a.phase_sum[0] / n,
+        a.phase_sum[1] / n,
+        a.phase_sum[2] / n,
+        a.phase_sum[3] / n,
+        a.cpu_bound,
+        a.waiting,
+        a.worst.0,
+        a.worst.1,
+        a.worst.2[0],
+        a.worst.2[1],
+        a.worst.2[2],
+        a.worst.2[3],
+        verdict,
+    );
+    *guard = None;
+}
 pub fn record(frame: f32, cpu: f32, gpu: &[f32], phases: [f32; 4]) -> Option<Value> {
+    auto_frame(frame, cpu, phases);
     if !active() {
         return None;
     }

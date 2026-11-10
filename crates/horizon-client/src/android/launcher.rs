@@ -3,6 +3,8 @@ use crate::catalog::{Catalog, Page};
 use crate::game;
 #[path = "chooser.rs"]
 mod chooser;
+#[path = "device_report.rs"]
+mod device_report;
 #[path = "launcher_gesture.rs"]
 mod gesture;
 #[path = "login.rs"]
@@ -274,6 +276,23 @@ impl Launcher {
                 horizon_client::graphics::GraphicsApi::Auto
             },
         )?);
+        if let Some(r) = &self.renderer {
+            let l = r.device.limits();
+            device_report::log(
+                r.info.name.clone(),
+                r.info.vendor,
+                vec![
+                    ("max_texture_2d", u64::from(l.max_texture_dimension_2d)),
+                    ("max_texture_layers", u64::from(l.max_texture_array_layers)),
+                    ("max_buffer", l.max_buffer_size),
+                    (
+                        "max_storage_binding",
+                        u64::from(l.max_storage_buffer_binding_size),
+                    ),
+                    ("max_bind_groups", u64::from(l.max_bind_groups)),
+                ],
+            );
+        }
         self.window = Some(window);
         self.gui = Some(gui);
         Ok(())

@@ -633,6 +633,7 @@ impl Launcher {
         let started = Instant::now();
         let result = self.draw_pages_frame();
         let done = Instant::now();
+        scroll_log::drawn(started, done);
         let Ok(mut guard) = STATS.lock() else {
             return result;
         };
@@ -2922,12 +2923,14 @@ impl Launcher {
         match t.phase {
             TouchPhase::Started => {
                 self.drag = Some(super::gesture::Drag::new(t.location.x, t.location.y));
+                scroll_log::begin(self.catalog.page.name());
             }
             TouchPhase::Moved => {
                 let density = self.ui_density() as f64;
                 if let Some(drag) = &mut self.drag {
                     let delta = drag.update(t.location.x, t.location.y, density);
                     if drag.moved {
+                        scroll_log::moved(delta);
                         if let Some(chooser) = &mut self.chooser {
                             chooser.scroll = (chooser.scroll + delta).max(0.0);
                         } else if self
@@ -2940,11 +2943,13 @@ impl Launcher {
                 }
             }
             TouchPhase::Ended => {
+                scroll_log::end();
                 if self.drag.take().is_some_and(|drag| !drag.moved) {
                     self.activate(events)?;
                 }
             }
             TouchPhase::Cancelled => {
+                scroll_log::end();
                 self.drag = None;
             }
         }
@@ -2973,6 +2978,100 @@ impl Launcher {
         };
         if let Some(out) = out {
             self.edit_text(out);
+        }
+    }
+}
+
+/// What one finger drag on a list looked like, written to the diagnostics when it ends: how
+/// often the touch moved, how often the screen was redrawn and how long the slowest draw
+/// was. It shows whether a rough scroll comes from the touch rate or from the drawing.
+mod scroll_log {
+    use std::sync::Mutex;
+    use std::time::Instant;
+
+    struct Drag {
+        page: &'static str,
+        began: Instant,
+        last_move: Option<Instant>,
+        moves: u32,
+        move_gap_sum: f64,
+        move_gap_max: f64,
+        last_draw: Option<Instant>,
+        draws: u32,
+        draw_gap_max: f64,
+        draw_max: f64,
+        distance: f32,
+    }
+    static DRAG: Mutex<Option<Drag>> = Mutex::new(None);
+    const MS: f64 = 1000.0;
+
+    pub(super) fn begin(page: &'static str) {
+        if let Ok(mut drag) = DRAG.lock() {
+            *drag = Some(Drag {
+                page,
+                began: Instant::now(),
+                last_move: None,
+                moves: 0,
+                move_gap_sum: 0.0,
+                move_gap_max: 0.0,
+                last_draw: None,
+                draws: 0,
+                draw_gap_max: 0.0,
+                draw_max: 0.0,
+                distance: 0.0,
+            });
+        }
+    }
+    pub(super) fn moved(delta: f32) {
+        let now = Instant::now();
+        if let Ok(mut guard) = DRAG.lock()
+            && let Some(drag) = guard.as_mut()
+        {
+            if let Some(last) = drag.last_move {
+                let gap = now.duration_since(last).as_secs_f64() * MS;
+                drag.move_gap_sum += gap;
+                drag.move_gap_max = drag.move_gap_max.max(gap);
+            }
+            drag.last_move = Some(now);
+            drag.moves += 1;
+            drag.distance += delta.abs();
+        }
+    }
+    pub(super) fn drawn(started: Instant, done: Instant) {
+        if let Ok(mut guard) = DRAG.lock()
+            && let Some(drag) = guard.as_mut()
+            && drag.last_move.is_some()
+        {
+            if let Some(last) = drag.last_draw {
+                let gap = started.duration_since(last).as_secs_f64() * MS;
+                drag.draw_gap_max = drag.draw_gap_max.max(gap);
+            }
+            drag.last_draw = Some(started);
+            drag.draws += 1;
+            drag.draw_max = drag
+                .draw_max
+                .max(done.duration_since(started).as_secs_f64() * MS);
+        }
+    }
+    pub(super) fn end() {
+        let Ok(mut guard) = DRAG.lock() else {
+            return;
+        };
+        if let Some(drag) = guard.take()
+            && drag.moves > 3
+        {
+            log::info!(
+                "Horizon: scroll: page={} {:.0}ms moves={} avg_move_gap={:.1}ms max_move_gap={:.1}ms draws={} max_draw_gap={:.1}ms max_draw={:.1}ms distance={:.0}dp",
+                drag.page,
+                drag.began.elapsed().as_secs_f64() * MS,
+                drag.moves,
+                drag.move_gap_sum / f64::from(drag.moves.saturating_sub(1).max(1)),
+                drag.move_gap_max,
+                drag.draws,
+                drag.draw_gap_max,
+                drag.draw_max,
+                drag.distance,
+            );
         }
     }
 }
