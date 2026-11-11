@@ -23,8 +23,6 @@ use horizon_world::registry::BlockStateId;
 use std::{collections::HashMap, time::Instant};
 
 pub(super) const ID: &str = "a_good_place";
-/// Size of the block that fills the cell under the animation (a hair under 1 so it never fights the final pose).
-const BACKING_SCALE: f32 = 0.995;
 /// Brightness of the animated block against the chunk mesh's (no ambient occlusion on it).
 const DIM: u32 = 230;
 
@@ -409,13 +407,6 @@ impl Game<'_> {
                 glam::DVec3::new(f64::from(pos[0]), f64::from(pos[1]), f64::from(pos[2])) - camera;
             let block = horizon_core::position::BlockPos::new(pos[0], pos[1], pos[2]);
             let start = out.len();
-            // The cell is empty in the chunk mesh while the block moves, and its neighbours don't
-            // draw their faces towards it: a block just inside the cell fills the hole (no black).
-            let backing = Mat4::from_translation(at.as_vec3())
-                * Mat4::from_translation(Vec3::splat(0.5))
-                * Mat4::from_scale(Vec3::splat(BACKING_SCALE))
-                * Mat4::from_translation(Vec3::splat(-0.5));
-            self.moving_block_vertices_with(a.state, block, backing, out);
             let matrix = Mat4::from_translation(at.as_vec3())
                 * pose(a.y_angle, a.slide_start, a.rotation_start, a.offset, time);
             self.moving_block_vertices_with(a.state, block, matrix, out);

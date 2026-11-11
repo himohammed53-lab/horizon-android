@@ -1104,9 +1104,40 @@ impl Mesher<'_> {
         }
         let own = scratch.own.get_or_insert_with(|| Box::new([0; 4096]));
         scratch.padded.fill(region, sy, own);
+        let base_y = center.min_y() + sy * 16;
+        // Blocks the client draws itself for a moment (placement animation): what the mesh shows
+        // around them is lit as the open cell they stand in, and their neighbours draw the faces
+        // that point into it (A Good Place's `shouldRenderFace` override).
+        let hidden_cells: Vec<[i32; 3]> = if hidden::any() {
+            let local = |p: &[i32; 3]| [p[0] - center.x * 16, p[1] - base_y, p[2] - center.z * 16];
+            hidden::positions()
+                .iter()
+                .map(local)
+                .filter(|p| p.iter().all(|c| (-B..16 + B).contains(c)))
+                .collect()
+        } else {
+            Vec::new()
+        };
+        for c in &hidden_cells {
+            let (mut sky, mut block) = (0u8, 0u8);
+            for d in Direction::ALL {
+                let [dx, dy, dz] = d.normal();
+                let (x, y, z) = (c[0] + dx, c[1] + dy, c[2] + dz);
+                if (-B..16 + B).contains(&x)
+                    && (-B..16 + B).contains(&y)
+                    && (-B..16 + B).contains(&z)
+                {
+                    let l = scratch.padded.light[pi(x, y, z)];
+                    sky = sky.max(l >> 4);
+                    block = block.max(l & 15);
+                }
+            }
+            let at = pi(c[0], c[1], c[2]);
+            let l = scratch.padded.light[at];
+            scratch.padded.light[at] = (l >> 4).max(sky) << 4 | (l & 15).max(block);
+        }
         let pad = &scratch.padded;
         out.visibility = visibility_reusing(pad, &self.tables.info, &mut scratch.visibility);
-        let base_y = center.min_y() + sy * 16;
         let mut tints = Tints::new(
             region,
             self.biomes,
@@ -1133,7 +1164,12 @@ impl Mesher<'_> {
                         out.lights
                             .push(([center.x * 16 + x, base_y + y, center.z * 16 + z], id));
                     }
+                    // A neighbour that is hidden is not in the way: its faces show.
+                    let by_hidden = hidden_cells
+                        .iter()
+                        .any(|c| (c[0] - x).abs() + (c[1] - y).abs() + (c[2] - z).abs() == 1);
                     if state.solid
+                        && !by_hidden
                         && Direction::ALL.iter().all(|d| {
                             let [dx, dy, dz] = d.normal();
                             info[pad.blocks[pi(x + dx, y + dy, z + dz)] as usize].solid
@@ -1181,16 +1217,19 @@ impl Mesher<'_> {
                         let other = &info[neighbor as usize];
                         // LeavesBlock.skipRendering with opaque leaves.
                         let opaque_leaves = !self.cutout_leaves && state.leaves && other.leaves;
-                        visible[d as usize] = !opaque_leaves
-                            && self
-                                .visibility
-                                .should_render_face(
-                                    BlockStateId(id),
-                                    BlockStateId(neighbor),
-                                    d,
-                                    true,
-                                )
-                                .unwrap_or(true);
+                        let into_hidden =
+                            by_hidden && hidden_cells.contains(&[x + dx, y + dy, z + dz]);
+                        visible[d as usize] = into_hidden
+                            || !opaque_leaves
+                                && self
+                                    .visibility
+                                    .should_render_face(
+                                        BlockStateId(id),
+                                        BlockStateId(neighbor),
+                                        d,
+                                        true,
+                                    )
+                                    .unwrap_or(true);
                     }
                     for model in &models {
                         for face in &model.faces {

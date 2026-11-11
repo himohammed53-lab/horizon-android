@@ -33,6 +33,16 @@ pub fn show(pos: [i32; 3]) -> bool {
     hidden.len() != before
 }
 
+/// Whether any block is hidden at all (a relaxed read: the mesher's loops ask before the lock).
+pub fn any() -> bool {
+    COUNT.load(Ordering::Relaxed) != 0
+}
+
+/// The hidden positions, for the mesher to prepare a section with.
+pub fn positions() -> Vec<[i32; 3]> {
+    list().clone()
+}
+
 /// Whether the mesher must skip the block at `pos`.
 pub fn is_hidden(pos: [i32; 3]) -> bool {
     COUNT.load(Ordering::Relaxed) != 0 && list().contains(&pos)
