@@ -23,6 +23,16 @@ use horizon_world::registry::BlockStateId;
 use std::{collections::HashMap, time::Instant};
 
 pub(super) const ID: &str = "a_good_place";
+/// Size of the block that fills the cell under the animation (a hair under 1 so it never fights the final pose).
+const BACKING_SCALE: f32 = 0.995;
+/// Brightness of the animated block against the chunk mesh's (no ambient occlusion on it).
+const DIM: u32 = 230;
+
+/// `color` (ABGR, alpha kept) with its red, green and blue scaled by `DIM / 255`.
+fn dim(color: u32) -> u32 {
+    let channel = |shift: u32| ((color >> shift & 255) * DIM / 255) << shift;
+    color & 0xFF00_0000 | channel(16) | channel(8) | channel(0)
+}
 pub(super) const VERSION: &str = "1.2.7";
 
 /// `duration`: the animation's length in ticks.
@@ -397,14 +407,22 @@ impl Game<'_> {
             let time = (age / (DURATION + 1.0)).min(1.0);
             let at =
                 glam::DVec3::new(f64::from(pos[0]), f64::from(pos[1]), f64::from(pos[2])) - camera;
+            let block = horizon_core::position::BlockPos::new(pos[0], pos[1], pos[2]);
+            let start = out.len();
+            // The cell is empty in the chunk mesh while the block moves, and its neighbours don't
+            // draw their faces towards it: a block just inside the cell fills the hole (no black).
+            let backing = Mat4::from_translation(at.as_vec3())
+                * Mat4::from_translation(Vec3::splat(0.5))
+                * Mat4::from_scale(Vec3::splat(BACKING_SCALE))
+                * Mat4::from_translation(Vec3::splat(-0.5));
+            self.moving_block_vertices_with(a.state, block, backing, out);
             let matrix = Mat4::from_translation(at.as_vec3())
                 * pose(a.y_angle, a.slide_start, a.rotation_start, a.offset, time);
-            self.moving_block_vertices_with(
-                a.state,
-                horizon_core::position::BlockPos::new(pos[0], pos[1], pos[2]),
-                matrix,
-                out,
-            );
+            self.moving_block_vertices_with(a.state, block, matrix, out);
+            // The chunk mesh darkens corners (ambient occlusion); this has none, so it is a little dimmer.
+            for v in &mut out[start..] {
+                v.color = dim(v.color);
+            }
         }
         // A block placed during this call's drawing would be lost: merge what arrived.
         shown.extend(std::mem::take(&mut self.placement_animations.shown));
@@ -424,6 +442,13 @@ mod tests {
 
     fn close(a: Vec3, b: Vec3) -> bool {
         (a - b).length() < 1e-4
+    }
+
+    #[test]
+    fn dimming_keeps_alpha_and_scales_each_channel() {
+        assert_eq!(dim(0xFF00_0000), 0xFF00_0000);
+        assert_eq!(dim(0xFFFF_FFFF), 0xFFE6_E6E6);
+        assert_eq!(dim(0x80FF_8000), 0x80E6_7300);
     }
 
     #[test]
