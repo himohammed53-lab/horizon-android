@@ -369,9 +369,12 @@ impl Chooser {
             0.0,
             (self.choices.len() as f32 * 84.0 - (bottom - top)).max(0.0),
         );
+        // Rows that are only partly in view are drawn and clipped to the list, so the last choice
+        // shows up before it is scrolled fully in, and the first one doesn't vanish when scrolling starts.
+        let clip_from = ui.mark();
         for (i, (label, detail, action, selected)) in self.choices.iter().enumerate() {
             let y = top + i as f32 * 84.0 - self.scroll;
-            if y < top || y + 76.0 > bottom {
+            if y + 76.0 <= top || y >= bottom {
                 continue;
             }
             ui.rounded(34.0, y + 10.0, 22.0, 22.0, 11.0, color::TEXT);
@@ -382,8 +385,14 @@ impl Chooser {
             ui.text(Face::Medium, 19.0, 80.0, y + 8.0, color::TEXT, label);
             ui.text(Face::Regular, 14.0, 80.0, y + 40.0, color::MUTED, detail);
             ui.rounded(32.0, y + 75.0, w - 64.0, 1.0, 0.0, color::BORDER);
-            targets.push(([32.0, y, w - 64.0, 76.0], *action));
+            // Only the part inside the list takes a tap (the rest is under the title or the Cancel button).
+            let (hit_top, hit_bottom) = (y.max(top), (y + 76.0).min(bottom));
+            targets.push((
+                [32.0, hit_top, w - 64.0, (hit_bottom - hit_top).max(0.0)],
+                *action,
+            ));
         }
+        ui.clip_since(clip_from, 0.0, top, w, bottom);
         button(
             ui,
             targets,
