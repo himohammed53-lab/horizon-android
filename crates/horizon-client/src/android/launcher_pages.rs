@@ -437,9 +437,6 @@ pub(super) fn button(
     button_as(ui, targets, rect, label, action, accent, None);
 }
 
-/// The rows of the Settings page; its scroll range is computed from this, so adding a row means bumping it
-/// (a debug assertion checks it).
-const SETTINGS_ROWS: usize = 20;
 /// The version shown at the bottom right. Change it with each release.
 const APP_VERSION: &str = "0.1.2";
 
@@ -1772,14 +1769,14 @@ impl Launcher {
             let row_height = if compact { 82.0 } else { 66.0 };
             self.catalog.scroll = self.catalog.scroll.clamp(
                 0.0,
-                (SETTINGS_ROWS as f32 * row_height - ((h - bot) - (195.0 + off))).max(0.0),
+                (19.0 * row_height - ((h - bot) - (195.0 + off))).max(0.0),
             );
             self.list_view = Some([
                 195.0 + off,
                 (h - bot),
-                (SETTINGS_ROWS as f32 * row_height - ((h - bot) - (195.0 + off))).max(0.0),
+                (18.0 * row_height - ((h - bot) - (195.0 + off))).max(0.0),
             ]);
-            let settings_rows = [
+            for (i, (title, value, action)) in [
                 ("Rendering", c.renderer.label().to_owned(), Action::Renderer),
                 (
                     "Client resolution",
@@ -1899,9 +1896,10 @@ impl Launcher {
                     },
                     Action::Field("server"),
                 ),
-            ];
-            debug_assert_eq!(settings_rows.len(), SETTINGS_ROWS);
-            for (i, (title, value, action)) in settings_rows.into_iter().enumerate() {
+            ]
+            .into_iter()
+            .enumerate()
+            {
                 let y = 195.0 + off + i as f32 * row_height - self.catalog.scroll;
                 self.list_targets.push((
                     [
