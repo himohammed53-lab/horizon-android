@@ -55,6 +55,8 @@ mod agent;
 mod agent_settings;
 mod allays;
 mod android_bundled;
+#[allow(dead_code)]
+mod placement_animation;
 #[cfg(target_os = "android")]
 #[allow(dead_code)]
 #[path = "android/sunset.rs"]
@@ -2518,6 +2520,8 @@ struct Game<'a> {
     falling: Vec<FallingBlock>,
     /// Blocks the server shows for a moment (`ClientboundAddTransientBlockPacket`).
     transient_blocks: transient_blocks::TransientBlocks,
+    /// Blocks the player has just placed, popping in (`placement_animation.rs`).
+    placement_animations: placement_animation::PlacementAnimations,
     paintings: Vec<horizon_client::entities::Painting>,
     painting_variants: paintings::PaintingVariants,
     item_frames: Vec<horizon_client::entities::ItemFrame>,
@@ -10719,6 +10723,7 @@ impl Game<'_> {
         self.moving_piston_geometry(camera, alpha, &mut out);
         // LevelRenderer.submitTransientBlocks.
         self.transient_block_geometry(camera, &mut out);
+        self.placement_animation_geometry(camera, &mut out);
         self.mark_entity(out.len(), "minecraft:tnt");
         self.tnt_geometry(camera, alpha, &mut out);
         self.mark_entity(out.len(), "minecraft:painting");
@@ -11819,6 +11824,7 @@ impl Game<'_> {
         self.tick_chunks.clear();
         self.falling.clear();
         self.transient_blocks.clear();
+        self.clear_placement_animations();
         self.tnts.clear();
         self.mobs.clear();
         self.creatures.projectiles.clear();
@@ -12084,6 +12090,7 @@ impl Game<'_> {
         self.creatures.projectiles.clear();
         self.falling.clear();
         self.transient_blocks.clear();
+        self.clear_placement_animations();
         self.tnts.clear();
         self.boats.clear();
         self.carts.clear();
@@ -18226,6 +18233,7 @@ impl<'a> Game<'a> {
             level_events: Vec::new(),
             falling: Vec::new(),
             transient_blocks: Default::default(),
+            placement_animations: Default::default(),
             paintings: Vec::new(),
             painting_variants: prepared.painting_variants,
             item_frames: Vec::new(),

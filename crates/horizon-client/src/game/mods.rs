@@ -523,6 +523,14 @@ impl Game<'_> {
                 .icons
                 .insert(super::gravestones::ID.to_owned(), icon);
         }
+        // A Good Place's icon (the mod's own, by MehVahdJukaar and Enjarai, MIT).
+        #[cfg(target_os = "android")]
+        if let Some(icon) = decode_icon(include_bytes!("android_bundled/a_good_place/icon.png")) {
+            self.settings
+                .mods
+                .icons
+                .insert(super::placement_animation::ID.to_owned(), icon);
+        }
         // The bundled Zoom's icon travels inside the app.
         #[cfg(target_os = "android")]
         if let Some(icon) = decode_icon(include_bytes!("android_bundled/zoom/icon.png")) {

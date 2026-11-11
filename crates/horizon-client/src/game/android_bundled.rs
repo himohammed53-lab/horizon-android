@@ -64,6 +64,8 @@ pub(super) fn native_mods(game: &mut Game<'_>, mods: &mut Vec<NativeMod>) {
     let _ = (&game, &mods);
     super::gravestones::list(&mut *mods);
     #[cfg(target_os = "android")]
+    super::placement_animation::list(&mut *mods);
+    #[cfg(target_os = "android")]
     {
         zoom_list::run(&mut *mods);
     }

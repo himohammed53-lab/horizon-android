@@ -129,6 +129,22 @@ impl Game<'_> {
         at: glam::DVec3,
         out: &mut Vec<Vertex>,
     ) {
+        self.moving_block_vertices_with(
+            state,
+            seed,
+            glam::Mat4::from_translation(at.as_vec3()),
+            out,
+        );
+    }
+    /// [`Self::moving_block_vertices`] with the whole transform `matrix` (camera-relative) in
+    /// place of a position: the block's model, in 0..1 block coordinates, goes through it.
+    pub(super) fn moving_block_vertices_with(
+        &self,
+        state: BlockStateId,
+        seed: horizon_core::position::BlockPos,
+        matrix: glam::Mat4,
+        out: &mut Vec<Vertex>,
+    ) {
         let chunks = &self.world.chunks;
         let (cx, cz) = (seed.x >> 4, seed.z >> 4);
         let region: [[Option<&horizon_client::chunk::Chunk>; 3]; 3] = std::array::from_fn(|dz| {
@@ -157,7 +173,7 @@ impl Game<'_> {
         self.tinted_block_model_vertices(
             state,
             horizon_core::random::position_seed(seed),
-            glam::Mat4::from_translation(at.as_vec3()),
+            matrix,
             light,
             false,
             tint,

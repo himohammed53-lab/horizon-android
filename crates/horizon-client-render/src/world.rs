@@ -291,7 +291,6 @@ impl World {
         let Some(chunk) = self.chunks.get_mut(&(x >> 4, z >> 4)) else {
             return Err("write outside resident chunks".into());
         };
-        let (min_y, sections) = (chunk.min_y(), chunk.sections.len() as i32);
         if chunk.section_index(y).is_none() {
             return Err("write outside world height".into());
         }
@@ -311,40 +310,7 @@ impl World {
                 writes.push(((x, y, z), previous, state.0));
             }
             self.modified.insert((x >> 4, z >> 4));
-            // The mesher reads a 3x3x3 neighbourhood for AO, so a write marks
-            // the sections it can reach: this section, the one above/below
-            // only on a section face, and a neighbour column only on a chunk
-            // border (the diagonal only where both borders meet).
-            let sy = (y - min_y) >> 4;
-            let local_y = y & 15;
-            let mark = |dirty: &mut DirtySections, bx: i32, bz: i32| {
-                dirty.insert((bx >> 4, sy, bz >> 4));
-                if local_y == 0 && sy > 0 {
-                    dirty.insert((bx >> 4, sy - 1, bz >> 4));
-                }
-                if local_y == 15 && sy + 1 < sections {
-                    dirty.insert((bx >> 4, sy + 1, bz >> 4));
-                }
-            };
-            let (bx, bz) = (x & 15, z & 15);
-            mark(&mut self.dirty_sections, x, z);
-            if bx == 0 {
-                mark(&mut self.dirty_sections, x - 1, z);
-            } else if bx == 15 {
-                mark(&mut self.dirty_sections, x + 1, z);
-            }
-            if bz == 0 {
-                mark(&mut self.dirty_sections, x, z - 1);
-            } else if bz == 15 {
-                mark(&mut self.dirty_sections, x, z + 1);
-            }
-            if (bx == 0 || bx == 15) && (bz == 0 || bz == 15) {
-                mark(
-                    &mut self.dirty_sections,
-                    if bx == 0 { x - 1 } else { x + 1 },
-                    if bz == 0 { z - 1 } else { z + 1 },
-                );
-            }
+            self.mark_block_dirty(x, y, z);
             if self.chunks.get(&(x >> 4, z >> 4)).is_some_and(|c| c.lit) {
                 self.light_edits.push(((x, y, z), previous, state.0));
             } else {
@@ -356,6 +322,49 @@ impl World {
             }
         }
         Ok(())
+    }
+    /// Queues the sections a write at (`x`, `y`, `z`) would re-mesh, without changing a block.
+    /// The mesher reads a 3x3x3 neighbourhood for AO, so this marks the section, the one
+    /// above/below only on a section face, and a neighbour column only on a chunk border (the
+    /// diagonal only where both borders meet).
+    pub fn mark_block_dirty(&mut self, x: i32, y: i32, z: i32) {
+        let Some(chunk) = self.chunks.get(&(x >> 4, z >> 4)) else {
+            return;
+        };
+        let (min_y, sections) = (chunk.min_y(), chunk.sections.len() as i32);
+        if chunk.section_index(y).is_none() {
+            return;
+        }
+        let sy = (y - min_y) >> 4;
+        let local_y = y & 15;
+        let mark = |dirty: &mut DirtySections, bx: i32, bz: i32| {
+            dirty.insert((bx >> 4, sy, bz >> 4));
+            if local_y == 0 && sy > 0 {
+                dirty.insert((bx >> 4, sy - 1, bz >> 4));
+            }
+            if local_y == 15 && sy + 1 < sections {
+                dirty.insert((bx >> 4, sy + 1, bz >> 4));
+            }
+        };
+        let (bx, bz) = (x & 15, z & 15);
+        mark(&mut self.dirty_sections, x, z);
+        if bx == 0 {
+            mark(&mut self.dirty_sections, x - 1, z);
+        } else if bx == 15 {
+            mark(&mut self.dirty_sections, x + 1, z);
+        }
+        if bz == 0 {
+            mark(&mut self.dirty_sections, x, z - 1);
+        } else if bz == 15 {
+            mark(&mut self.dirty_sections, x, z + 1);
+        }
+        if (bx == 0 || bx == 15) && (bz == 0 || bz == 15) {
+            mark(
+                &mut self.dirty_sections,
+                if bx == 0 { x - 1 } else { x + 1 },
+                if bz == 0 { z - 1 } else { z + 1 },
+            );
+        }
     }
     /// `getHeight(Heightmap.Types.WORLD_SURFACE, x, z)`: one above the highest
     /// block that isn't `air`, or the column's minimum Y (also where the chunk

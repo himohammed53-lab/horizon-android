@@ -88,8 +88,8 @@ const KEYS: [(&str, KeyCode); 28] = [
 const MENU_BUTTON: f32 = 54.0;
 /// Visible gap between them; touch boxes still meet, so no press falls in the gap.
 const MENU_GAP: f32 = 4.0;
-/// Touch height of that row: a little taller than the 20-unit drawing.
-const MENU_HIT_HEIGHT: f32 = 26.0;
+/// Touch height of that row: twice the 20-unit drawing, about the size of a finger.
+const MENU_HIT_HEIGHT: f32 = 40.0;
 
 fn mouse_button_rects(w: f32, h: f32) -> [([f32; 4], bool); 2] {
     [

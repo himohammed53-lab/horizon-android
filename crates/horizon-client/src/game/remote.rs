@@ -7265,6 +7265,8 @@ impl Game<'_> {
                 }
                 if let Some(placed) = &placed {
                     self.predict_place(placed, seq);
+                    // A Good Place: the block pops in (a mod that is off does nothing).
+                    self.start_placement_animation([placed.0.x, placed.0.y, placed.0.z], hand);
                     self.with_hand(hand, Game::consume_held);
                 } else if let Some(r) = self.remote.as_mut() {
                     // BlockItem.place plays its sound only once the block is set: the

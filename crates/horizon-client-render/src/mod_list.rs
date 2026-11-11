@@ -11,7 +11,7 @@ use std::{
 
 pub const FILE: &str = "horizon-mods.txt";
 /// Fixed native modules compiled into Android APKs, all opt-in.
-pub const ANDROID_BUNDLED: [(&str, &str, &str); 2] = [
+pub const ANDROID_BUNDLED: [(&str, &str, &str); 3] = [
     (
         "zoom",
         "Zoom",
@@ -21,6 +21,11 @@ pub const ANDROID_BUNDLED: [(&str, &str, &str); 2] = [
         "gravestones_logic",
         "Gravestones",
         "Your items and experience wait in a grave where you died",
+    ),
+    (
+        "a_good_place",
+        "A Good Place",
+        "Blocks you place pop in with a small animation",
     ),
 ];
 /// Bundled modules that are on until switched off, as they were before they had a row here.

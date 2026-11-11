@@ -90,6 +90,9 @@ Gravestones is ported from [Gravestones 1.4.2](https://github.com/PneumonoIsNotA
 by Pneumono, MIT: the game logic in `crates/horizon-client/src/game/gravestones.rs`, and its blocks,
 models, textures and names unchanged in `crates/horizon-mod-sdk/examples/gravestones` (with the
 mod's LICENSE and CREDITS.md).
+A Good Place 1.2.7 (placement animation) by MehVahdJukaar and Enjarai, MIT, is re-implemented in
+`crates/horizon-client/src/game/placement_animation.rs` from [enjarai/a-good-place](https://github.com/enjarai/a-good-place),
+with its picture. The mod declares MIT (`gradle.properties`, Modrinth page) but ships no LICENSE file.
 SmartF3 is adapted from [d3grando/smartf3](https://github.com/d3grando/smartf3),
 copyright 2026 d3grando, MIT. Exact revisions and adaptation notes are recorded in
 `crates/horizon-client/src/game/android_bundled/PROVENANCE.json`; each bundled

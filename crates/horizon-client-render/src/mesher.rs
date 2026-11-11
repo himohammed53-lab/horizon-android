@@ -4,6 +4,7 @@
 //! cardinal shading, tint sources, block offsets; see `lighting`). Fluids
 //! follow `FluidRenderer` (see `fluid`).
 mod fluid;
+pub mod hidden;
 mod lighting;
 mod sides;
 use crate::{
@@ -1149,6 +1150,10 @@ impl Mesher<'_> {
                         continue;
                     }
                     let world = BlockPos::new(center.x * 16 + x, base_y + y, center.z * 16 + z);
+                    // A block the client is drawing itself for a moment (a placement animation).
+                    if hidden::is_hidden([world.x, world.y, world.z]) {
+                        continue;
+                    }
                     if catalog
                         .models_at(BlockStateId(id), world, &mut models)
                         .is_err()

@@ -5,5 +5,12 @@
     "repository": "https://github.com/horizon-rust/horizon-mods",
     "license": "MIT",
     "changes": "Static Android adapter; helper visibility/names adapted; reset profile state; zoom up to 100x with zoom in/out keys."
+  },
+  {
+    "id": "a_good_place",
+    "commit": "0567e59",
+    "repository": "https://github.com/enjarai/a-good-place",
+    "license": "MIT",
+    "changes": "Placement animation re-implemented in Rust from the mod's default animation values (duration, scale, translation, rotation curves, direction adjustment); icon.png is the mod picture (converted GIF to PNG). Block-entity blocks and resource-pack animation files are not supported."
   }
 ]
