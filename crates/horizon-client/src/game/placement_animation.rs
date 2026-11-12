@@ -24,7 +24,7 @@ use std::{collections::HashMap, time::Instant};
 
 pub(super) const ID: &str = "a_good_place";
 /// Brightness of the animated block against the chunk mesh's (no ambient occlusion on it).
-const DIM: u32 = 230;
+const DIM: u32 = 215;
 
 /// `color` (ABGR, alpha kept) with its red, green and blue scaled by `DIM / 255`.
 fn dim(color: u32) -> u32 {
@@ -483,8 +483,8 @@ mod tests {
     #[test]
     fn dimming_keeps_alpha_and_scales_each_channel() {
         assert_eq!(dim(0xFF00_0000), 0xFF00_0000);
-        assert_eq!(dim(0xFFFF_FFFF), 0xFFE6_E6E6);
-        assert_eq!(dim(0x80FF_8000), 0x80E6_7300);
+        assert_eq!(dim(0xFFFF_FFFF), 0xFFD7_D7D7);
+        assert_eq!(dim(0x80FF_8000), 0x80D7_6B00);
     }
 
     #[test]

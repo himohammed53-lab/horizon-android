@@ -1136,6 +1136,15 @@ impl Mesher<'_> {
             let l = scratch.padded.light[at];
             scratch.padded.light[at] = (l >> 4).max(sky) << 4 | (l & 15).max(block);
         }
+        // The cell is open for everything around it (faces, shade, light) while the block moves:
+        // the blocks themselves are put back for the block's own faces below.
+        let held_ids: Vec<([i32; 3], u32)> = hidden_cells
+            .iter()
+            .map(|c| (*c, scratch.padded.blocks[pi(c[0], c[1], c[2])]))
+            .collect();
+        for (c, _) in &held_ids {
+            scratch.padded.blocks[pi(c[0], c[1], c[2])] = 0;
+        }
         let pad = &scratch.padded;
         out.visibility = visibility_reusing(pad, &self.tables.info, &mut scratch.visibility);
         let mut tints = Tints::new(
@@ -1151,9 +1160,12 @@ impl Mesher<'_> {
         for y in 0..16 {
             for z in 0..16 {
                 for x in 0..16 {
-                    let id = pad.blocks[pi(x, y, z)];
+                    let mut id = pad.blocks[pi(x, y, z)];
                     if id == 0 {
-                        continue;
+                        match held_ids.iter().find(|(c, _)| *c == [x, y, z]) {
+                            Some((_, held)) => id = *held,
+                            None => continue,
+                        }
                     }
                     let state = &info[id as usize];
                     if state.block_entity {
@@ -1164,12 +1176,7 @@ impl Mesher<'_> {
                         out.lights
                             .push(([center.x * 16 + x, base_y + y, center.z * 16 + z], id));
                     }
-                    // A neighbour that is hidden is not in the way: its faces show.
-                    let by_hidden = hidden_cells
-                        .iter()
-                        .any(|c| (c[0] - x).abs() + (c[1] - y).abs() + (c[2] - z).abs() == 1);
                     if state.solid
-                        && !by_hidden
                         && Direction::ALL.iter().all(|d| {
                             let [dx, dy, dz] = d.normal();
                             info[pad.blocks[pi(x + dx, y + dy, z + dz)] as usize].solid
@@ -1218,19 +1225,16 @@ impl Mesher<'_> {
                         let other = &info[neighbor as usize];
                         // LeavesBlock.skipRendering with opaque leaves.
                         let opaque_leaves = !self.cutout_leaves && state.leaves && other.leaves;
-                        let into_hidden =
-                            by_hidden && hidden_cells.contains(&[x + dx, y + dy, z + dz]);
-                        visible[d as usize] = into_hidden
-                            || !opaque_leaves
-                                && self
-                                    .visibility
-                                    .should_render_face(
-                                        BlockStateId(id),
-                                        BlockStateId(neighbor),
-                                        d,
-                                        true,
-                                    )
-                                    .unwrap_or(true);
+                        visible[d as usize] = !opaque_leaves
+                            && self
+                                .visibility
+                                .should_render_face(
+                                    BlockStateId(id),
+                                    BlockStateId(neighbor),
+                                    d,
+                                    true,
+                                )
+                                .unwrap_or(true);
                     }
                     for model in &models {
                         for face in &model.faces {
