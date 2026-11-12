@@ -1186,10 +1186,11 @@ impl Mesher<'_> {
                         continue;
                     }
                     let world = BlockPos::new(center.x * 16 + x, base_y + y, center.z * 16 + z);
-                    // A block the client is drawing itself for a moment (a placement animation).
-                    if hidden::is_hidden([world.x, world.y, world.z]) {
-                        continue;
-                    }
+                    // A block the client is drawing itself for a moment (a placement animation):
+                    // its faces are made as usual, then taken out of the section for the client.
+                    let held = hidden_cells
+                        .contains(&[x, y, z])
+                        .then_some((out.solid.len(), out.translucent.len()));
                     if catalog
                         .models_at(BlockStateId(id), world, &mut models)
                         .is_err()
@@ -1247,6 +1248,29 @@ impl Mesher<'_> {
                                 state,
                             );
                         }
+                    }
+                    if let Some((solid_from, translucent_from)) = held {
+                        let to_block = |mut v: TerrainVertex| {
+                            v.pos = [
+                                v.pos[0] - x as f32,
+                                v.pos[1] - y as f32,
+                                v.pos[2] - z as f32,
+                            ];
+                            v
+                        };
+                        let solid = out.solid.split_off(solid_from).into_iter().map(to_block);
+                        let translucent = out
+                            .translucent
+                            .split_off(translucent_from)
+                            .into_iter()
+                            .map(to_block);
+                        hidden::put_faces(
+                            [world.x, world.y, world.z],
+                            hidden::Faces {
+                                solid: solid.collect(),
+                                translucent: translucent.collect(),
+                            },
+                        );
                     }
                 }
             }

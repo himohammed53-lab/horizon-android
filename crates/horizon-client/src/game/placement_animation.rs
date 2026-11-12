@@ -409,10 +409,17 @@ impl Game<'_> {
             let start = out.len();
             let matrix = Mat4::from_translation(at.as_vec3())
                 * pose(a.y_angle, a.slide_start, a.rotation_start, a.offset, time);
-            self.moving_block_vertices_with(a.state, block, matrix, out);
-            // The chunk mesh darkens corners (ambient occlusion); this has none, so it is a little dimmer.
-            for v in &mut out[start..] {
-                v.color = dim(v.color);
+            // The faces the chunk mesh made for this block (its light and shading, as the mod's
+            // `tesselateBlock` gives); until a mesh has been built since it was hidden, the
+            // block's model lit from its surroundings, a little dimmer for the missing occlusion.
+            if let Some(faces) = horizon_client::mesher::hidden::faces(*pos) {
+                self.mesh_faces_vertices(&faces, matrix, out);
+            }
+            if out.len() == start {
+                self.moving_block_vertices_with(a.state, block, matrix, out);
+                for v in &mut out[start..] {
+                    v.color = dim(v.color);
+                }
             }
         }
         // A block placed during this call's drawing would be lost: merge what arrived.
@@ -421,6 +428,44 @@ impl Game<'_> {
     }
 
     /// A world closed or another opened: nothing stays hidden.
+    /// Terrain faces (block-relative) moved by `matrix` into the entity pass: the sprite layer
+    /// becomes its atlas rectangle; colour and light are the mesh's own.
+    fn mesh_faces_vertices(
+        &self,
+        faces: &horizon_client::mesher::hidden::Faces,
+        matrix: Mat4,
+        out: &mut Vec<horizon_client::mesher::Vertex>,
+    ) {
+        for quad in faces
+            .solid
+            .iter()
+            .chain(&faces.translucent)
+            .collect::<Vec<_>>()
+            .chunks(4)
+        {
+            let layer = u32::from(quad[0].layer & !horizon_client::mesher::OPAQUE_LAYER);
+            let Some(s) = self
+                .pack
+                .layer_names
+                .get(&layer)
+                .and_then(|n| self.gui.atlas.sprites.get(n))
+            else {
+                continue;
+            };
+            for v in quad {
+                let uv = v.uv();
+                out.push(horizon_client::mesher::Vertex {
+                    pos: matrix.transform_point3(Vec3::from(v.pos)).to_array(),
+                    uv: [s.u0 + uv[0] * (s.u1 - s.u0), s.v0 + uv[1] * (s.v1 - s.v0)],
+                    layer: 0,
+                    color: v.color | 0xFF00_0000,
+                    light: u32::from(v.light),
+                    normal: [0; 4],
+                    glint_uv: [0.0, 0.0],
+                });
+            }
+        }
+    }
     pub(super) fn clear_placement_animations(&mut self) {
         self.placement_animations.shown.clear();
         horizon_client::mesher::hidden::clear();

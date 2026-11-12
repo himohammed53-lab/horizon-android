@@ -2,10 +2,41 @@
 //! just placed itself while it pops in (`game/placement_animation.rs`), so the section mesh
 //! must not draw it too. Shared by the mesh workers, so it is a process-wide list; it holds a
 //! handful of positions at most and is empty when the animation is off.
+use super::TerrainVertex;
 use std::sync::{
     Mutex,
     atomic::{AtomicUsize, Ordering},
 };
+
+/// What the mesher made of a hidden block: its faces as the terrain would draw them (smooth
+/// light and ambient occlusion included), positions relative to the block's corner. The client
+/// moves these during the animation, as the mod's `tesselateBlock` call does.
+#[derive(Clone, Default)]
+pub struct Faces {
+    pub solid: Vec<TerrainVertex>,
+    pub translucent: Vec<TerrainVertex>,
+}
+
+static FACES: Mutex<Vec<([i32; 3], Faces)>> = Mutex::new(Vec::new());
+
+fn faces_list() -> std::sync::MutexGuard<'static, Vec<([i32; 3], Faces)>> {
+    FACES.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Keeps the faces the mesher just made for the hidden block at `pos`.
+pub fn put_faces(pos: [i32; 3], faces: Faces) {
+    let mut list = faces_list();
+    list.retain(|(p, _)| *p != pos);
+    list.push((pos, faces));
+}
+
+/// The faces of the hidden block at `pos`, once a mesh has been built since it was hidden.
+pub fn faces(pos: [i32; 3]) -> Option<Faces> {
+    faces_list()
+        .iter()
+        .find(|(p, _)| *p == pos)
+        .map(|(_, f)| f.clone())
+}
 
 static HIDDEN: Mutex<Vec<[i32; 3]>> = Mutex::new(Vec::new());
 /// The list's length, so the mesher's hot loop skips the lock while nothing is hidden.
@@ -30,6 +61,7 @@ pub fn show(pos: [i32; 3]) -> bool {
     let before = hidden.len();
     hidden.retain(|p| *p != pos);
     COUNT.store(hidden.len(), Ordering::Relaxed);
+    faces_list().retain(|(p, _)| *p != pos);
     hidden.len() != before
 }
 
@@ -52,6 +84,7 @@ pub fn is_hidden(pos: [i32; 3]) -> bool {
 pub fn clear() -> Vec<[i32; 3]> {
     let mut hidden = list();
     COUNT.store(0, Ordering::Relaxed);
+    faces_list().clear();
     std::mem::take(&mut *hidden)
 }
 
