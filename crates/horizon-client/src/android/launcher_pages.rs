@@ -1369,9 +1369,6 @@ impl Launcher {
                     "gravestones_logic" => {
                         Some(&include_bytes!("../game/android_bundled/gravestones/icon.png")[..])
                     }
-                    "a_good_place" => {
-                        Some(&include_bytes!("../game/android_bundled/a_good_place/icon.png")[..])
-                    }
                     _ => None,
                 };
                 if let Some(bytes) = icon
